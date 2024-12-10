@@ -165,6 +165,40 @@ def distance_travelled(df,bodypart=str):
         #distance_values[i] = distance_values[i] / (pixel_per_cm*100) # umrechnung in meter
     return distance_values
 
+def convert_videostart_to_experiment_length(first_file=str, filename=None):
+
+    video_start_point = 0
+    if filename:
+
+        #Zeit immer an selber stelle
+        startzeit = first_file[2:4] #platzhalter Zahlen
+        endzeit = filename[2:4]
+
+        #testen ob stunden unterschiedlich sind
+        if int(startzeit[]) < int(endzeit[]):
+
+            #startzeit auf erstmal auf volle Stunde hochrechnen
+            video_start_point += 60-int(startzeit[6:7])
+            video_start_point += 60-int(startzeit[3:4])*60
+
+            #endzeit auf voll stunde runterrechnen
+            video_start_point += (int(endzeit[6:7]) + int(endzeit[3:4])) * 60
+
+            #stundendifferenz dazu 
+            video_start_point += (int(endzeit[0:1]) - int(startzeit[0:1])) * 3600
+
+        #falls stunde gleich ist
+        elif int(startzeit[]) == int(endzeit[]):
+
+            # minutendifferenz
+            if int(startzeit[]) < int(endzeit[]):
+                video_start_point += (int(endzeit[]) - int(startzeit[])) * 60
+                video_start_point += int(endzeit[]) 
+                video_start_point += 60 - int(startzeit[])
+
+
+
+
 # csv's einlesen und nach uhrzeit(name) sortieren
 path = "E:/Fabi_Setup/fileserver_transfer/top1/"
 file_list = glob.glob(os.path.join(path, '*.csv'))
@@ -245,12 +279,33 @@ maus2_distance_travelled = distance_travelled(df=bodypart_df, bodypart="centroid
 strecke_in_pixeln += np.nansum(maus1_distance_travelled)
 strecke_in_pixeln += np.nansum(maus2_distance_travelled)
 
-#maus in käfig über die Zeit
+"""
+maus in arena über die Zeit
+"""
+# # # erstmal experimentdauer berechnen # # #
+experiment_dauer_in_s = 0
+
 name_first_file = file_list[0]
 name_last_file = file_list[-1]
 
-print(name_first_file)
-print(name_last_file)
+#Zeit immer an selber stelle
+startzeit = name_first_file[2:4] #platzhalter Zahlen
+endzeit = name_last_file[2:4]
+
+#startzeit auf erstmal auf volle Stunde hochrechnen
+experiment_dauer_in_s += 60-int(startzeit[6:7])
+experiment_dauer_in_s += 60-int(startzeit[3:4])*60
+
+#endzeit auf voll stunde runterrechnen
+experiment_dauer_in_s += int(endzeit[6:7]) + int(endzeit[3:4]) * 60
+
+#stundendifferenz dazu 
+experiment_dauer_in_s += (int(endzeit[0:1]) - int(startzeit[0:1])) * 3600
+
+# # # für später in der loop # # #
+
+# array mit len(experimentdauer in s * fps) WICHTIG 
+
 
 """
 # dataframe erstellen und schneiden
