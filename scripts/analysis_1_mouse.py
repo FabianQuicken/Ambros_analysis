@@ -247,6 +247,7 @@ def analyze_one_module(path):
     fps = 30
     maus_in_modul_über_zeit = np.zeros(experiment_dauer_in_s * fps + len(df_last_file)) 
     maus_an_snicket_über_zeit = maus_in_modul_über_zeit.copy()
+    strecke_über_zeit = maus_in_modul_über_zeit.copy()
 
     maus_in_modul_in_frames = 0
     maus_am_snicket_in_frames = 0
@@ -264,7 +265,7 @@ def analyze_one_module(path):
         #dataframe kopieren & bodyparts of interest extrahieren
         empty_df = pd.DataFrame()
         bodypart_df = empty_df.copy()
-        bodyparts_to_extract = ["nose", "centroid", "nose", "centroid", "snicket"]
+        bodyparts_to_extract = ["nose", "centroid", "snicket"]
 
         
 
@@ -301,7 +302,7 @@ def analyze_one_module(path):
          #berechnen ob maus nah am snicket (faktor = 1 = 34.77 pixel) (wieder insgesamt und over time)
         distance_mouse_nose_snicket = distance_bodypart_object(df = bodypart_df, bodypart = "nose", object = "snicket")
 
-        mouse_is_investigating, factor = investigation_time(distance_values=distance_mouse_nose_snicket, factor=2)
+        mouse_is_investigating, factor = investigation_time(distance_values=distance_mouse_nose_snicket, factor=3)
 
 
         maus_am_snicket_in_frames += np.nansum(mouse_is_investigating)
@@ -311,21 +312,22 @@ def analyze_one_module(path):
 
 
         #zurückgelegte Strecke berechnen (in pixeln)
-        maus1_distance_travelled = distance_travelled(df=bodypart_df, bodypart="centroid")
-        maus2_distance_travelled = distance_travelled(df=bodypart_df, bodypart="centroid")
+        maus_distance_travelled = distance_travelled(df=bodypart_df, bodypart="centroid")
 
-        strecke_in_pixeln += np.nansum(maus1_distance_travelled)
-        strecke_in_pixeln += np.nansum(maus2_distance_travelled)
+        strecke_in_pixeln += np.nansum(maus_distance_travelled)
 
-
-
-    return maus_an_snicket_über_zeit, maus_in_modul_über_zeit, strecke_in_pixeln
+        for i in range(len(maus_distance_travelled)):
+            strecke_über_zeit[i+(time_position_in_frames-1)] = maus_distance_travelled[i]
 
 
 
-modul1_maus_an_snicket_über_zeit, modul1_maus_in_modul_über_zeit, modul1_strecke_in_pixeln = analyze_one_module(path="Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_1/2024_12_14/top1/")
+    return maus_an_snicket_über_zeit, maus_in_modul_über_zeit, strecke_über_zeit
 
-modul2_maus_an_snicket_über_zeit, modul2_maus_in_modul_über_zeit, modul2_strecke_in_pixeln = analyze_one_module(path="Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_1/2024_12_14/top2/")
+experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_2/2024_12_17/"
+
+modul1_maus_an_snicket_über_zeit, modul1_maus_in_modul_über_zeit, modul1_strecke_über_zeit = analyze_one_module(path=f"{experiment_day_path}top1/")
+
+modul2_maus_an_snicket_über_zeit, modul2_maus_in_modul_über_zeit, modul2_strecke_über_zeit = analyze_one_module(path=f"{experiment_day_path}top2/")
 
 cumsum_plot(data_list=[modul1_maus_an_snicket_über_zeit,modul2_maus_an_snicket_über_zeit],
             labels=["modul 1", "modul 2"],
@@ -333,7 +335,7 @@ cumsum_plot(data_list=[modul1_maus_an_snicket_über_zeit,modul2_maus_an_snicket_
             plotname="Maus an Snicket",
             x_label = "Experimentdauer in Frames",
             y_label= "Maus am Snicket in Frames",
-            save_as= "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_1/2024_12_14/maus_an_snicket.svg"
+            save_as= f"{experiment_day_path}maus_an_snicket.svg"
             )
 
 cumsum_plot(data_list=[modul1_maus_in_modul_über_zeit,modul2_maus_in_modul_über_zeit],
@@ -342,16 +344,16 @@ cumsum_plot(data_list=[modul1_maus_in_modul_über_zeit,modul2_maus_in_modul_übe
             plotname="Maus in Modul",
             x_label = "Experimentdauer in Frames",
             y_label= "Maus in Modul in Frames",
-            save_as= "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_1/2024_12_14/Maus in Modul.svg"
+            save_as= f"{experiment_day_path}maus_in_modul.svg"
             )
 
-cumsum_plot(data_list=[modul1_maus_in_modul_über_zeit,modul2_maus_in_modul_über_zeit],
+cumsum_plot(data_list=[modul1_strecke_über_zeit,modul2_strecke_über_zeit],
             labels=["modul 1", "modul 2"],
             colors=["blue", "red"],
-            plotname="Maus in Modul",
+            plotname="Zurückgelegte Strecke pro Modul",
             x_label = "Experimentdauer in Frames",
-            y_label= "Maus in Modul in Frames",
-            save_as= "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_1/2024_12_14/Maus in Modul.svg"
+            y_label= "Strecke in Pixeln",
+            save_as= f"{experiment_day_path}maus_strecke.svg"
             )
 
 
