@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np 
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import seaborn as sns
 
 
 def cumsum_plot(data_list=list, labels=list, colors=list, plotname=str, x_label=str, y_label=str, save_as=str):
@@ -42,6 +43,50 @@ def cumsum_plot(data_list=list, labels=list, colors=list, plotname=str, x_label=
     plt.legend()
     plt.savefig(save_as, format='svg')
     plt.show()
+
+def heatmap_plot(x_values = np.array, y_values = np.array, plotname = str, save_as = str, num_bins = 35, cmap = 'hot', plot_time_frame_hours = (None, None)):
+    """
+    This function plots a heatmap of x and y coordinates, e.g. of the snout. Pass the coordinates of a complete experiment, and they get filtered for all
+    values that are not "0". Plotname and savepath need to be provided. Binsize is 50 per default. Colormap is "hot" per default.
+    """
+
+    if plot_time_frame_hours[1]:
+        plot_time_frame_frames = (round(plot_time_frame_hours[0]*108000), round(plot_time_frame_hours[1]*108000))
+        x_values = x_values[plot_time_frame_frames[0]:plot_time_frame_frames[1]]
+        y_values = y_values[plot_time_frame_frames[0]:plot_time_frame_frames[1]]
+
+    #Filter out (x, y) pairs where either is 0
+    mask = (x_values != 0) & (y_values != 0)
+    heatmap_x = x_values[mask]
+    heatmap_y = y_values[mask]
+
+    # adjust the heatmap size to the original data, since x-axis of the video is larger than y-axis
+
+    # get max x value and max y value to scale the heatmap
+    x_max = max(heatmap_x)
+    y_max = min(heatmap_y)
+
+    y_max = round(y_max *-1)
+
+    # calculate number of y-bins based on ratio between x and y axis
+    y_bins = round((y_max / x_max) * num_bins)
+    bins = (num_bins, y_bins)
+
+
+    # create a 2D histogram
+    heatmap, xedges, yedges = np.histogram2d(heatmap_x, heatmap_y, bins=bins)
+
+    plt.figure(figsize=(8,6))
+    #sns.heatmap(heatmap.T, cmap=cmap, square=True, cbar=True, xticklabels=True, yticklabels=True)
+    plt.imshow(heatmap.T, origin='lower', cmap=cmap,
+           extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
+           aspect=1)  # Set aspect ratio 
+
+    plt.colorbar(label='Frames')
+    plt.title(plotname)
+    plt.savefig(save_as, format='svg')
+    plt.show()
+
 
 def analyze_one_module(path):
 
@@ -253,6 +298,9 @@ def analyze_one_module(path):
     maus_am_snicket_in_frames = 0
     strecke_in_pixeln = 0
 
+    nose_x_values_over_time = maus_in_modul_über_zeit.copy()
+    nose_y_values_over_time = maus_in_modul_über_zeit.copy()
+
 
     for file in tqdm(file_list):
         
@@ -296,6 +344,7 @@ def analyze_one_module(path):
         for i in range(len(mouse_present_arr)):
             maus_in_modul_über_zeit[i+(time_position_in_frames-1)] = mouse_present_arr[i]
 
+
     
 
 
@@ -320,15 +369,27 @@ def analyze_one_module(path):
             strecke_über_zeit[i+(time_position_in_frames-1)] = maus_distance_travelled[i]
 
 
+        # Koordinaten für die Heatmap extrahieren und speichern:
+        for i in range(len(bodypart_df["nose_x"])):
+            nose_x_values_over_time[i+(time_position_in_frames-1)] = bodypart_df["nose_x"].iloc[i]
+            nose_y_values_over_time[i+(time_position_in_frames-1)] = bodypart_df["nose_y"].iloc[i]
 
-    return maus_an_snicket_über_zeit, maus_in_modul_über_zeit, strecke_über_zeit
 
-experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_2/2024_12_17/"
 
-modul1_maus_an_snicket_über_zeit, modul1_maus_in_modul_über_zeit, modul1_strecke_über_zeit = analyze_one_module(path=f"{experiment_day_path}top1/")
 
-modul2_maus_an_snicket_über_zeit, modul2_maus_in_modul_über_zeit, modul2_strecke_über_zeit = analyze_one_module(path=f"{experiment_day_path}top2/")
+    return maus_an_snicket_über_zeit, maus_in_modul_über_zeit, strecke_über_zeit, (nose_x_values_over_time, nose_y_values_over_time)
 
+
+
+
+experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_10/2025_02_13/"
+
+modul1_maus_an_snicket_über_zeit, modul1_maus_in_modul_über_zeit, modul1_strecke_über_zeit, modul1_nose_coords = analyze_one_module(path=f"{experiment_day_path}top1/")
+
+modul2_maus_an_snicket_über_zeit, modul2_maus_in_modul_über_zeit, modul2_strecke_über_zeit, modul2_nose_coords = analyze_one_module(path=f"{experiment_day_path}top2/")
+
+
+"""
 cumsum_plot(data_list=[modul1_maus_an_snicket_über_zeit,modul2_maus_an_snicket_über_zeit],
             labels=["modul 1", "modul 2"],
             colors=["blue", "red"],
@@ -356,33 +417,7 @@ cumsum_plot(data_list=[modul1_strecke_über_zeit,modul2_strecke_über_zeit],
             save_as= f"{experiment_day_path}maus_strecke.svg"
             )
 
-
 """
-# Kumulative Summe berechnen
-cumulative_sum1 = np.nancumsum(modul1_maus_an_snicket_über_zeit)
-cumulative_sum2 = np.nancumsum(modul2_maus_an_snicket_über_zeit)
 
-# Zeitachse erzeugen, basierend auf der Länge des längeren Arrays
-max_length = max(len(modul1_maus_an_snicket_über_zeit), len(modul2_maus_an_snicket_über_zeit))
-time = np.arange(max_length)
-
-# Arrays auf gleiche Länge bringen (auffüllen mit dem letzten Wert)
-if len(cumulative_sum1) < max_length:
-    cumulative_sum1 = np.pad(cumulative_sum1, (0, max_length - len(cumulative_sum1)), 'edge')
-if len(cumulative_sum2) < max_length:
-    cumulative_sum2 = np.pad(cumulative_sum2, (0, max_length - len(cumulative_sum2)), 'edge')
-
-
-# Plotten
-plt.figure(figsize=(10, 6))
-plt.plot(time, cumulative_sum1, label="Modul1", linewidth=2)
-plt.plot(time, cumulative_sum2, label="Modul2", linewidth=2, color='red')
-plt.title("Maus an Snicket (3cm Radius)")
-plt.xlabel("Zeit in frames")
-plt.ylabel("Kumulative Summe")
-plt.grid(True)
-plt.legend()
-#plt.savefig(f"C:/transfer/pu_analyse/maus_an_snicket.svg", format='svg')
-plt.show()
-
-"""
+heatmap_plot(x_values=modul1_nose_coords[0], y_values=modul1_nose_coords[1], plotname="Heatmap Modul 1", save_as=f"{experiment_day_path}heatmap_modul1.svg", num_bins=12, plot_time_frame_hours=(0,5))
+heatmap_plot(x_values=modul2_nose_coords[0], y_values=modul2_nose_coords[1], plotname="Heatmap Modul 2", save_as=f"{experiment_day_path}heatmap_modul2.svg", num_bins=12, plot_time_frame_hours=(0,5))
