@@ -40,7 +40,7 @@ def stitch_videos(video_files, output_file):
     print(f"Successfully created {output_file}")
 
 if __name__ == "__main__":
-    path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/code_test/video_stitch/"
+    path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/code_test/video_stitch/sideview/"
     video_list = glob.glob(os.path.join(path, '*.avi'))
     video_list.sort()
     

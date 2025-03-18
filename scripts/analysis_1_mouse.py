@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import seaborn as sns
+from df_columns import df_cols
 
 
 def cumsum_plot(data_list=list, labels=list, colors=list, plotname=str, x_label=str, y_label=str, save_as=str):
@@ -44,6 +45,9 @@ def cumsum_plot(data_list=list, labels=list, colors=list, plotname=str, x_label=
     plt.savefig(save_as, format='svg')
     plt.show()
 
+
+
+
 def heatmap_plot(x_values = np.array, y_values = np.array, plotname = str, save_as = str, num_bins = 35, cmap = 'hot', plot_time_frame_hours = (None, None)):
     """
     This function plots a heatmap of x and y coordinates, e.g. of the snout. Pass the coordinates of a complete experiment, and they get filtered for all
@@ -68,6 +72,8 @@ def heatmap_plot(x_values = np.array, y_values = np.array, plotname = str, save_
 
     y_max = round(y_max *-1)
 
+
+
     # calculate number of y-bins based on ratio between x and y axis
     y_bins = round((y_max / x_max) * num_bins)
     bins = (num_bins, y_bins)
@@ -78,10 +84,11 @@ def heatmap_plot(x_values = np.array, y_values = np.array, plotname = str, save_
 
     plt.figure(figsize=(8,6))
     #sns.heatmap(heatmap.T, cmap=cmap, square=True, cbar=True, xticklabels=True, yticklabels=True)
+    
     plt.imshow(heatmap.T, origin='lower', cmap=cmap,
            extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
            aspect=1)  # Set aspect ratio 
-
+    
     plt.colorbar(label='Frames')
     plt.title(plotname)
     plt.savefig(save_as, format='svg')
@@ -128,8 +135,16 @@ def analyze_one_module(path):
             distance = np.sqrt((x2-x1)**2 + (y2-y1)**2)
 
         return distance
+    
+    def fill_missing_values(array):
+        """
+        Replacing np.nans with a linear interpolation. Takes and returns an array.
+        """
+        nan_indices = np.isnan(array)
+        array[nan_indices] = np.interp(np.flatnonzero(nan_indices), np.flatnonzero(~nan_indices), array[~nan_indices])
+        return array
 
-    def distance_bodypart_object(df, bodypart=str, object=str):
+    def distance_bodypart_object(df, bodypart=str, object=str, filter_object = True):
         """
         Takes a Dataframe, a bodypart and an object as strings,
         to calculate the distance between both.
@@ -249,22 +264,6 @@ def analyze_one_module(path):
     file_list = glob.glob(os.path.join(path, '*.csv'))
     file_list.sort()
 
-    # format um das dataframe umzuschreiben
-    df_cols = ("nose_x", "nose_y", "nose_likelihood",
-                "leftear_x", "leftear_y", "leftear_likelihood",
-                "rightear_x", "rightear_y", "rightear_likelihood",
-                "spine1_x", "spine1_y", "spine1_likelihood",
-                "spine2_x", "spine2_y", "spine2_likelihood",
-                "centroid_x", "centroid_y", "centroid_likelihood",
-                "spine3_x", "spine3_y", "spine3_likelihood",
-                "spine4_x", "spine4_y", "spine4_likelihood",
-                "tail1_x", "tail1_y", "tail1_likelihood",
-                "tail2_x", "tail2_y", "tail2_likelihood",
-                "tail3_x", "tail3_y", "tail3_likelihood",
-                "snicket_x", "snicket_y", "snicket_likelihood",
-                "food1_x", "food1_y", "food1_likelihood",
-                "food2_x", "food2_y", "food2_likelihood",
-                "food3_x", "food3_y", "food3_likelihood")
     
     # # # erstmal experimentdauer berechnen # # #
     experiment_dauer_in_s = 0
@@ -285,26 +284,43 @@ def analyze_one_module(path):
     ende_in_s = time_to_seconds(endzeit)
 
     experiment_dauer_in_s = ende_in_s - start_in_s 
-   
+
+    # gesamte experimentdauer in frames
+    fps = 30
+    exp_duration_frames = np.zeros(experiment_dauer_in_s * fps + len(df_last_file)) 
+
 
     #variablen of interest einführen
-    # array mit len(experimentdauer in s * fps) WICHTIG 
-    fps = 30
-    maus_in_modul_über_zeit = np.zeros(experiment_dauer_in_s * fps + len(df_last_file)) 
-    maus_an_snicket_über_zeit = maus_in_modul_über_zeit.copy()
-    strecke_über_zeit = maus_in_modul_über_zeit.copy()
+    maus_in_modul_über_zeit = exp_duration_frames.copy()
+    maus_an_snicket_über_zeit = exp_duration_frames.copy()
+    strecke_über_zeit = exp_duration_frames.copy()
 
     maus_in_modul_in_frames = 0
     maus_am_snicket_in_frames = 0
     strecke_in_pixeln = 0
+    maus_an_food = 0
 
-    nose_x_values_over_time = maus_in_modul_über_zeit.copy()
-    nose_y_values_over_time = maus_in_modul_über_zeit.copy()
+    #visits in module
+    num_visits = 0
+
+    nose_x_values_over_time = exp_duration_frames.copy()
+    nose_y_values_over_time = exp_duration_frames.copy()
+
+    # leere food data preparen und mit nans füllen, damit später fehlende food predictions interpoliert werden können
+    food_x_values_over_time = exp_duration_frames.copy()
+    food_x_values_over_time[food_x_values_over_time == 0] = np.nan
+    food_y_values_over_time = exp_duration_frames.copy()
+    food_y_values_over_time[food_y_values_over_time == 0] = np.nan
 
 
     for file in tqdm(file_list):
         
         # dataframe erstellen und schneiden
+
+        """
+        df-cols richtig wählen!!!!
+        
+        """
         df = pd.read_csv(file, names=df_cols)
         data = df.copy()
         data = data.iloc[3:]
@@ -313,9 +329,9 @@ def analyze_one_module(path):
         #dataframe kopieren & bodyparts of interest extrahieren
         empty_df = pd.DataFrame()
         bodypart_df = empty_df.copy()
-        bodyparts_to_extract = ["nose", "centroid", "snicket"]
+        bodyparts_to_extract = ["nose", "centroid", "food1"]
 
-        
+        #print(data['nose_x'])
 
         for bodypart in bodyparts_to_extract:
             bodypart_df[bodypart+"_x"] = data[bodypart+"_x"]
@@ -327,13 +343,20 @@ def analyze_one_module(path):
         mouse_present_calculation_df = bodypart_df.copy()
 
         mouse_snout_likelihood_arr = mouse_present_calculation_df["nose_likelihood"]
-    
         
         mouse_present_arr = np.zeros(len(mouse_snout_likelihood_arr))
 
+        # if snout is detected with high likelihood, a mouse was present in the module
+        if max(mouse_snout_likelihood_arr) > 0.95:
+            num_visits +=1
+    
+
         for i in range(len(mouse_present_arr)):
+            # check um anzahl der modul visits zu zählen
+            
             if mouse_snout_likelihood_arr.iloc[i] > 0.3:
                 mouse_present_arr[i] = 1
+
 
         #insgesamt
         maus_in_modul_in_frames += np.nansum(mouse_present_arr) 
@@ -346,7 +369,7 @@ def analyze_one_module(path):
 
 
     
-
+        """
 
          #berechnen ob maus nah am snicket (faktor = 1 = 34.77 pixel) (wieder insgesamt und over time)
         distance_mouse_nose_snicket = distance_bodypart_object(df = bodypart_df, bodypart = "nose", object = "snicket")
@@ -359,6 +382,7 @@ def analyze_one_module(path):
         for i in range(len(mouse_is_investigating)):
             maus_an_snicket_über_zeit[i+(time_position_in_frames-1)] = mouse_is_investigating[i]
 
+        """
 
         #zurückgelegte Strecke berechnen (in pixeln)
         maus_distance_travelled = distance_travelled(df=bodypart_df, bodypart="centroid")
@@ -372,21 +396,83 @@ def analyze_one_module(path):
         # Koordinaten für die Heatmap extrahieren und speichern:
         for i in range(len(bodypart_df["nose_x"])):
             nose_x_values_over_time[i+(time_position_in_frames-1)] = bodypart_df["nose_x"].iloc[i]
+        
             nose_y_values_over_time[i+(time_position_in_frames-1)] = bodypart_df["nose_y"].iloc[i]
 
+        """
+        Maus am Food mit DLC auswerten:
+        - Schnauze in der Nähe der Food Koordinate?
+        - Wenn food von maus verdeckt, letzte Food Koordinate
+        - letzte food koordinate nur nehmen, wenn maus im käfig ist; ansonsten food = nicht detected
+        - als kontrolle die reine food detection plotten über die Zeit, auch interessant für ggf food bewegung
+        
+        """        
+        # Koordinaten für die Heatmap extrahieren und speichern:
+        food_likelihood_filtered_df = likelihood_filtering_nans(bodypart_df, likelihood_row_name='food1_likelihood',filter_val=0.7)
+        food_x = food_likelihood_filtered_df["food1_x"]
+        food_y = food_likelihood_filtered_df["food1_y"]
+
+        # vorhandene food koordinaten nutzen um zu interpolieren, wenn vorhanden
+        food_x = np.array(food_x)
+        food_y = np.array(food_y)
+        try:
+            food_x = fill_missing_values(food_x)
+            food_y = fill_missing_values(food_y)
+        except:
+            print("No food data found for interpolation.")
 
 
+        for i in range(len(food_likelihood_filtered_df["food1_x"])):
+            food_x_values_over_time[i+(time_position_in_frames-1)] = food_x[i]
+        
+            food_y_values_over_time[i+(time_position_in_frames-1)] = food_y[i]
+
+        # distanz zwischen nose und food berechnen um food interaction zu bestimmen
+        for i in range(len(food_x)-1):
+                distance = euklidean_distance(x1=bodypart_df["nose_x"].iloc[i],
+                                                        y1=bodypart_df["nose_y"].iloc[i],
+                                                        x2=food_x[i],
+                                                        y2=food_y[i])
+                # sollte etwa 1 cm entsprechen, später anpassen!!!!!
+                if distance <= 35:
+                    maus_an_food +=1
+                # !!!!!!!!!!!!!!!!
+
+
+    # food koordinaten interpolieren
+
+    #food_x_values_over_time = fill_missing_values(food_x_values_over_time)
+    #food_y_values_over_time = fill_missing_values(food_y_values_over_time)
+
+    # food koordinaten plotten zur kontrolle
+    plt.figure()
+    plt.plot(food_x_values_over_time)
+    plt.plot(food_y_values_over_time)
+    plt.show()
+
+    # food interaktion zählen
+    print("maus an food in %")
+    print(maus_an_food/len(exp_duration_frames)*100)
+
+
+    # das hier wäre die Strecke über die Zeit
+    print("normalisierte Strecke")
+    print(strecke_in_pixeln/sum(maus_in_modul_über_zeit))
+    print("visits")
+    print(num_visits)
 
     return maus_an_snicket_über_zeit, maus_in_modul_über_zeit, strecke_über_zeit, (nose_x_values_over_time, nose_y_values_over_time)
 
 
 
 
-experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_10/2025_02_13/"
+experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_7/2025_03_13/"
 
 modul1_maus_an_snicket_über_zeit, modul1_maus_in_modul_über_zeit, modul1_strecke_über_zeit, modul1_nose_coords = analyze_one_module(path=f"{experiment_day_path}top1/")
 
 modul2_maus_an_snicket_über_zeit, modul2_maus_in_modul_über_zeit, modul2_strecke_über_zeit, modul2_nose_coords = analyze_one_module(path=f"{experiment_day_path}top2/")
+
+
 
 
 """
@@ -398,6 +484,7 @@ cumsum_plot(data_list=[modul1_maus_an_snicket_über_zeit,modul2_maus_an_snicket_
             y_label= "Maus am Snicket in Frames",
             save_as= f"{experiment_day_path}maus_an_snicket.svg"
             )
+
 
 cumsum_plot(data_list=[modul1_maus_in_modul_über_zeit,modul2_maus_in_modul_über_zeit],
             labels=["modul 1", "modul 2"],
@@ -417,7 +504,10 @@ cumsum_plot(data_list=[modul1_strecke_über_zeit,modul2_strecke_über_zeit],
             save_as= f"{experiment_day_path}maus_strecke.svg"
             )
 
-"""
 
-heatmap_plot(x_values=modul1_nose_coords[0], y_values=modul1_nose_coords[1], plotname="Heatmap Modul 1", save_as=f"{experiment_day_path}heatmap_modul1.svg", num_bins=12, plot_time_frame_hours=(0,5))
-heatmap_plot(x_values=modul2_nose_coords[0], y_values=modul2_nose_coords[1], plotname="Heatmap Modul 2", save_as=f"{experiment_day_path}heatmap_modul2.svg", num_bins=12, plot_time_frame_hours=(0,5))
+
+heatmap_plot(x_values=modul1_nose_coords[0], y_values=modul1_nose_coords[1], plotname="Heatmap Modul 1", save_as=f"{experiment_day_path}heatmap_modul1.svg", num_bins=12)
+
+
+heatmap_plot(x_values=modul2_nose_coords[0], y_values=modul2_nose_coords[1], plotname="Heatmap Modul 2", save_as=f"{experiment_day_path}heatmap_modul2.svg", num_bins=12)
+"""
