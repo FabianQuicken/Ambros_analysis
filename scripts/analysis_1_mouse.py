@@ -95,6 +95,46 @@ def heatmap_plot(x_values = np.array, y_values = np.array, plotname = str, save_
     plt.show()
 
 
+def analyze_deg_file(file_path, behavior = str):
+
+    
+    """
+    
+    Nimmt eine .csv file von DeepEthogram und wertet ein angegebenes Behavior aus.
+    Returned einen array der die längen aller behavior bouts der datei enthält. [20, 50, 30, 23, ...]
+    
+    """
+
+    df = pd.read_csv(file_path)
+    # copy um ursprüngliche file nicht zu verändern
+    working_df = df.copy()
+    
+    try:
+        data = working_df[behavior]
+    except:
+        print("Behavior not found. Did you name it correctly?")
+        raise NameError
+
+    behavior_data = []
+    counter = 0
+    for i in range(len(data)):
+        
+        
+        # count bout length and append bout to behavior data, when ending
+        if data[i] == 1:
+            counter += 1
+
+        if data[i] == 1 and data[i+1] == 0:
+            counter += 1
+            behavior_data.append(counter)
+            counter = 0
+
+    return np.array(behavior_data), np.sum(data)/len(data)
+        
+        
+
+
+
 def analyze_one_module(path):
 
     def likelihood_filtering_nans(df, likelihood_row_name=str, filter_val=0.95):
@@ -464,9 +504,9 @@ def analyze_one_module(path):
     return maus_an_snicket_über_zeit, maus_in_modul_über_zeit, strecke_über_zeit, (nose_x_values_over_time, nose_y_values_over_time)
 
 
+"""
 
-
-experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_7/2025_03_13/"
+experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_75/2025_03_17/"
 
 modul1_maus_an_snicket_über_zeit, modul1_maus_in_modul_über_zeit, modul1_strecke_über_zeit, modul1_nose_coords = analyze_one_module(path=f"{experiment_day_path}top1/")
 
@@ -475,7 +515,7 @@ modul2_maus_an_snicket_über_zeit, modul2_maus_in_modul_über_zeit, modul2_strec
 
 
 
-"""
+
 cumsum_plot(data_list=[modul1_maus_an_snicket_über_zeit,modul2_maus_an_snicket_über_zeit],
             labels=["modul 1", "modul 2"],
             colors=["blue", "red"],
@@ -511,3 +551,15 @@ heatmap_plot(x_values=modul1_nose_coords[0], y_values=modul1_nose_coords[1], plo
 
 heatmap_plot(x_values=modul2_nose_coords[0], y_values=modul2_nose_coords[1], plotname="Heatmap Modul 2", save_as=f"{experiment_day_path}heatmap_modul2.svg", num_bins=12)
 """
+
+
+deg_file_path = "E:/Fabi_Setup/In_Soundchamber/behaviors_urine_validation_deepethogram/DATA/2025_03_10_mouse_7_habituation_side1_40357253_stitched/2025_03_10_mouse_7_habituation_side1_40357253_stitched_predictions.csv"
+
+deg_behaviors = ['rearing"', "drinking", "grooming"]
+
+for behavior in deg_behaviors:
+    bouts, sum = analyze_deg_file(deg_file_path, behavior)
+    print(bouts)
+    print(sum)
+
+
