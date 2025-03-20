@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import seaborn as sns
 from df_columns import df_cols
+from plots_for_nwg import cumsum_plot_nwg
 
 
 def cumsum_plot(data_list=list, labels=list, colors=list, plotname=str, x_label=str, y_label=str, save_as=str):
@@ -483,13 +484,13 @@ def analyze_one_module(path):
 
     #food_x_values_over_time = fill_missing_values(food_x_values_over_time)
     #food_y_values_over_time = fill_missing_values(food_y_values_over_time)
-
+    """
     # food koordinaten plotten zur kontrolle
     plt.figure()
     plt.plot(food_x_values_over_time)
     plt.plot(food_y_values_over_time)
     plt.show()
-
+    """
     # food interaktion zählen
     print("maus an food in %")
     print(maus_an_food/len(exp_duration_frames)*100)
@@ -552,7 +553,7 @@ heatmap_plot(x_values=modul1_nose_coords[0], y_values=modul1_nose_coords[1], plo
 heatmap_plot(x_values=modul2_nose_coords[0], y_values=modul2_nose_coords[1], plotname="Heatmap Modul 2", save_as=f"{experiment_day_path}heatmap_modul2.svg", num_bins=12)
 """
 
-
+"""
 deg_file_path = "E:/Fabi_Setup/In_Soundchamber/behaviors_urine_validation_deepethogram/DATA/2025_03_10_mouse_7_habituation_side1_40357253_stitched/2025_03_10_mouse_7_habituation_side1_40357253_stitched_predictions.csv"
 
 deg_behaviors = ['rearing"', "drinking", "grooming"]
@@ -562,4 +563,28 @@ for behavior in deg_behaviors:
     print(bouts)
     print(sum)
 
+"""
 
+
+
+# # # Göttingen Stuff # # #
+
+folder = "Z:/n2023_odor_related_behavior/other/Göttingen NWG 2025/poster_data/exp1/"
+
+mice = ["mouse7", "mouse75"]
+
+cumsum_data_modul1 = []
+cumsum_data_modul2 = []
+
+for mouse in mice:
+
+    modul1_maus_an_snicket_über_zeit, modul1_maus_in_modul_über_zeit, modul1_strecke_über_zeit, modul1_nose_coords = analyze_one_module(path=f"{folder}{mouse}/top1/")
+    modul2_maus_an_snicket_über_zeit, modul2_maus_in_modul_über_zeit, modul2_strecke_über_zeit, modul2_nose_coords = analyze_one_module(path=f"{folder}{mouse}/top2/")
+
+    cumsum_data_modul1.append(modul1_maus_in_modul_über_zeit)
+    cumsum_data_modul2.append(modul2_maus_in_modul_über_zeit)
+
+cumsum_data_modul1 = np.array(cumsum_data_modul1)
+cumsum_data_modul2 = np.array(cumsum_data_modul2)
+
+cumsum_plot_nwg(data_module1=cumsum_data_modul1, data_module2=cumsum_data_modul2, savename="")
