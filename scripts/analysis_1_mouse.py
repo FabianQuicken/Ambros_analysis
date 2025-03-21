@@ -569,7 +569,7 @@ for behavior in deg_behaviors:
 
 # # # Göttingen Stuff # # #
 
-folder = "Z:/n2023_odor_related_behavior/other/Göttingen NWG 2025/poster_data/exp1/"
+folder = "Z:/n2023_odor_related_behavior/other/Göttingen NWG 2025/poster_data/hab2/"
 
 mice = ["mouse7", "mouse75"]
 
@@ -584,7 +584,19 @@ for mouse in mice:
     cumsum_data_modul1.append(modul1_maus_in_modul_über_zeit)
     cumsum_data_modul2.append(modul2_maus_in_modul_über_zeit)
 
+
+# cut arrays to shortest length (all experiments should be roughly the same length anyway)
+min_length_modul1 = min(map(len, cumsum_data_modul1))
+min_length_modul2 = min(map(len, cumsum_data_modul2))
+overall_min = min(min_length_modul1, min_length_modul2)
+
+cumsum_data_modul1 = [arr[:overall_min] for arr in cumsum_data_modul1]
+cumsum_data_modul2 = [arr[:overall_min] for arr in cumsum_data_modul2]
+
+"""
 cumsum_data_modul1 = np.array(cumsum_data_modul1)
 cumsum_data_modul2 = np.array(cumsum_data_modul2)
+"""
 
-cumsum_plot_nwg(data_module1=cumsum_data_modul1, data_module2=cumsum_data_modul2, savename="")
+
+cumsum_plot_nwg(data_module1=cumsum_data_modul1, data_module2=cumsum_data_modul2, savename=f"{folder}cumsum.svg")
