@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import seaborn as sns
 from df_columns import df_cols
-from plots_for_nwg import cumsum_plot_nwg
+from plots_for_nwg import cumsum_plot_nwg, deg_barplot_nwg, dlc_barplot_nwg, heatmap_dual_plot, cumsum_plot_average_nwg
 
 
 def cumsum_plot(data_list=list, labels=list, colors=list, plotname=str, x_label=str, y_label=str, save_as=str):
@@ -65,7 +65,6 @@ def heatmap_plot(x_values = np.array, y_values = np.array, plotname = str, save_
     heatmap_x = x_values[mask]
     heatmap_y = y_values[mask]
 
-    # adjust the heatmap size to the original data, since x-axis of the video is larger than y-axis
 
     # get max x value and max y value to scale the heatmap
     x_max = max(heatmap_x)
@@ -460,7 +459,8 @@ def analyze_one_module(path):
             food_x = fill_missing_values(food_x)
             food_y = fill_missing_values(food_y)
         except:
-            print("No food data found for interpolation.")
+            #print("No food data found for interpolation.")
+            pass
 
 
         for i in range(len(food_likelihood_filtered_df["food1_x"])):
@@ -492,17 +492,18 @@ def analyze_one_module(path):
     plt.show()
     """
     # food interaktion zählen
-    print("maus an food in %")
-    print(maus_an_food/len(exp_duration_frames)*100)
-
+    maus_an_food_percent = maus_an_food/len(exp_duration_frames)*100
 
     # das hier wäre die Strecke über die Zeit
-    print("normalisierte Strecke")
-    print(strecke_in_pixeln/sum(maus_in_modul_über_zeit))
-    print("visits")
-    print(num_visits)
+    strecke_pixel_frame = strecke_in_pixeln/sum(maus_in_modul_über_zeit)
+    visits_per_hour = num_visits / (len(exp_duration_frames)/30/3600)
 
-    return maus_an_snicket_über_zeit, maus_in_modul_über_zeit, strecke_über_zeit, (nose_x_values_over_time, nose_y_values_over_time)
+    zeit_in_modul_prozent = sum(maus_in_modul_über_zeit) / len(exp_duration_frames) * 100
+
+
+    dlc_data = [maus_an_food_percent, strecke_pixel_frame, visits_per_hour, zeit_in_modul_prozent]
+
+    return maus_an_snicket_über_zeit, maus_in_modul_über_zeit, strecke_über_zeit, (nose_x_values_over_time, nose_y_values_over_time), dlc_data
 
 
 """
@@ -569,34 +570,176 @@ for behavior in deg_behaviors:
 
 # # # Göttingen Stuff # # #
 
-folder = "Z:/n2023_odor_related_behavior/other/Göttingen NWG 2025/poster_data/hab2/"
+folder = "D:/Uni Transfer/Göttingen NWG 2025/poster_data/hab/"
 
-mice = ["mouse7", "mouse75"]
+deg_path = "D:/Uni Transfer/Göttingen NWG 2025/poster_data/deg_hab_data/"
 
-cumsum_data_modul1 = []
-cumsum_data_modul2 = []
-
-for mouse in mice:
-
-    modul1_maus_an_snicket_über_zeit, modul1_maus_in_modul_über_zeit, modul1_strecke_über_zeit, modul1_nose_coords = analyze_one_module(path=f"{folder}{mouse}/top1/")
-    modul2_maus_an_snicket_über_zeit, modul2_maus_in_modul_über_zeit, modul2_strecke_über_zeit, modul2_nose_coords = analyze_one_module(path=f"{folder}{mouse}/top2/")
-
-    cumsum_data_modul1.append(modul1_maus_in_modul_über_zeit)
-    cumsum_data_modul2.append(modul2_maus_in_modul_über_zeit)
+mice = ["mouse7", "mouse75", "mouse7b", "mouse75b"]
 
 
-# cut arrays to shortest length (all experiments should be roughly the same length anyway)
-min_length_modul1 = min(map(len, cumsum_data_modul1))
-min_length_modul2 = min(map(len, cumsum_data_modul2))
-overall_min = min(min_length_modul1, min_length_modul2)
 
-cumsum_data_modul1 = [arr[:overall_min] for arr in cumsum_data_modul1]
-cumsum_data_modul2 = [arr[:overall_min] for arr in cumsum_data_modul2]
+
+def create_cumsum_plot_for_nwg():
+
+    cumsum_data_modul1 = []
+    cumsum_data_modul2 = []
+
+    dlc_behavior_data_modul1 = []
+    dlc_behavior_data_modul2 = []
+
+    for mouse in mice:
+
+        modul1_maus_an_snicket_über_zeit, modul1_maus_in_modul_über_zeit, modul1_strecke_über_zeit, modul1_nose_coords, modul1_dlc_data = analyze_one_module(path=f"{folder}{mouse}/top1/")
+        modul2_maus_an_snicket_über_zeit, modul2_maus_in_modul_über_zeit, modul2_strecke_über_zeit, modul2_nose_coords, modul2_dlc_data = analyze_one_module(path=f"{folder}{mouse}/top2/")
+
+        print(modul1_dlc_data)
+        print(modul2_dlc_data)
+
+        cumsum_data_modul1.append(modul1_maus_in_modul_über_zeit)
+        cumsum_data_modul2.append(modul2_maus_in_modul_über_zeit)
+
+        dlc_behavior_data_modul1.append(modul1_dlc_data)
+        dlc_behavior_data_modul2.append(modul2_dlc_data)
+
+        #heatmap_dual_plot(x1 = modul1_nose_coords[0], y1 = modul1_nose_coords[1], x2 = modul2_nose_coords[0], y2 = modul2_nose_coords[1], plotname = f"Heatmap {mouse}", save_as = f"{folder}{mouse}_heatmap", num_bins=12)
+
+
+    # cut arrays to shortest length (all experiments should be roughly the same length anyway)
+    min_length_modul1 = min(map(len, cumsum_data_modul1))
+    min_length_modul2 = min(map(len, cumsum_data_modul2))
+    overall_min = min(min_length_modul1, min_length_modul2)
+
+    cumsum_data_modul1 = [arr[:overall_min] for arr in cumsum_data_modul1]
+    cumsum_data_modul2 = [arr[:overall_min] for arr in cumsum_data_modul2]
+
+    #cumsum_plot_nwg(data_module1=cumsum_data_modul1, data_module2=cumsum_data_modul2, savename=f"{folder}cumsum")
+
+    cumsum_plot_average_nwg(data_module1=cumsum_data_modul1, data_module2=cumsum_data_modul2, savename=f"{folder}cumsum_step")
+
+
+
+    dlc_barplot_nwg(data_module1=dlc_behavior_data_modul1, data_module2=dlc_behavior_data_modul2, savename=f"{folder}dlc_behaviors")
+
+
+
+    
+
+#create_cumsum_plot_for_nwg()
+
+def create_deg_barplot_for_nwg(exp_day):
+
+    behavior_data_modul1 = []
+    behavior_data_modul2 = []
+
+    for mouse in mice:
+
+        # nimmt csv für eine Maus aus dem jeweigen experimenttag ordner
+        path_stim = deg_path + mouse + "/" + "side1" + "/"
+        files_stim = glob.glob(os.path.join(path_stim, '*.csv'))
+
+        path_con = deg_path + mouse + "/" + "side2" + "/"
+        files_con = glob.glob(os.path.join(path_con, '*.csv'))
+        
+        
+        # geht über jede csv im ordner
+        for file in files_stim:
+            
+            # öffnet die csv als dataframe
+            df = pd.read_csv(file)
+            working_df = df.copy()
+
+            # get behavior data normalized to experiment length
+            rearing = np.sum(working_df['rearing"']) / len(working_df['rearing"']) * 100
+            drinking = np.sum(working_df['drinking']) / len(working_df['rearing"']) * 100
+            grooming = np.sum(working_df['grooming']) / len(working_df['rearing"']) * 100
+
+            data = [rearing, drinking, grooming]
+            behavior_data_modul1.append(data)
+
+        for file in files_con:
+            
+            # öffnet die csv als dataframe
+            df = pd.read_csv(file)
+            working_df = df.copy()
+
+            # get behavior data normalized to experiment length
+            rearing = np.sum(working_df['rearing"']) / len(working_df['rearing"']) * 100
+            drinking = np.sum(working_df['drinking']) / len(working_df['rearing"']) * 100
+            grooming = np.sum(working_df['grooming']) / len(working_df['rearing"']) * 100
+
+            data = [rearing, drinking, grooming]
+            behavior_data_modul2.append(data)
+
+            """
+            
+            # nach modulen trennen
+            if 'side1' in file:
+
+                data = [rearing, drinking, grooming]
+                behavior_data_modul1.append(data)
+
+
+            if 'side2' in file:
+
+                data = [rearing, drinking, grooming]
+                behavior_data_modul2.append(data)
+                
+            
+
+            # nach stimulus trennen
+            if 'stimulus' in file:
+
+                data = [rearing, drinking, grooming]
+                behavior_data_modul1.append(data)
+
+            else:
+
+                data = [rearing, drinking, grooming]
+                behavior_data_modul2.append(data)
+            """
+
+    print(behavior_data_modul1)
+    print(behavior_data_modul2)
+
+    deg_barplot_nwg(data_module1=behavior_data_modul1, data_module2=behavior_data_modul2, savename=f"{deg_path}{exp_day}_deg")
+
+create_deg_barplot_for_nwg(exp_day="hab")
 
 """
-cumsum_data_modul1 = np.array(cumsum_data_modul1)
-cumsum_data_modul2 = np.array(cumsum_data_modul2)
+# # # create ethograms for example behaviors
+
+
+# Load the data
+file_path = "D:/Uni Transfer/Göttingen NWG 2025/poster_data/stiched_evaluation_video/stiched_evaluation_video_predictions.csv"
+df = pd.read_csv(file_path)
+
+# Clean column names
+df.columns = [col.strip().replace('"', '') for col in df.columns]
+
+behavior_name = "drinking"
+
+# Auswahl der Events
+behavior = df[f"{behavior_name}"].iloc[15350:15550]
+
+# Event-Indizes
+event_indices = np.where(behavior == 1)[0]
+
+# Plot
+fig, ax = plt.subplots(facecolor='black')
+ax.set_facecolor('black')
+
+ax.eventplot(event_indices, orientation='horizontal', colors='white',
+             lineoffsets=0, linelengths=0.5)
+
+ax.set_xlim(0, len(behavior))
+ax.set_xlabel('frame', color='white')
+ax.set_title(f'{behavior_name}', color='white')
+ax.tick_params(axis='x', colors='white')
+ax.tick_params(axis='y', colors='white')
+ax.set_yticks([])
+ax.spines['bottom'].set_color('white')
+plt.savefig(f"D:/Uni Transfer/Göttingen NWG 2025/poster_data/stiched_evaluation_video/{behavior_name}.svg", format='svg', facecolor=fig.get_facecolor())
+
+plt.tight_layout()
+plt.show()
 """
-
-
-cumsum_plot_nwg(data_module1=cumsum_data_modul1, data_module2=cumsum_data_modul2, savename=f"{folder}cumsum.svg")
