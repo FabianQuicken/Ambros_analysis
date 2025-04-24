@@ -622,7 +622,6 @@ def create_cumsum_plot_for_nwg():
 
 
 
-    
 
 #create_cumsum_plot_for_nwg()
 
@@ -670,7 +669,7 @@ def create_deg_barplot_for_nwg(exp_day):
             data = [rearing, drinking, grooming]
             behavior_data_modul2.append(data)
 
-            """
+            
             
             # nach modulen trennen
             if 'side1' in file:
@@ -696,7 +695,7 @@ def create_deg_barplot_for_nwg(exp_day):
 
                 data = [rearing, drinking, grooming]
                 behavior_data_modul2.append(data)
-            """
+           
 
     print(behavior_data_modul1)
     print(behavior_data_modul2)
@@ -705,7 +704,6 @@ def create_deg_barplot_for_nwg(exp_day):
 
 create_deg_barplot_for_nwg(exp_day="hab")
 
-<<<<<<< HEAD
 
 cumsum_data_modul1 = np.array(cumsum_data_modul1)
 cumsum_data_modul2 = np.array(cumsum_data_modul2)
@@ -714,8 +712,7 @@ cumsum_data_modul2 = np.array(cumsum_data_modul2)
 
 cumsum_plot_nwg(data_module1=cumsum_data_modul1, data_module2=cumsum_data_modul2, savename=f"{folder}cumsum.svg")
 
-=======
-"""
+
 # # # create ethograms for example behaviors
 
 
@@ -752,5 +749,4 @@ plt.savefig(f"D:/Uni Transfer/Göttingen NWG 2025/poster_data/stiched_evaluation
 
 plt.tight_layout()
 plt.show()
->>>>>>> 5020f63fa123373627f88babae78b1aacbb8d06c
 """
