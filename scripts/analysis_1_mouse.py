@@ -508,7 +508,7 @@ def analyze_one_module(path):
 
 
 
-experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_18/2025_04_30/"
+experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_5785/2025_05_06/"
 
 modul1_maus_an_snicket_über_zeit, modul1_maus_in_modul_über_zeit, modul1_strecke_über_zeit, modul1_nose_coords, modul1_dlc_data = analyze_one_module(path=f"{experiment_day_path}top1/")
 
