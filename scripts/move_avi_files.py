@@ -67,8 +67,8 @@ def move_files(source, destination):
 
 
 
-files_are_at = r'G:/Fabi transfer/Videos/mouse18_hab1'
+files_are_at = r'G:/Fabi transfer/Videos/mouse5785_hab2'
 
-files_go_to = r'Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/raw/mouse_18/2025_04_26'
+files_go_to = r'Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/raw/female_mice_male_stimuli/mouse_5785/2025_05_07'
 
 move_files(source=files_are_at, destination=files_go_to)
