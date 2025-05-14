@@ -13,6 +13,20 @@ from plotting import heatmap_plot, cumsum_plot
 
 def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"]):
 
+    class ModuleVariables:
+        exp_duration_frames: int
+        strecke_über_zeit: np.array
+        maus_in_modul_über_zeit: np.array
+        maus_an_food_percent: float
+        strecke_pixel_frame: float
+        visits_per_hour: float
+        zeit_in_modul_prozent: float
+        nose_coords_x_y: tuple
+        date: str
+        is_stimulus_module: bool
+        start_time: str
+        end_time: str
+
     # csv's einlesen und nach uhrzeit(name) sortieren
     #path = "E:/Fabi_Setup/single_animal/analyse_test/"
     path = path
@@ -43,6 +57,7 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
 
     # gesamte experimentdauer in frames
     exp_duration_frames = np.zeros(experiment_dauer_in_s * FPS + len(df_last_file)) 
+    
 
 
     #variablen of interest einführen
@@ -194,25 +209,30 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
 
     zeit_in_modul_prozent = sum(maus_in_modul_über_zeit) / len(exp_duration_frames) * 100
 
-
-    dlc_data = [maus_an_food_percent, strecke_pixel_frame, visits_per_hour, zeit_in_modul_prozent]
-
-    class DlcMetrics:
-        maus_an_food_percent: float
-        strecke_pixel_frame: float
-        visits_per_hour: float
-        zeit_in_modul_prozent: float
-
-    return maus_an_snicket_über_zeit, maus_in_modul_über_zeit, strecke_über_zeit, (nose_x_values_over_time, nose_y_values_over_time), dlc_data
+    nose_coords = (nose_x_values_over_time, nose_y_values_over_time)
 
 
+    ModuleVariables.exp_duration_frames = exp_duration_frames
+    ModuleVariables.strecke_über_zeit = strecke_über_zeit
+    ModuleVariables.maus_in_modul_über_zeit = maus_in_modul_über_zeit
+    ModuleVariables.maus_an_food_percent = maus_an_food_percent
+    ModuleVariables.strecke_pixel_frame = strecke_pixel_frame
+    ModuleVariables.visits_per_hour = visits_per_hour
+    ModuleVariables.zeit_in_modul_prozent = zeit_in_modul_prozent
+    ModuleVariables.nose_coords_x_y = nose_coords
+    Module_Variables
+    
+
+    return ModuleVariables
 
 
-experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_15/2025_04_23/"
 
-modul1_maus_an_snicket_über_zeit, modul1_maus_in_modul_über_zeit, modul1_strecke_über_zeit, modul1_nose_coords, modul1_dlc_data = analyze_one_module(path=f"{experiment_day_path}top1/")
 
-modul2_maus_an_snicket_über_zeit, modul2_maus_in_modul_über_zeit, modul2_strecke_über_zeit, modul2_nose_coords, modul2_dlc_data = analyze_one_module(path=f"{experiment_day_path}top2/")
+experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/mouse_5785/2025_05_08/"
+
+Modul1Variables = analyze_one_module(path=f"{experiment_day_path}top1/")
+
+Modul2Variables = analyze_one_module(path=f"{experiment_day_path}top2/")
 
 
 
@@ -228,7 +248,7 @@ cumsum_plot(data_list=[modul1_maus_an_snicket_über_zeit,modul2_maus_an_snicket_
             )
 """
 
-cumsum_plot(data_list=[modul1_maus_in_modul_über_zeit,modul2_maus_in_modul_über_zeit],
+cumsum_plot(data_list=[Modul1Variables.maus_in_modul_über_zeit,Modul2Variables.maus_in_modul_über_zeit],
             labels=["modul 1", "modul 2"],
             colors=["blue", "red"],
             plotname="Maus in Modul",
@@ -237,7 +257,7 @@ cumsum_plot(data_list=[modul1_maus_in_modul_über_zeit,modul2_maus_in_modul_übe
             save_as= f"{experiment_day_path}maus_in_modul.svg"
             )
 
-cumsum_plot(data_list=[modul1_strecke_über_zeit,modul2_strecke_über_zeit],
+cumsum_plot(data_list=[Modul1Variables.strecke_über_zeit,Modul2Variables.strecke_über_zeit],
             labels=["modul 1", "modul 2"],
             colors=["blue", "red"],
             plotname="Zurückgelegte Strecke pro Modul",
@@ -248,10 +268,10 @@ cumsum_plot(data_list=[modul1_strecke_über_zeit,modul2_strecke_über_zeit],
 
 
 
-heatmap_plot(x_values=modul1_nose_coords[0], y_values=modul1_nose_coords[1], plotname="Heatmap Modul 1", save_as=f"{experiment_day_path}heatmap_modul1.svg", num_bins=12)
+heatmap_plot(x_values=Modul1Variables.nose_coords_x_y[0], y_values=Modul1Variables.nose_coords_x_y[1], plotname="Heatmap Modul 1", save_as=f"{experiment_day_path}heatmap_modul1.svg", num_bins=12)
 
 
-heatmap_plot(x_values=modul2_nose_coords[0], y_values=modul2_nose_coords[1], plotname="Heatmap Modul 2", save_as=f"{experiment_day_path}heatmap_modul2.svg", num_bins=12)
+heatmap_plot(x_values=Modul2Variables.nose_coords_x_y[0], y_values=Modul2Variables.nose_coords_x_y[1], plotname="Heatmap Modul 2", save_as=f"{experiment_day_path}heatmap_modul2.svg", num_bins=12)
 
 """
 
