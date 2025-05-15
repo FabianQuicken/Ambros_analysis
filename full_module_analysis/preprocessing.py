@@ -1,4 +1,8 @@
 import numpy as np
+import pandas as pd
+import glob
+import os
+from config import DF_COLS
 
 def likelihood_filtering_nans(df, likelihood_row_name=str, filter_val=0.95):
     """
@@ -24,3 +28,86 @@ def likelihood_filtering(df, likelihood_row_name=str, filter_val = 0.95):
     df_removed_rows = df[df[likelihood_row_name] < filter_val]
     #print(f"The filter removed {len(df_removed_rows)} rows of a total of {len(df)} rows.")
     return df_filtered
+
+def transform_dlcdata(filepath, keypoints, new_indices):
+
+    """
+    Transforms DeepLabCut (DLC) CSV output into a clean and structured DataFrame.
+
+    This function reads a DLC-generated .csv file, checks whether its structure matches the
+    expected column names (`new_indices`), and extracts the specified bodyparts (`keypoints`).
+    It discards the first three metadata rows (scorer, bodyparts, coordinate type),
+    inverts the y-coordinates (to match conventional coordinate systems), and returns
+    a float-typed DataFrame containing only the bodyparts of interest.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the DeepLabCut .csv file to be processed.
+
+    keypoints : list of str
+        List of bodyparts to extract from the DLC data (e.g., ['nose', 'centroid', 'food1']).
+
+    new_indices : list of str
+        List of column names corresponding to the DLC CSV file.
+        Must match the structure of the file exactly (e.g., ['nose_x', 'nose_y', 'nose_likelihood', ...]).
+
+    Returns
+    -------
+    pandas.DataFrame
+        A DataFrame containing x, y (inverted), and likelihood columns for each selected bodypart.
+
+    Raises
+    ------
+    ValueError
+        If the file structure does not match the provided `new_indices`, or if parsing fails.
+
+    Examples
+    --------
+    >>> df = transform_dlcdata("my_dlc_output.csv", ["nose", "centroid"], DF_COLS)
+    >>> df.columns
+    Index(['nose_x', 'nose_y', 'nose_likelihood', 'centroid_x', ...])
+    """
+    
+    # Erst testen, ob die DLC Daten zu den erwarteten DF_COLS passen. Falls nicht, würden die Daten falsch benannt werden
+    dlc_data_as_expected = True
+    try:
+        raw_dlc_df = pd.read_csv(filepath)
+        bodypart_list = raw_dlc_df.iloc[0, :].tolist()
+        bodypart_list.pop(0)
+
+        for index, bodypart in enumerate(bodypart_list):
+            if index >= len(new_indices):
+                dlc_data_as_expected = False
+                break
+            if not new_indices[index].startswith(bodypart):
+                dlc_data_as_expected = False
+                break 
+
+    except Exception as e:
+        print(f"Error while checking DLC format: {e}")
+        dlc_data_as_expected = False 
+
+    if dlc_data_as_expected:
+        
+        # erstellt aus DeepLabCut .csv ein Dataframe mit einer sinnvolleren Indexzeile 
+        df = pd.read_csv(filepath, names=new_indices)
+        data = df.copy() # doesn't change the original DataFrame
+        # dlc hat drei unnötige indexzeilen, einmal der Netzwerkname, dann die bodyparts und ob es sich um x/y koordinate oder likelihood handelt
+        data = data.iloc[3:]
+        data = data.astype(float)
+
+        #dataframe kopieren & bodyparts of interest extrahieren
+        empty_df = pd.DataFrame()
+        bodypart_df = empty_df.copy()
+
+        for bodypart in keypoints:
+            bodypart_df[bodypart+"_x"] = data[bodypart+"_x"]
+            bodypart_df[bodypart+"_y"] = data[bodypart+"_y"]*(-1)  # y invertieren da DLC y koordinaten aufsteigen
+            bodypart_df[bodypart+"_likelihood"] = data[bodypart+"_likelihood"]
+
+        return bodypart_df
+
+    else:
+        raise ValueError("Could not transform DLC Data. Check if DF_COLS fits your data structure.")
+
