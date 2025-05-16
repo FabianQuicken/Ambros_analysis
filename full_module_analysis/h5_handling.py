@@ -17,6 +17,7 @@ class ModuleVariables:
     is_stimulus_module: bool
     start_time: str
     end_time: str
+    mouse: str
 
 def save_modulevariables_to_h5(file_path, data):
     """
@@ -52,6 +53,7 @@ def save_modulevariables_to_h5(file_path, data):
         f.attrs["is_stimulus_module"] = int(data.is_stimulus_module)  # bools als int
         f.attrs["start_time"] = data.start_time
         f.attrs["end_time"] = data.end_time
+        f.attrs["mouse"] = data.mouse
 
 def load_modulevariables_from_h5(file_path: str) -> ModuleVariables:
     """
@@ -86,5 +88,6 @@ def load_modulevariables_from_h5(file_path: str) -> ModuleVariables:
             date=str(f.attrs["date"]),
             is_stimulus_module=bool(f.attrs["is_stimulus_module"]),
             start_time=str(f.attrs["start_time"]),
-            end_time=str(f.attrs["end_time"])
+            end_time=str(f.attrs["end_time"]),
+            mouse=str(f.attrs["mouse"])
         )

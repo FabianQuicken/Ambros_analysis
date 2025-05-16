@@ -7,63 +7,42 @@ from dataclasses import dataclass
 import h5py
 
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS
-from utils import euklidean_distance, fill_missing_values, time_to_seconds, convert_videostart_to_experiment_length
+from utils import euklidean_distance, fill_missing_values, time_to_seconds, convert_videostart_to_experiment_length, calculate_experiment_length
 from metrics import distance_bodypart_object, distance_travelled, investigation_time, get_food_coordinates
 from plotting import heatmap_plot, cumsum_plot
 from metadata import module_is_stimulus_side
 from preprocessing import transform_dlcdata
 from h5_handling import save_modulevariables_to_h5, load_modulevariables_from_h5
 
+@dataclass
+class ModuleVariables:
+    exp_duration_frames: int
+    strecke_über_zeit: np.array
+    maus_in_modul_über_zeit: np.array
+    maus_an_food_percent: float
+    strecke_pixel_frame: float
+    visits_per_hour: float
+    mean_visit_time: float
+    zeit_in_modul_prozent: float
+    nose_coords_x_y: tuple
+    date: str
+    is_stimulus_module: bool
+    start_time: str
+    end_time: str
+    mouse: str
+
 
 def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"]):
     
-    @dataclass
-    class ModuleVariables:
-        exp_duration_frames: int
-        strecke_über_zeit: np.array
-        maus_in_modul_über_zeit: np.array
-        maus_an_food_percent: float
-        strecke_pixel_frame: float
-        visits_per_hour: float
-        mean_visit_time: float
-        zeit_in_modul_prozent: float
-        nose_coords_x_y: tuple
-        date: str
-        is_stimulus_module: bool
-        start_time: str
-        end_time: str
-
     # csv's einlesen und nach uhrzeit(name) sortieren
     file_list = glob.glob(os.path.join(path, '*.csv'))
     file_list.sort()
 
-    # # # erstmal experimentdauer berechnen # # #
-    experiment_dauer_in_s = 0
-
-    name_first_file = file_list[0]
-    name_first_file = os.path.splitext(os.path.basename(name_first_file))[0]
-    name_last_file = file_list[-1]
-    name_last_file = os.path.splitext(os.path.basename(name_last_file))[0]
-
-    df_last_file = pd.read_csv(file_list[-1])
-
-    #Zeit immer an selber stelle
-    startzeit = name_first_file[11:19] #platzhalter Zahlen
-    endzeit = name_last_file[11:19]
-
-    start_in_s = time_to_seconds(startzeit)
-    ende_in_s = time_to_seconds(endzeit)
-
-    experiment_dauer_in_s = ende_in_s - start_in_s 
-
-    # gesamte experimentdauer in frames
-    exp_duration_frames = np.zeros(experiment_dauer_in_s * FPS + len(df_last_file)) 
+    # experimentdauer in frames
+    exp_duration_frames, startzeit, endzeit, date = calculate_experiment_length(first_file=file_list[0], last_file=file_list[-1])
 
     # speichert als boolean ob das modul einen stimulus beinhaltet
-    is_stimulus_side = module_is_stimulus_side(file_list[0])
-    
-    # speichert das datum als string
-    date = name_first_file[0:10]
+    is_stimulus_side, mouse = module_is_stimulus_side(file_list[0])
 
     #variablen of interest einführen
     maus_in_modul_über_zeit = exp_duration_frames.copy()
@@ -90,11 +69,16 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
 
     for file in tqdm(file_list):
         
-        # dataframe erstellen und schneiden
-
+        # dataframe erstellen und transformieren
         bodypart_df = transform_dlcdata(file, bodyparts_to_extract, DF_COLS)
 
 
+        """
+        
+        Mouse Present Analyse
+        
+        """
+        
         #berechnen ob maus present: insgesamt und over time
         mouse_present_calculation_df = bodypart_df.copy()
 
@@ -102,25 +86,25 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
         
         mouse_present_arr = np.zeros(len(mouse_snout_likelihood_arr))
 
-        # if snout is detected with high likelihood, a mouse was present in the module
+        # wenn die schnauze während dem video mindestens einmal getracked wurde, war die maus während dem Video im Modul
         if max(mouse_snout_likelihood_arr) > 0.95:
             num_visits +=1
     
-
+        # markiert jeden frame, in dem die Maus vermutlich anwesend war
         for i in range(len(mouse_present_arr)):
-            # check um anzahl der modul visits zu zählen
-            
             if mouse_snout_likelihood_arr.iloc[i] > 0.3:
                 mouse_present_arr[i] = 1
 
 
-        #insgesamt
+        # addiert zu der gesamtzeit, die Maus im Modul verbracht hat über alle Videos
         maus_in_modul_in_frames += np.nansum(mouse_present_arr) 
-        all_visits.append(np.nansum(mouse_present_arr) )
+        # Länge des Visits in diesem Video gespeichert, um später mean visit length zu berechnen
+        all_visits.append(np.nansum(mouse_present_arr))
 
-        #over time
+        # an welchem Zeitpunkt der Experimenttdauer befindet sich dieses Video
         time_position_in_frames = convert_videostart_to_experiment_length(first_file=file_list[0], filename=file) * FPS
         
+        # mouse present data von diesem Video in Kontext der gesamten Experimentdauer einsetzen
         for i in range(len(mouse_present_arr)):
             maus_in_modul_über_zeit[i+(time_position_in_frames-1)] = mouse_present_arr[i]
 
@@ -141,6 +125,12 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
 
         """
 
+        """
+        
+        Distance Travelled Analyse
+
+        """
+
         #zurückgelegte Strecke berechnen (in pixeln)
         maus_distance_travelled = distance_travelled(df=bodypart_df, bodypart="centroid")
 
@@ -148,6 +138,12 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
 
         for i in range(len(maus_distance_travelled)):
             strecke_über_zeit[i+(time_position_in_frames-1)] = maus_distance_travelled[i]
+
+        """
+        
+        Food Interaktion Analyse
+
+        """
 
 
         # Koordinaten für die Heatmap extrahieren und speichern:
@@ -203,39 +199,53 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
 
     nose_coords = (nose_x_values_over_time, nose_y_values_over_time)
 
-    
-    print(mean_visit_time)
 
-    ModuleVariables.exp_duration_frames = len(exp_duration_frames)
-    ModuleVariables.strecke_über_zeit = strecke_über_zeit
-    ModuleVariables.maus_in_modul_über_zeit = maus_in_modul_über_zeit
-    ModuleVariables.maus_an_food_percent = maus_an_food_percent
-    ModuleVariables.strecke_pixel_frame = strecke_pixel_frame
-    ModuleVariables.visits_per_hour = visits_per_hour
-    ModuleVariables.zeit_in_modul_prozent = zeit_in_modul_prozent
-    ModuleVariables.nose_coords_x_y = nose_coords
-    ModuleVariables.date = date
-    ModuleVariables.start_time = startzeit
-    ModuleVariables.end_time = endzeit
-    ModuleVariables.is_stimulus_module = is_stimulus_side
-    ModuleVariables.mean_visit_time = mean_visit_time
-    
+    module_vars = ModuleVariables(
+        exp_duration_frames = len(exp_duration_frames),
+        strecke_über_zeit = strecke_über_zeit,
+        maus_in_modul_über_zeit = maus_in_modul_über_zeit,
+        maus_an_food_percent = maus_an_food_percent,
+        strecke_pixel_frame = strecke_pixel_frame,
+        visits_per_hour = visits_per_hour,
+        mean_visit_time = mean_visit_time,
+        zeit_in_modul_prozent = zeit_in_modul_prozent,
+        nose_coords_x_y = nose_coords,
+        date = date,
+        is_stimulus_module = is_stimulus_side,
+        start_time = startzeit,
+        end_time = endzeit,
+        mouse = mouse
+    )
 
-    return ModuleVariables
-
-
+    return module_vars
 
 
-experiment_day_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/code_test/dataframe_transformation/"
+project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli/"
 
-Modul1Variables = analyze_one_module(path=f"{experiment_day_path}top1/")
+mouse = "mouse_5785"
 
-#Modul2Variables = analyze_one_module(path=f"{experiment_day_path}top2/")
+dates = ["2025_05_05", "2025_05_06", "2025_05_07", "2025_05_08"]
+
+
+for date in dates:
+    Modul1Variables = analyze_one_module(path=f"{project_path}{mouse}/{date}/top1/")
+    Modul2Variables = analyze_one_module(path=f"{project_path}{mouse}/{date}/top2/")
+
+    name_modul1_h5 = f"{Modul1Variables.date}_top1_{('stimulus' if Modul1Variables.is_stimulus_module else 'control')}.h5"
+    name_modul2_h5 = f"{Modul2Variables.date}_top2_{('stimulus' if Modul2Variables.is_stimulus_module else 'control')}.h5"
+
+
+    save_modulevariables_to_h5(file_path=f"{project_path}{mouse}/{date}/{name_modul1_h5}",
+                            data = Modul1Variables)
+    save_modulevariables_to_h5(file_path=f"{project_path}{mouse}/{date}/{name_modul2_h5}",
+                            data = Modul2Variables)
 
 
 
-save_modulevariables_to_h5(file_path="Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/code_test/dataframe_transformation/test.h5",
-                               data = Modul1Variables)
+
+
+#save_modulevariables_to_h5(file_path=f"{experiment_day_path}test.h5",
+#                            data = Modul1Variables)
 
 
 

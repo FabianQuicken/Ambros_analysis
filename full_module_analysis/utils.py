@@ -1,5 +1,7 @@
 import numpy as np
+import pandas as pd
 import os
+from config import FPS
 
 
 def euklidean_distance(x1, y1, x2, y2):
@@ -52,3 +54,27 @@ def convert_videostart_to_experiment_length(first_file, filename):
 
         # Berechne die Differenz in Sekunden
         return current_seconds - start_seconds
+
+def calculate_experiment_length(first_file, last_file):
+      
+      name_first_file = os.path.splitext(os.path.basename(first_file))[0]
+      name_last_file = os.path.splitext(os.path.basename(last_file))[0]
+
+      # Datum noch mit auslesen
+      date = name_first_file[0:10]
+
+
+      #Zeit immer an selber stelle
+      startzeit = name_first_file[11:19] 
+      endzeit = name_last_file[11:19]
+
+      start_in_s = time_to_seconds(startzeit)
+      ende_in_s = time_to_seconds(endzeit)
+
+      experiment_dauer_in_s = ende_in_s - start_in_s 
+
+      # gesamte experimentdauer in frames
+      df_last_file = pd.read_csv(last_file)
+      exp_duration_frames = np.zeros(experiment_dauer_in_s * FPS + len(df_last_file))
+
+      return exp_duration_frames, startzeit, endzeit, date
