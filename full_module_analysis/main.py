@@ -30,6 +30,7 @@ class ModuleVariables:
     start_time: str
     end_time: str
     mouse: str
+    modulnumber: int
 
 
 def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"]):
@@ -42,7 +43,7 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     exp_duration_frames, startzeit, endzeit, date = calculate_experiment_length(first_file=file_list[0], last_file=file_list[-1])
 
     # speichert als boolean ob das modul einen stimulus beinhaltet
-    is_stimulus_side, mouse = module_is_stimulus_side(file_list[0])
+    is_stimulus_side, mouse, modulnumber = module_is_stimulus_side(file_list[0])
 
     #variablen of interest einführen
     maus_in_modul_über_zeit = exp_duration_frames.copy()
@@ -214,7 +215,8 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
         is_stimulus_module = is_stimulus_side,
         start_time = startzeit,
         end_time = endzeit,
-        mouse = mouse
+        mouse = mouse,
+        modulnumber = modulnumber
     )
 
     return module_vars
@@ -222,9 +224,9 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
 
 project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli/"
 
-mouse = "mouse_5785"
+mouse = "mouse_15"
 
-dates = ["2025_05_05", "2025_05_06", "2025_05_07", "2025_05_08"]
+dates = ["2025_04_22", "2025_04_23", "2025_04_24", "2025_04_25"]
 
 
 for date in dates:

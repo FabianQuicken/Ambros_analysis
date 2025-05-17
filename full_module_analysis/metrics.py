@@ -4,6 +4,9 @@ from preprocessing import likelihood_filtering, likelihood_filtering_nans
 from utils import euklidean_distance, fill_missing_values
 from config import PIXEL_PER_CM
 
+def mean_visit_time():
+    pass
+
 def distance_bodypart_object(df, bodypart=str, object=str, filter_object = True):
         """
         Takes a Dataframe, a bodypart and an object as strings,

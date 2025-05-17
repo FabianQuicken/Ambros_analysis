@@ -56,7 +56,7 @@ def cumsum_plot_nwg(data_module1, data_module2, savename=""):
     plt.show()
 
 
-def cumsum_plot_average_nwg(data_module1, data_module2, savename=""):
+def cumsum_plot_average_nwg(data_stim_modul, data_con_modul, savename=""):
 
     # cumsum berechnen für die daten
     for i in range(len(data_module1)):
