@@ -222,11 +222,14 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     return module_vars
 
 
-project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli/"
+project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
 
-mouse = "mouse_15"
+project_path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
+project_path = project_path_ho
 
-dates = ["2025_04_22", "2025_04_23", "2025_04_24", "2025_04_25"]
+mouse = "mouse_75"
+
+dates = ["2025_03_17", "2025_03_18", "2025_03_19", "2025_03_20"]
 
 
 for date in dates:
@@ -241,6 +244,33 @@ for date in dates:
                             data = Modul1Variables)
     save_modulevariables_to_h5(file_path=f"{project_path}{mouse}/{date}/{name_modul2_h5}",
                             data = Modul2Variables)
+    
+
+    cumsum_plot(data_list=[Modul1Variables.maus_in_modul_über_zeit,Modul2Variables.maus_in_modul_über_zeit],
+            labels=["modul 1", "modul 2"],
+            colors=["blue", "red"],
+            plotname="Maus in Modul",
+            x_label = "Experimentdauer in Frames",
+            y_label= "Maus in Modul in Frames",
+            save_as= f"{project_path}{mouse}/{date}/maus_in_modul.svg"
+            )
+    
+    cumsum_plot(data_list=[Modul1Variables.strecke_über_zeit,Modul2Variables.strecke_über_zeit],
+            labels=["modul 1", "modul 2"],
+            colors=["blue", "red"],
+            plotname="Zurückgelegte Strecke pro Modul",
+            x_label = "Experimentdauer in Frames",
+            y_label= "Strecke in Pixeln",
+            save_as= f"{project_path}{mouse}/{date}/maus_strecke.svg"
+            )
+
+
+
+    heatmap_plot(x_values=Modul1Variables.nose_coords_x_y[0], y_values=Modul1Variables.nose_coords_x_y[1], plotname="Heatmap Modul 1", save_as=f"{project_path}{mouse}/{date}/heatmap_modul1.svg", num_bins=12)
+
+
+    heatmap_plot(x_values=Modul2Variables.nose_coords_x_y[0], y_values=Modul2Variables.nose_coords_x_y[1], plotname="Heatmap Modul 2", save_as=f"{project_path}{mouse}/{date}/heatmap_modul2.svg", num_bins=12)
+
 
 
 
@@ -252,8 +282,8 @@ for date in dates:
 
 
 
-
 """
+
 cumsum_plot(data_list=[modul1_maus_an_snicket_über_zeit,modul2_maus_an_snicket_über_zeit],
             labels=["modul 1", "modul 2"],
             colors=["blue", "red"],
@@ -288,8 +318,8 @@ heatmap_plot(x_values=Modul1Variables.nose_coords_x_y[0], y_values=Modul1Variabl
 
 
 heatmap_plot(x_values=Modul2Variables.nose_coords_x_y[0], y_values=Modul2Variables.nose_coords_x_y[1], plotname="Heatmap Modul 2", save_as=f"{experiment_day_path}heatmap_modul2.svg", num_bins=12)
-"""
-"""
+
+
 
 deg_file_path = "E:/Fabi_Setup/In_Soundchamber/behaviors_urine_validation_deepethogram/DATA/2025_03_10_mouse_7_habituation_side1_40357253_stitched/2025_03_10_mouse_7_habituation_side1_40357253_stitched_predictions.csv"
 
