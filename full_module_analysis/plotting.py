@@ -2,6 +2,59 @@ import matplotlib.pyplot as plt
 import numpy as np
 from config import FPS
 
+
+def visits_histogram(data, xmax=None, xlabel="visit length [s]", plotname="", save_as="", bin_width=6.0):
+    """
+    Plots a histogram of 'all_visits' from a data object with black background and white axes,
+    and consistent bar width regardless of data length.
+    """
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Daten vorbereiten
+    try:
+        data_array = np.array(data.all_visits) / FPS
+    except:
+        data_array = np.array(data) / FPS
+
+    # Bin-Grenzen festlegen (z. B. 0–xmax mit fixer Breite)
+    if xmax is None:
+        xmax = np.max(data_array)
+    bins = np.arange(0, xmax + bin_width, bin_width)
+
+    # Plot vorbereiten
+    plt.figure(figsize=(10, 6), facecolor='black')
+    ax = plt.gca()
+    ax.set_facecolor('black')
+
+    # Histogram zeichnen mit festen Bins
+    plt.hist(
+        x=data_array,
+        bins=bins,
+        color=('red' if 'con' in save_as else 'yellow'),
+        edgecolor='white'
+    )
+
+    # Achsen, Titel, etc.
+    plt.xlabel(xlabel, color='white', fontsize=12)
+    plt.ylabel("Frequency", color='white', fontsize=12)
+    plt.title(plotname, color='white', fontsize=14)
+    plt.xlim(0, xmax)
+    plt.ylim(0,250)
+
+    ax.tick_params(colors='white')
+    for spine in ax.spines.values():
+        spine.set_color('white')
+
+    plt.tight_layout()
+    if save_as:
+        plt.savefig(save_as, format='svg')
+    plt.show()
+
+
+
+
 def cumsum_plot(data_list=list, labels=list, colors=list, plotname=str, x_label=str, y_label=str, save_as=str):
     # Kumulative Summe berechnen
 

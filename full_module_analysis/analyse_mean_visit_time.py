@@ -8,10 +8,10 @@ from h5_handling import load_modulevariables_from_h5
 from plotting import plot_grouped_barplot_with_black_bg, plot_stimulus_over_days
 
 
-path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli/h5_files/"
-path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli/h5_files/"
+path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/h5_files/"
+#path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli/h5_files/"
 
-path = path_ho
+#path = path_ho
 
 file_list = glob.glob(os.path.join(path, '*.h5'))
 file_list.sort()
@@ -23,15 +23,16 @@ for file in file_list:
     modul_data_list.append(load_modulevariables_from_h5(file))
 
 
-mice = ["mouse_15", "mouse_17", "mouse_18", "mouse_5785"]
+mice = ["mouse_7", "mouse_21", "mouse_73", "mouse_75"]
 
-#print(modul_data_list)
 
-mouse15_data = [data for data in modul_data_list if "15" in data.mouse]
-mouse17_data = [data for data in modul_data_list if "17" in data.mouse]
-mouse18_data = [data for data in modul_data_list if "18" in data.mouse]
-mouse5785_data = [data for data in modul_data_list if "5785" in data.mouse]
-data = [mouse15_data, mouse17_data, mouse18_data, mouse5785_data]
+mouse7_data = [data for data in modul_data_list if data.mouse == "mouse_7"]
+mouse21_data = [data for data in modul_data_list if "21" in data.mouse]
+mouse73_data = [data for data in modul_data_list if "73" in data.mouse]
+mouse75_data = [data for data in modul_data_list if "75" in data.mouse]
+data = [mouse7_data, mouse21_data, mouse73_data, mouse75_data]
+
+print(data)
 
 hab1_stimulus_module_data = []
 hab2_stimulus_module_data = []
@@ -100,9 +101,9 @@ plot_grouped_barplot_with_black_bg(
     exp2_stimulus=exp2_stimulus_module_data,
     exp2_control=exp2_control_module_data,
     ymax=max_value,
-    title="Mean Visit Time - Females",
+    title="Mean Visit Time - Males",
     ylabel="Time (s)",
-    savename=f'{path}mean_visit_females'
+    savename=f'{path}mean_visit_males'
 )
 
 plot_stimulus_over_days(
@@ -112,9 +113,9 @@ plot_stimulus_over_days(
     exp2_stimulus=exp2_stimulus_module_data,
     mice=mice,
     ymax=max_value,
-    title="Mean Visit Time (Stimulus) - Females - single mice",
+    title="Mean Visit Time (Stimulus) - Males - single mice",
     ylabel="Time (s)",
-    savename=f'{path}mean_visit_stim_females'
+    savename=f'{path}mean_visit_stim_males'
 )
 
 plot_stimulus_over_days(
@@ -124,7 +125,7 @@ plot_stimulus_over_days(
     exp2_stimulus=exp2_control_module_data,
     mice=mice,
     ymax=max_value,
-    title="Mean Visit Time (Control) - Females - single mice",
+    title="Mean Visit Time (Control) - Males - single mice",
     ylabel="Time (s)",
-    savename=f'{path}mean_visit_con_females'
+    savename=f'{path}mean_visit_con_males'
 )

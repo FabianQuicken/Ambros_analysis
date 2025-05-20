@@ -11,6 +11,7 @@ class ModuleVariables:
     strecke_pixel_frame: float
     visits_per_hour: float
     mean_visit_time: float
+    all_visits: np.ndarray
     zeit_in_modul_prozent: float
     nose_coords_x_y: tuple
     date: str
@@ -42,6 +43,7 @@ def save_modulevariables_to_h5(file_path, data):
         f.create_dataset("maus_in_modul_über_zeit", data=data.maus_in_modul_über_zeit, compression="gzip")
         f.create_dataset("nose_coords_x", data=data.nose_coords_x_y[0], compression="gzip")
         f.create_dataset("nose_coords_y", data=data.nose_coords_x_y[1], compression="gzip")
+        f.create_dataset("all_visits", data=data.all_visits, compression="gzip")
 
         # Metadaten als Attribute
         f.attrs["exp_duration_frames"] = data.exp_duration_frames
@@ -86,6 +88,7 @@ def load_modulevariables_from_h5(file_path: str) -> ModuleVariables:
             strecke_pixel_frame=float(f.attrs["strecke_pixel_frame"]),
             visits_per_hour=float(f.attrs["visits_per_hour"]),
             mean_visit_time=float(f.attrs["mean_visit_time"]),
+            all_visits=f["all_visits"][:],
             zeit_in_modul_prozent=float(f.attrs["zeit_in_modul_prozent"]),
             date=str(f.attrs["date"]),
             is_stimulus_module=bool(f.attrs["is_stimulus_module"]),

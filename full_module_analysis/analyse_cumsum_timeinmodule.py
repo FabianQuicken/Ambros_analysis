@@ -8,10 +8,10 @@ from h5_handling import load_modulevariables_from_h5
 from plotting import cumsum_plot_average, plot_stimulus_over_days
 
 
-path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli/h5_files/"
-path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli/h5_files/"
+path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/h5_files/"
+#path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli/h5_files/"
 
-path = path_ho
+#path = path_ho
 
 file_list = glob.glob(os.path.join(path, '*.h5'))
 file_list.sort()
@@ -23,15 +23,14 @@ for file in file_list:
     modul_data_list.append(load_modulevariables_from_h5(file))
 
 
-mice = ["mouse_15", "mouse_17", "mouse_18", "mouse_5785"]
+mice = ["mouse_7", "mouse_21", "mouse_73", "mouse_75"]
 
-#print(modul_data_list)
 
-mouse15_data = [data for data in modul_data_list if "15" in data.mouse]
-mouse17_data = [data for data in modul_data_list if "17" in data.mouse]
-mouse18_data = [data for data in modul_data_list if "18" in data.mouse]
-mouse5785_data = [data for data in modul_data_list if "5785" in data.mouse]
-data = [mouse15_data, mouse17_data, mouse18_data, mouse5785_data]
+mouse7_data = [data for data in modul_data_list if data.mouse == "mouse_7"]
+mouse21_data = [data for data in modul_data_list if "21" in data.mouse]
+mouse73_data = [data for data in modul_data_list if "73" in data.mouse]
+mouse75_data = [data for data in modul_data_list if "75" in data.mouse]
+data = [mouse7_data, mouse21_data, mouse73_data, mouse75_data]
 
 hab1_stimulus_module_data = []
 hab2_stimulus_module_data = []
@@ -93,10 +92,10 @@ for mouse_data in data:
             exp2_control_module_data.append(mouse_data[7].maus_in_modul_über_zeit)
 
 
-#cumsum_plot_average(data_stim_modul=hab1_stimulus_module_data, data_con_modul=hab1_control_module_data, ymax=max_value, label1='stimulus module in exp1', label2='control module in exp1', title= 'HAB1 - females - cumsum time', savename=f'{path}cumsum_hab1_females')
-#cumsum_plot_average(data_stim_modul=exp1_stimulus_module_data, data_con_modul=exp1_control_module_data, ymax=max_value, label1='stimulus', label2='control', title= 'EXP1 - females - cumsum time', savename=f'{path}cumsum_exp1_females')
-#cumsum_plot_average(data_stim_modul=hab2_stimulus_module_data, data_con_modul=hab2_control_module_data, ymax=max_value, label1='stimulus module in exp1', label2='control module in exp1', title= 'HAB2 - females - cumsum time', savename=f'{path}cumsum_hab2_females')
-#cumsum_plot_average(data_stim_modul=exp2_stimulus_module_data, data_con_modul=exp2_control_module_data, ymax=max_value, label1='stimulus', label2='control', title= 'EXP2 - females - cumsum time', savename=f'{path}cumsum_exp2_females')
+cumsum_plot_average(data_stim_modul=hab1_stimulus_module_data, data_con_modul=hab1_control_module_data, ymax=max_value, label1='stimulus module in exp1', label2='control module in exp1', title= 'HAB1 - males - cumsum time', savename=f'{path}cumsum_hab1_males')
+cumsum_plot_average(data_stim_modul=exp1_stimulus_module_data, data_con_modul=exp1_control_module_data, ymax=max_value, label1='stimulus', label2='control', title= 'EXP1 - males - cumsum time', savename=f'{path}cumsum_exp1_males')
+cumsum_plot_average(data_stim_modul=hab2_stimulus_module_data, data_con_modul=hab2_control_module_data, ymax=max_value, label1='stimulus module in exp1', label2='control module in exp1', title= 'HAB2 - males - cumsum time', savename=f'{path}cumsum_hab2_males')
+cumsum_plot_average(data_stim_modul=exp2_stimulus_module_data, data_con_modul=exp2_control_module_data, ymax=max_value, label1='stimulus', label2='control', title= 'EXP2 - males - cumsum time', savename=f'{path}cumsum_exp2_males')
 
 
 hab1_stimulus_module_data = [sum(array) for array in hab1_stimulus_module_data]
@@ -117,9 +116,9 @@ plot_stimulus_over_days(
     mice=mice,
     convert_to_min=True,
     ymax=max_value,
-    title="Total Time (Stimulus) - Females - single mice",
+    title="Total Time (Stimulus) - Males - single mice",
     ylabel="Time (min)",
-    savename=f'{path}total_time_stim_females'
+    savename=f'{path}total_time_stim_males'
 )
 
 plot_stimulus_over_days(
@@ -130,7 +129,7 @@ plot_stimulus_over_days(
     mice=mice,
     convert_to_min=True,
     ymax=max_value,
-    title="Total Time (Control) - Females - single mice",
+    title="Total Time (Control) - Males - single mice",
     ylabel="Time (min)",
-    savename=f'{path}total_time_con_females'
+    savename=f'{path}total_time_con_males'
 )
