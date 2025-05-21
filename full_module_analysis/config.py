@@ -1,5 +1,5 @@
 FPS = 30
-PIXEL_PER_CM = 34.77
+PIXEL_PER_CM = 36.39
 LIKELIHOOD_THRESHOLD = 0.95
 DF_COLS = ("nose_x", "nose_y", "nose_likelihood",
                 "leftear_x", "leftear_y", "leftear_likelihood",

@@ -3,6 +3,79 @@ import numpy as np
 from config import FPS
 
 
+def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", datalabels=["Dataset 1", "Dataset 2"], plotname="", save_as="", bin_width=6.0, zoom_in=False):
+    """
+    Plots a histogram of visit lengths for multiple datasets with black background and white axes.
+
+    Parameters:
+    - data_list: List of arrays or objects with '.all_visits' attribute
+    - xmax: Upper x-axis limit; if None, it is determined from the data
+    - xlabel: Label for the x-axis
+    - plotname: Title of the plot
+    - save_as: File path to save the figure
+    - bin_width: Width of histogram bins
+    """
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Farben für die einzelnen Datensätze
+    colors = ['cyan', 'magenta', 'cyan', 'magenta', 'green']
+
+    # Daten extrahieren und FPS anwenden
+    visit_arrays = []
+    for data in data_list:
+        try:
+            visits = np.array(data.all_visits) / FPS
+        except:
+            visits = np.array(data) / FPS
+        visit_arrays.append(visits)
+
+    # xmax bestimmen
+    if xmax is None:
+        xmax = max([np.max(arr) for arr in visit_arrays])
+    bins = np.arange(0, xmax + bin_width, bin_width)
+
+    # Plot vorbereiten
+    plt.figure(figsize=(10, 6), facecolor='black')
+    ax = plt.gca()
+    ax.set_facecolor('black')
+
+    # Histogramme plotten
+    for i, visits in enumerate(visit_arrays):
+        plt.hist(
+            x=visits,
+            bins=bins,
+            color=colors[i % len(colors)],
+            edgecolor='white',
+            alpha=0.6,
+            label=datalabels[i]
+        )
+
+    # Achsen, Titel, Legende, etc.
+    plt.xlabel(xlabel, color='white', fontsize=12)
+    plt.ylabel("n visits", color='white', fontsize=12)
+    plt.title(plotname, color='white', fontsize=14)
+    plt.xlim(0, xmax)
+    if zoom_in:
+        plt.ylim(-0.5, 10)
+        if save_as:
+            save_as = save_as + '_zoomin'
+    else:
+        plt.ylim(-10, 280)
+
+
+    ax.tick_params(colors='white')
+    for spine in ax.spines.values():
+        spine.set_color('white')
+
+    plt.legend(facecolor='black', edgecolor='white', labelcolor='white')
+
+    plt.tight_layout()
+    if save_as:
+        plt.savefig(save_as+'.svg', format='svg')
+    plt.show()
+
 def visits_histogram(data, xmax=None, xlabel="visit length [s]", plotname="", save_as="", bin_width=6.0):
     """
     Plots a histogram of 'all_visits' from a data object with black background and white axes,
@@ -27,7 +100,7 @@ def visits_histogram(data, xmax=None, xlabel="visit length [s]", plotname="", sa
     plt.figure(figsize=(10, 6), facecolor='black')
     ax = plt.gca()
     ax.set_facecolor('black')
-
+    
     # Histogram zeichnen mit festen Bins
     plt.hist(
         x=data_array,
