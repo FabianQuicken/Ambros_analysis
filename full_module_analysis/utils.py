@@ -3,6 +3,11 @@ import pandas as pd
 import os
 from config import FPS
 
+def shrink_rectangle(coords, scale):
+      coords = np.array(coords)
+      center = coords.mean(axis=0)
+      shrunk_coords = center + (coords - center) * scale
+      return shrunk_coords.tolist()
 
 def euklidean_distance(x1, y1, x2, y2):
         """

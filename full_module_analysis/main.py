@@ -8,7 +8,7 @@ import h5py
 
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, convert_videostart_to_experiment_length, calculate_experiment_length
-from metrics import distance_bodypart_object, distance_travelled, investigation_time, get_food_coordinates
+from metrics import distance_bodypart_object, distance_travelled, investigation_time, get_food_coordinates, time_in_center
 from plotting import heatmap_plot, cumsum_plot, visits_histogram
 from metadata import module_is_stimulus_side
 from preprocessing import transform_dlcdata
@@ -16,14 +16,16 @@ from h5_handling import save_modulevariables_to_h5, load_modulevariables_from_h5
 
 @dataclass
 class ModuleVariables:
-    exp_duration_frames: int
-    strecke_über_zeit: np.array
-    maus_in_modul_über_zeit: np.array
+    exp_duration_frames: np.ndarray
+    strecke_über_zeit: np.ndarray
+    maus_in_modul_über_zeit: np.ndarray
     maus_an_food_percent: float
     strecke_pixel_frame: float
+    maus_in_center_over_time: np.ndarray
+    maus_in_center: int
     visits_per_hour: float
     mean_visit_time: float
-    all_visits: np.array
+    all_visits: np.ndarray
     zeit_in_modul_prozent: float
     nose_coords_x_y: tuple
     date: str
@@ -52,11 +54,13 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     strecke_über_zeit = exp_duration_frames.copy()
     nose_x_values_over_time = exp_duration_frames.copy()
     nose_y_values_over_time = exp_duration_frames.copy()
+    maus_in_center_over_time = exp_duration_frames.copy()
 
     maus_in_modul_in_frames = 0
     maus_am_snicket_in_frames = 0
     strecke_in_pixeln = 0
     maus_an_food = 0
+    maus_in_center = 0
 
     #visits in module
     all_visits = []
@@ -143,6 +147,19 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
 
         """
         
+        Maus in Center Analyse
+        
+        """
+
+        maus_center = time_in_center(df=bodypart_df, bodypart = 'nose', module=modulnumber)
+
+        maus_in_center += np.nansum(maus_center)
+
+        for i in range(len(maus_center)):
+            maus_in_center_over_time[i+(time_position_in_frames-1)] = maus_center[i]
+
+        """
+        
         Food Interaktion Analyse
 
         """
@@ -209,6 +226,8 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
         maus_in_modul_über_zeit = maus_in_modul_über_zeit,
         maus_an_food_percent = maus_an_food_percent,
         strecke_pixel_frame = strecke_pixel_frame,
+        maus_in_center_over_time = maus_in_center_over_time,
+        maus_in_center = maus_in_center, 
         visits_per_hour = visits_per_hour,
         mean_visit_time = mean_visit_time,
         all_visits = all_visits,
@@ -225,14 +244,14 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     return module_vars
 
 
-project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
+project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/code_test/"
 
 #project_path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
 #project_path = project_path_ho
 
-mouse = "mouse_75"
+mouse = "mouse_7"
 
-dates = ["2025_03_17", "2025_03_18", "2025_03_19", "2025_03_20"]
+dates = ["2025_03_11"]
 
 
 for date in dates:

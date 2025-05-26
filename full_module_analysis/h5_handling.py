@@ -9,6 +9,8 @@ class ModuleVariables:
     maus_in_modul_über_zeit: np.ndarray
     maus_an_food_percent: float
     strecke_pixel_frame: float
+    maus_in_center_over_time: np.ndarray
+    maus_in_center: int
     visits_per_hour: float
     mean_visit_time: float
     all_visits: np.ndarray

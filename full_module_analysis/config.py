@@ -13,3 +13,5 @@ DF_COLS = ("nose_x", "nose_y", "nose_likelihood",
                 "tail2_x", "tail2_y", "tail2_likelihood",
                 "tail3_x", "tail3_y", "tail3_likelihood",
                 "food1_x", "food1_y", "food1_likelihood")
+ARENA_COORDS_TOP1 = [(128,-22), (1862,-23), (1855,-1065), (136,-1058)]
+ARENA_COORDS_TOP2 = [(112,-48), (1839,-48), (116,-1079), (1836,-1079)]

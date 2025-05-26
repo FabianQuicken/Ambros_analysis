@@ -1,8 +1,75 @@
 import numpy as np
 import pandas as pd
+from shapely.geometry import Point, Polygon
 from preprocessing import likelihood_filtering, likelihood_filtering_nans
-from utils import euklidean_distance, fill_missing_values
-from config import PIXEL_PER_CM
+from utils import euklidean_distance, fill_missing_values, shrink_rectangle
+from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2
+
+def time_in_center(df,bodypart, module):
+
+    """
+    Determines for each video frame whether the specified bodypart is within the center area of the arena.
+
+    This function takes DeepLabCut tracking data and checks whether the x/y coordinates of the specified bodypart 
+    fall within a scaled-down center region of the arena, defined by fixed polygon coordinates. The function returns 
+    a binary array indicating whether the bodypart is in the center at each time point (frame).
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        A DataFrame containing DeepLabCut tracking data with columns named '<bodypart>_x' and '<bodypart>_y'.
+    bodypart : str
+        The name of the bodypart to be checked (e.g., 'nose', 'center', 'tailbase').
+    module : int
+        The module number (1 or 2) which determines which arena coordinates to use.
+
+    Returns
+    -------
+    numpy.ndarray
+        A 1D array of integers (0 or 1) with the same length as the input data, where 1 indicates that the bodypart 
+        was within the center area of the arena in that frame.
+
+    Raises
+    ------
+    ValueError
+        If an invalid module number is provided (not 1 or 2).
+
+    Notes
+    -----
+    The center area is defined by scaling the arena rectangle coordinates down to 60% of their original size, 
+    centered around the arena midpoint. The arena coordinates must be defined globally as ARENA_COORDS_TOP1 and ARENA_COORDS_TOP2.
+    """
+
+    # Richtige Arena Koordinaten wählen
+    if module == 1:
+        arena_coords = ARENA_COORDS_TOP1
+    elif module == 2:
+        arena_coords = ARENA_COORDS_TOP2
+    else:
+        raise ValueError(f"Ungültiges Modul: {module}")
+
+    # DeepLabCut Koordinaten extrahieren
+    mouse_x_coords = df[bodypart+'_x']
+    mouse_y_coords = df[bodypart+'_y']
+
+    # Center Area der Arena definieren
+    center_coords = shrink_rectangle(arena_coords, scale=0.6)
+    center_polygon = Polygon(center_coords)
+
+    # Leeren Ergebnisarray erstellen
+    mouse_coords_in_center = np.zeros(len(mouse_x_coords), dtype=int)
+
+    # Für jeden Frame testen, ob die Maus im Center ist
+    for i in range(len(mouse_x_coords)):
+        point = Point(mouse_x_coords[i], mouse_y_coords[i])
+        if center_polygon.contains(point):
+            mouse_coords_in_center[i] = 1
+
+    return mouse_coords_in_center
+    
+
+def center_crossings():
+    pass
 
 def mean_visit_time():
     pass
