@@ -11,6 +11,7 @@ class ModuleVariables:
     strecke_pixel_frame: float
     maus_in_center_over_time: np.ndarray
     maus_in_center: int
+    center_crossings: int
     visits_per_hour: float
     mean_visit_time: float
     all_visits: np.ndarray
@@ -46,11 +47,14 @@ def save_modulevariables_to_h5(file_path, data):
         f.create_dataset("nose_coords_x", data=data.nose_coords_x_y[0], compression="gzip")
         f.create_dataset("nose_coords_y", data=data.nose_coords_x_y[1], compression="gzip")
         f.create_dataset("all_visits", data=data.all_visits, compression="gzip")
+        f.create_dataset("maus_in_center_over_time", data=data.maus_in_center_over_time, compression="gzip")
 
         # Metadaten als Attribute
         f.attrs["exp_duration_frames"] = data.exp_duration_frames
         f.attrs["maus_an_food_percent"] = data.maus_an_food_percent
         f.attrs["strecke_pixel_frame"] = data.strecke_pixel_frame
+        f.attrs["maus_in_center"] = data.maus_in_center
+        f.attrs["center_crossings"] = data.center_crossings
         f.attrs["visits_per_hour"] = data.visits_per_hour
         f.attrs["mean_visit_time"] = data.mean_visit_time
         f.attrs["zeit_in_modul_prozent"] = data.zeit_in_modul_prozent
@@ -88,6 +92,9 @@ def load_modulevariables_from_h5(file_path: str) -> ModuleVariables:
             nose_coords_x_y=(f["nose_coords_x"][:], f["nose_coords_y"][:]),
             maus_an_food_percent=float(f.attrs["maus_an_food_percent"]),
             strecke_pixel_frame=float(f.attrs["strecke_pixel_frame"]),
+            maus_in_center_over_time=f["maus_in_center_over_time"][:],
+            maus_in_center=float(f.attrs["maus_in_center"]),
+            center_crossings=float(f.attrs["center_crossings"]),
             visits_per_hour=float(f.attrs["visits_per_hour"]),
             mean_visit_time=float(f.attrs["mean_visit_time"]),
             all_visits=f["all_visits"][:],

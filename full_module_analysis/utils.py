@@ -77,9 +77,9 @@ def calculate_experiment_length(first_file, last_file):
       ende_in_s = time_to_seconds(endzeit)
 
       experiment_dauer_in_s = ende_in_s - start_in_s 
-
+      print(last_file)
       # gesamte experimentdauer in frames
-      df_last_file = pd.read_csv(last_file)
+      df_last_file = pd.read_csv(rf'{last_file}')
       exp_duration_frames = np.zeros(experiment_dauer_in_s * FPS + len(df_last_file))
 
       return exp_duration_frames, startzeit, endzeit, date

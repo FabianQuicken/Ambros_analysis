@@ -105,7 +105,7 @@ def visits_histogram(data, xmax=None, xlabel="visit length [s]", plotname="", sa
     plt.hist(
         x=data_array,
         bins=bins,
-        color=('red' if 'con' in save_as else 'yellow'),
+        color=('red' if data.is_stimulus_module else 'yellow'),
         edgecolor='white'
     )
 

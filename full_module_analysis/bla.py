@@ -1,0 +1,1 @@
+print(len("Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli_plus_ventilation/mouse_3/2025_05_27/top1\\2025_05_27_10_27_31_mouse_3_habituation_top1_40439818DLC_resnet50_mice_incubationMar12shuffle1_300000.csv"))

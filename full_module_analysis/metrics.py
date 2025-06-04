@@ -61,15 +61,43 @@ def time_in_center(df,bodypart, module):
 
     # Für jeden Frame testen, ob die Maus im Center ist
     for i in range(len(mouse_x_coords)):
-        point = Point(mouse_x_coords[i], mouse_y_coords[i])
+        point = Point(mouse_x_coords.iloc[i], mouse_y_coords.iloc[i])
         if center_polygon.contains(point):
             mouse_coords_in_center[i] = 1
 
     return mouse_coords_in_center
     
 
-def center_crossings():
-    pass
+def count_center_crossings(center_array, min_frames_between=10):
+    """
+    Zählt, wie oft die Maus das Zentrum durchquert hat, basierend auf einer binären Zeitreihe (0 = außerhalb, 1 = im Zentrum).
+
+    Parameters
+    ----------
+    center_array : np.ndarray
+        1D binäres Array mit 0 (außerhalb) und 1 (im Zentrum) pro Frame.
+    min_frames_between : int, optional
+        Minimale Anzahl an Frames zwischen zwei Übertritten, um Rauschen oder Zittern zu ignorieren.
+
+    Returns
+    -------
+    int
+        Anzahl der Mittendurchquerungen.
+    """
+    in_center = np.array(center_array, dtype=int)
+    transitions = np.diff(in_center)
+    entries = np.where(transitions == 1)[0] + 1  # +1 wegen diff-Verschiebung
+
+    # Optional: Rauschen filtern – z. B. schnelle hin-und-her Wechsel innerhalb weniger Frames ignorieren
+    if len(entries) == 0:
+        return 0
+
+    filtered_entries = [entries[0]]
+    for i in range(1, len(entries)):
+        if entries[i] - filtered_entries[-1] >= min_frames_between:
+            filtered_entries.append(entries[i])
+
+    return len(filtered_entries)
 
 def mean_visit_time():
     pass

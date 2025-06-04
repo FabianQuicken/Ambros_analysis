@@ -8,7 +8,7 @@ import h5py
 
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, convert_videostart_to_experiment_length, calculate_experiment_length
-from metrics import distance_bodypart_object, distance_travelled, investigation_time, get_food_coordinates, time_in_center
+from metrics import distance_bodypart_object, distance_travelled, investigation_time, get_food_coordinates, time_in_center, count_center_crossings
 from plotting import heatmap_plot, cumsum_plot, visits_histogram
 from metadata import module_is_stimulus_side
 from preprocessing import transform_dlcdata
@@ -23,6 +23,7 @@ class ModuleVariables:
     strecke_pixel_frame: float
     maus_in_center_over_time: np.ndarray
     maus_in_center: int
+    center_crossings: int
     visits_per_hour: float
     mean_visit_time: float
     all_visits: np.ndarray
@@ -41,6 +42,9 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     # csv's einlesen und nach uhrzeit(name) sortieren
     file_list = glob.glob(os.path.join(path, '*.csv'))
     file_list.sort()
+
+
+
 
     # experimentdauer in frames
     exp_duration_frames, startzeit, endzeit, date = calculate_experiment_length(first_file=file_list[0], last_file=file_list[-1])
@@ -208,6 +212,9 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     all_visits = np.array(all_visits)
     mean_visit_time = np.mean(all_visits) / FPS
 
+    # zählt die anzahl an crossings durch die Mitte
+    center_crossings = count_center_crossings(center_array=maus_in_center_over_time)
+
     # food interaktion zählen
     maus_an_food_percent = maus_an_food/len(exp_duration_frames)*100
 
@@ -228,6 +235,7 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
         strecke_pixel_frame = strecke_pixel_frame,
         maus_in_center_over_time = maus_in_center_over_time,
         maus_in_center = maus_in_center, 
+        center_crossings = center_crossings,
         visits_per_hour = visits_per_hour,
         mean_visit_time = mean_visit_time,
         all_visits = all_visits,
@@ -244,14 +252,14 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     return module_vars
 
 
-project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/code_test/"
+project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli_vent/"
 
 #project_path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
 #project_path = project_path_ho
 
-mouse = "mouse_7"
+mouse = "mouse_3"
 
-dates = ["2025_03_11"]
+dates = ["2025_06_02"]
 
 
 for date in dates:
@@ -261,8 +269,8 @@ for date in dates:
     name_modul1_h5 = f"{Modul1Variables.date}_top1_{('stimulus' if Modul1Variables.is_stimulus_module else 'control')}.h5"
     name_modul2_h5 = f"{Modul2Variables.date}_top2_{('stimulus' if Modul2Variables.is_stimulus_module else 'control')}.h5"
 
-    visits_histogram(data=Modul1Variables, save_as=f"{project_path}{mouse}/{date}/visits_top1_hist.svg")
-    visits_histogram(data=Modul2Variables, save_as=f"{project_path}{mouse}/{date}/visits_top2_hist.svg")
+    #visits_histogram(data=Modul1Variables, save_as=f"{project_path}{mouse}/{date}/visits_top1_hist.svg")
+    #visits_histogram(data=Modul2Variables, save_as=f"{project_path}{mouse}/{date}/visits_top2_hist.svg")
     
 
     save_modulevariables_to_h5(file_path=f"{project_path}{mouse}/{date}/{name_modul1_h5}",
@@ -270,7 +278,7 @@ for date in dates:
     save_modulevariables_to_h5(file_path=f"{project_path}{mouse}/{date}/{name_modul2_h5}",
                             data = Modul2Variables)
     
-    """
+    
     cumsum_plot(data_list=[Modul1Variables.maus_in_modul_über_zeit,Modul2Variables.maus_in_modul_über_zeit],
             labels=["modul 1", "modul 2"],
             colors=["blue", "red"],
@@ -296,7 +304,7 @@ for date in dates:
 
     heatmap_plot(x_values=Modul2Variables.nose_coords_x_y[0], y_values=Modul2Variables.nose_coords_x_y[1], plotname="Heatmap Modul 2", save_as=f"{project_path}{mouse}/{date}/heatmap_modul2.svg", num_bins=12)
 
-    """
+    
 
 
 
