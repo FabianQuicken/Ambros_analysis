@@ -13,6 +13,7 @@ from plotting import heatmap_plot, cumsum_plot, visits_histogram
 from metadata import module_is_stimulus_side
 from preprocessing import transform_dlcdata
 from h5_handling import save_modulevariables_to_h5, load_modulevariables_from_h5
+import matplotlib.pyplot as plt
 
 @dataclass
 class ModuleVariables:
@@ -200,13 +201,14 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
 
     #food_x_values_over_time = fill_missing_values(food_x_values_over_time)
     #food_y_values_over_time = fill_missing_values(food_y_values_over_time)
-    """
+    
     # food koordinaten plotten zur kontrolle
     plt.figure()
     plt.plot(food_x_values_over_time)
     plt.plot(food_y_values_over_time)
-    plt.show()
-    """
+    #plt.show()
+    plt.savefig(f"C:/Users/quicken/Desktop/für_fileserver/food_not_interpolated.svg", format='svg')
+    
 
     # wie lange ist ein visit im schnitt
     all_visits = np.array(all_visits)
@@ -252,14 +254,14 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     return module_vars
 
 
-project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli_vent/"
+project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
 
 #project_path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
 #project_path = project_path_ho
 
-mouse = "mouse_3"
+mouse = "mouse_21"
 
-dates = ["2025_06_02"]
+dates = ["2025_05_14"]
 
 
 for date in dates:
