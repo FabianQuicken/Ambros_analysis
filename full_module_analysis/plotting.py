@@ -306,75 +306,88 @@ def cumsum_plot_average(data_stim_modul, data_con_modul, ymax=None, label1="modu
 
 
 
+
 def plot_grouped_barplot_with_black_bg(hab1_stimulus, hab1_control,
                                        exp1_stimulus, exp1_control,
                                        hab2_stimulus, hab2_control,
                                        exp2_stimulus, exp2_control,
-                                       convert_to_min = False,
-                                       ymax = None,
+                                       convert_to_min=False,
+                                       ymax=None,
                                        title="Grouped Barplot", ylabel="Value", savename=None):
     """
     Plots grouped barplots for stimulus vs. control across four conditions
-    with a black background and white axes and text.
+    with a black background and white axes and text. Individual datapoints are shown as scatter.
     """
 
-    # Mittelwerte und Standardabweichungen berechnen
-    data = [
-        (np.mean(hab1_control), np.std(hab1_control), np.mean(hab1_stimulus), np.std(hab1_stimulus)),
-        (np.mean(exp1_control), np.std(exp1_control), np.mean(exp1_stimulus), np.std(exp1_stimulus)),
-        (np.mean(hab2_control), np.std(hab2_control), np.mean(hab2_stimulus), np.std(hab2_stimulus)),
-        (np.mean(exp2_control), np.std(exp2_control), np.mean(exp2_stimulus), np.std(exp2_stimulus)),
-    ]
-
     group_labels = ['HAB1', 'EXP1', 'HAB2', 'EXP2']
-
     bar_width = 0.35
-    indices = np.arange(len(data))
+    indices = np.arange(len(group_labels))
 
-    control_means = [d[0] for d in data]
-    control_stds = [d[1] for d in data]
-    stimulus_means = [d[2] for d in data]
-    stimulus_stds = [d[3] for d in data]
+    # Daten vorbereiten
+    data_control = [hab1_control, exp1_control, hab2_control, exp2_control]
+    data_stimulus = [hab1_stimulus, exp1_stimulus, hab2_stimulus, exp2_stimulus]
 
+    # Mittelwerte und Standardabweichungen berechnen
+    control_means = [np.mean(d) for d in data_control]
+    control_stds = [np.std(d) for d in data_control]
+    stimulus_means = [np.mean(d) for d in data_stimulus]
+    stimulus_stds = [np.std(d) for d in data_stimulus]
+
+    # Optional in Minuten umrechnen
     if convert_to_min:
-        # Umrechnung von Frames in Minuten 
-        minutes_factor = FPS * 60
+        factor = FPS * 60
+        control_means = [x / factor for x in control_means]
+        control_stds  = [x / factor for x in control_stds]
+        stimulus_means = [x / factor for x in stimulus_means]
+        stimulus_stds  = [x / factor for x in stimulus_stds]
+        data_control = [[v / factor for v in d] for d in data_control]
+        data_stimulus = [[v / factor for v in d] for d in data_stimulus]
 
-        control_means /= minutes_factor
-        control_stds  /= minutes_factor
-        stimulus_means /= minutes_factor
-        stimulus_stds  /= minutes_factor
-
+    # Plot vorbereiten
     fig, ax = plt.subplots(figsize=(10, 6))
     fig.patch.set_facecolor('black')
     ax.set_facecolor('black')
 
-    # Control links, Stimulus rechts
+    # Balken zeichnen
     ax.bar(indices - bar_width/2, control_means, width=bar_width, yerr=control_stds,
            label='Control', color='gray', capsize=5, error_kw=dict(ecolor='white'))
     ax.bar(indices + bar_width/2, stimulus_means, width=bar_width, yerr=stimulus_stds,
            label='Stimulus', color='orange', capsize=5, error_kw=dict(ecolor='white'))
 
+    # Scatter-Datenpunkte
+    #rng = np.random.default_rng(2)  # Für reproducible jitter
+    for i in range(len(indices)):
+        x_ctrl = np.full(len(data_control[i]), indices[i] - bar_width/2)
+        x_stim = np.full(len(data_stimulus[i]), indices[i] + bar_width/2)
+        #jitter_ctrl = rng.normal(0, 0.05, size=len(x_ctrl))
+        #jitter_stim = rng.normal(0, 0.05, size=len(x_stim))
+
+        #ax.scatter(x_ctrl + jitter_ctrl, data_control[i], color='white', s=40, alpha=0.7)
+        #ax.scatter(x_stim + jitter_stim, data_stimulus[i], color='white', s=40, alpha=0.7)
+
+        ax.scatter(x_ctrl, data_control[i], color='white', s=40, alpha=0.7)
+        ax.scatter(x_stim, data_stimulus[i], color='white', s=40, alpha=0.7)
+
+    # Achsen und Layout
     ax.set_xticks(indices)
     ax.set_xticklabels(group_labels, color='white', fontsize=12)
     ax.set_ylabel(ylabel, color='white')
     ax.set_title(title, color='white', fontsize=14)
     ax.tick_params(axis='y', colors='white')
-    ax.spines['bottom'].set_color('white')
-    ax.spines['left'].set_color('white')
-    ax.spines['top'].set_color('white')
-    ax.spines['right'].set_color('white')
-    ax.legend(facecolor='black', edgecolor='white', labelcolor='white')
+    for spine in ax.spines.values():
+        spine.set_color('white')
+
     if ymax:
         if convert_to_min:
-            ax.set_ylim(0, ymax*1.1 / (FPS*60))
+            ax.set_ylim(0, ymax * 1.1 / (FPS * 60))
         else:
-            ax.set_ylim(0, ymax*1.1)
+            ax.set_ylim(0, ymax * 1.1)
+
+    ax.legend(facecolor='black', edgecolor='white', labelcolor='white')
 
     plt.tight_layout()
-
     if savename:
-        plt.savefig(f"{savename}.svg", format='svg')
+        plt.savefig(f"{savename}.svg", format='svg', facecolor='black')
     plt.show()
 
 def plot_stimulus_over_days(hab1_stimulus, exp1_stimulus, hab2_stimulus, exp2_stimulus, mice, convert_to_min=False, ymax=None, title="Stimulus Module Data per Mouse", ylabel="Time (s)", savename=None):
