@@ -3,7 +3,7 @@ import numpy as np
 from config import FPS
 
 
-def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", datalabels=["Dataset 1", "Dataset 2"], plotname="", save_as="", bin_width=6.0, zoom_in=False):
+def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", datalabels=["Dataset 1", "Dataset 2"], plotname="", save_as="", bin_width=6.0, zoom_in=False, logarithmic_y_scale=False):
     """
     Plots a histogram of visit lengths for multiple datasets with black background and white axes.
 
@@ -62,7 +62,11 @@ def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", data
         if save_as:
             save_as = save_as + '_zoomin'
     else:
-        plt.ylim(-10, 280)
+        if logarithmic_y_scale:
+            plt.yscale("log")
+            plt.ylim(1, 280)
+        else:
+            plt.ylim(-10, 280)
 
 
     ax.tick_params(colors='white')
@@ -76,7 +80,7 @@ def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", data
         plt.savefig(save_as+'.svg', format='svg')
     plt.show()
 
-def visits_histogram(data, xmax=None, xlabel="visit length [s]", plotname="", save_as="", bin_width=6.0):
+def visits_histogram(data, xmax=None, xlabel="visit length [s]", plotname="", save_as="", bin_width=6.0, logarithmic_y_scale=False):
     """
     Plots a histogram of 'all_visits' from a data object with black background and white axes,
     and consistent bar width regardless of data length.
@@ -114,6 +118,8 @@ def visits_histogram(data, xmax=None, xlabel="visit length [s]", plotname="", sa
     plt.ylabel("Frequency", color='white', fontsize=12)
     plt.title(plotname, color='white', fontsize=14)
     plt.xlim(0, xmax)
+    if logarithmic_y_scale:
+        plt.yscale("log")
     plt.ylim(0,250)
 
     ax.tick_params(colors='white')

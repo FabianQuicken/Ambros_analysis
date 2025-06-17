@@ -119,8 +119,8 @@ for mouse_data in data:
 datalists = [[exp1_control_module_data, exp1_stimulus_module_data], [exp2_control_module_data, exp2_stimulus_module_data], [hab1_control_module_data, hab1_stimulus_module_data], [hab2_control_module_data, hab2_stimulus_module_data]]
 labels_list = [["Control", "Stimulus"], ["Control", "Stimulus"], ["Control", "Stimulus (in Exp1)"], ["Control", "Stimulus (in Exp1)"]]
 plotnames_list = ["exp1 - male", "exp2 - male", "hab1 - male", "hab2 - male"]
-savenames_list = [f'{path}visits_hist_males_exp1', f'{path}visits_hist_males_exp2', f'{path}visits_hist_males_hab1', f'{path}visits_hist_males_hab2']
+savenames_list = [f'{path}visits_hist_males_exp1_log', f'{path}visits_hist_males_exp2_log', f'{path}visits_hist_males_hab1_log', f'{path}visits_hist_males_hab2_log']
 
 for i, data in enumerate(datalists):
-    visits_multi_histogram(data_list=data, xmax=300, datalabels=labels_list[i], plotname=plotnames_list[i], save_as=savenames_list[i], zoom_in=False)
+    visits_multi_histogram(data_list=data, xmax=300, datalabels=labels_list[i], plotname=plotnames_list[i], save_as=savenames_list[i], zoom_in=False, logarithmic_y_scale=True)
 
