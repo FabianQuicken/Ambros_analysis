@@ -20,7 +20,7 @@ def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", data
     import numpy as np
 
     # Farben für die einzelnen Datensätze
-    colors = ['cyan', 'magenta', 'cyan', 'magenta', 'green']
+    colors = ['red', 'white', 'yellow', 'yellow', 'yellow']
 
     # Daten extrahieren und FPS anwenden
     visit_arrays = []
@@ -47,7 +47,6 @@ def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", data
             x=visits,
             bins=bins,
             color=colors[i % len(colors)],
-            edgecolor='white',
             alpha=0.6,
             label=datalabels[i]
         )
@@ -64,7 +63,7 @@ def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", data
     else:
         if logarithmic_y_scale:
             plt.yscale("log")
-            plt.ylim(1, 280)
+            plt.ylim(-1, 280)
         else:
             plt.ylim(-10, 280)
 

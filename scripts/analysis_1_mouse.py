@@ -566,7 +566,7 @@ for behavior in deg_behaviors:
 """
 
 
-"""
+
 
 # # # Göttingen Stuff # # #
 
@@ -621,7 +621,7 @@ def create_cumsum_plot_for_nwg():
     dlc_barplot_nwg(data_module1=dlc_behavior_data_modul1, data_module2=dlc_behavior_data_modul2, savename=f"{folder}dlc_behaviors")
 
 
-
+"""
 
 #create_cumsum_plot_for_nwg()
 
