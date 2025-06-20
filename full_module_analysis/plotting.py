@@ -318,27 +318,29 @@ def plot_grouped_barplot_with_black_bg(hab1_stimulus, hab1_control,
                                        exp2_stimulus, exp2_control,
                                        convert_to_min=False,
                                        ymax=None,
-                                       title="Grouped Barplot", ylabel="Value", savename=None):
+                                       title="Grouped Barplot", ylabel="Value", savename=None,
+                                       connect_paired=False):
     """
     Plots grouped barplots for stimulus vs. control across four conditions
     with a black background and white axes and text. Individual datapoints are shown as scatter.
+    Optionally connects paired points with lines.
     """
+
+    import numpy as np
+    import matplotlib.pyplot as plt
 
     group_labels = ['HAB1', 'EXP1', 'HAB2', 'EXP2']
     bar_width = 0.35
     indices = np.arange(len(group_labels))
 
-    # Daten vorbereiten
     data_control = [hab1_control, exp1_control, hab2_control, exp2_control]
     data_stimulus = [hab1_stimulus, exp1_stimulus, hab2_stimulus, exp2_stimulus]
 
-    # Mittelwerte und Standardabweichungen berechnen
     control_means = [np.mean(d) for d in data_control]
     control_stds = [np.std(d) for d in data_control]
     stimulus_means = [np.mean(d) for d in data_stimulus]
     stimulus_stds = [np.std(d) for d in data_stimulus]
 
-    # Optional in Minuten umrechnen
     if convert_to_min:
         factor = FPS * 60
         control_means = [x / factor for x in control_means]
@@ -348,32 +350,27 @@ def plot_grouped_barplot_with_black_bg(hab1_stimulus, hab1_control,
         data_control = [[v / factor for v in d] for d in data_control]
         data_stimulus = [[v / factor for v in d] for d in data_stimulus]
 
-    # Plot vorbereiten
     fig, ax = plt.subplots(figsize=(10, 6))
     fig.patch.set_facecolor('black')
     ax.set_facecolor('black')
 
-    # Balken zeichnen
     ax.bar(indices - bar_width/2, control_means, width=bar_width, yerr=control_stds,
            label='Control', color='gray', capsize=5, error_kw=dict(ecolor='white'))
     ax.bar(indices + bar_width/2, stimulus_means, width=bar_width, yerr=stimulus_stds,
            label='Stimulus', color='orange', capsize=5, error_kw=dict(ecolor='white'))
 
-    # Scatter-Datenpunkte
-    #rng = np.random.default_rng(2)  # Für reproducible jitter
     for i in range(len(indices)):
         x_ctrl = np.full(len(data_control[i]), indices[i] - bar_width/2)
         x_stim = np.full(len(data_stimulus[i]), indices[i] + bar_width/2)
-        #jitter_ctrl = rng.normal(0, 0.05, size=len(x_ctrl))
-        #jitter_stim = rng.normal(0, 0.05, size=len(x_stim))
-
-        #ax.scatter(x_ctrl + jitter_ctrl, data_control[i], color='white', s=40, alpha=0.7)
-        #ax.scatter(x_stim + jitter_stim, data_stimulus[i], color='white', s=40, alpha=0.7)
 
         ax.scatter(x_ctrl, data_control[i], color='white', s=40, alpha=0.7)
         ax.scatter(x_stim, data_stimulus[i], color='white', s=40, alpha=0.7)
 
-    # Achsen und Layout
+        # Linien verbinden, falls aktiviert
+        if connect_paired:
+            for xc, xs, yc, ys in zip(x_ctrl, x_stim, data_control[i], data_stimulus[i]):
+                ax.plot([xc, xs], [yc, ys], color='white', alpha=0.4, linewidth=1)
+
     ax.set_xticks(indices)
     ax.set_xticklabels(group_labels, color='white', fontsize=12)
     ax.set_ylabel(ylabel, color='white')

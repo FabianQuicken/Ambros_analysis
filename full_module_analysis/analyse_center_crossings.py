@@ -102,5 +102,6 @@ plot_grouped_barplot_with_black_bg(
     ymax=max_value,
     title="Center Crossings - Males",
     ylabel="#crossings",
-    savename=f'{path}center_crossings_males'
+    savename=f'{path}center_crossings_males',
+    connect_paired=True
 )
