@@ -3,7 +3,10 @@ import numpy as np
 from config import FPS
 
 
-def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", datalabels=["Dataset 1", "Dataset 2"], plotname="", save_as="", bin_width=6.0, zoom_in=False, logarithmic_y_scale=False):
+def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]",
+                           datalabels=["Dataset 1", "Dataset 2"], plotname="",
+                           save_as="", bin_width=6.0, zoom_in=False,
+                           logarithmic_y_scale=False, outline_only=False):
     """
     Plots a histogram of visit lengths for multiple datasets with black background and white axes.
 
@@ -20,7 +23,7 @@ def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", data
     import numpy as np
 
     # Farben für die einzelnen Datensätze
-    colors = ['red', 'white', 'yellow', 'yellow', 'yellow']
+    colors = ['yellow', 'red', 'yellow', 'yellow', 'yellow']
 
     # Daten extrahieren und FPS anwenden
     visit_arrays = []
@@ -47,8 +50,11 @@ def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", data
             x=visits,
             bins=bins,
             color=colors[i % len(colors)],
-            alpha=0.6,
-            label=datalabels[i]
+            edgecolor=colors[i % len(colors)],
+            alpha=1.0 if outline_only else 0.6,
+            label=datalabels[i],
+            histtype='step' if outline_only else 'bar',
+            linewidth=2
         )
 
     # Achsen, Titel, Legende, etc.
@@ -63,9 +69,9 @@ def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]", data
     else:
         if logarithmic_y_scale:
             plt.yscale("log")
-            plt.ylim(-1, 280)
+            plt.ylim(-1, 600)
         else:
-            plt.ylim(-10, 280)
+            plt.ylim(-10, 600)
 
 
     ax.tick_params(colors='white')
@@ -319,7 +325,8 @@ def plot_grouped_barplot_with_black_bg(hab1_stimulus, hab1_control,
                                        convert_to_min=False,
                                        ymax=None,
                                        title="Grouped Barplot", ylabel="Value", savename=None,
-                                       connect_paired=False):
+                                       connect_paired=False,
+                                       plot_single_day=False):
     """
     Plots grouped barplots for stimulus vs. control across four conditions
     with a black background and white axes and text. Individual datapoints are shown as scatter.
@@ -336,6 +343,25 @@ def plot_grouped_barplot_with_black_bg(hab1_stimulus, hab1_control,
     data_control = [hab1_control, exp1_control, hab2_control, exp2_control]
     data_stimulus = [hab1_stimulus, exp1_stimulus, hab2_stimulus, exp2_stimulus]
 
+    if plot_single_day:
+        group_labels = [plot_single_day]
+        indices = np.arange(len(group_labels))
+        savename += '_' + plot_single_day
+        if plot_single_day == 'hab1':
+            data_control = [hab1_control]
+            data_stimulus = [hab1_stimulus]
+        elif plot_single_day == 'exp1':
+            data_control = [exp1_control]
+            data_stimulus = [exp1_stimulus]
+        elif plot_single_day == 'hab2':
+            data_control = [hab2_control]
+            data_stimulus = [hab2_stimulus]
+        elif plot_single_day == 'exp2':
+            data_control = [exp2_control]
+            data_stimulus = [exp2_stimulus]
+        else:
+            raise ValueError(f"Unknown format of plot_single_day argument: {plot_single_day}.\n Use any of: 'hab1', 'hab2', 'exp1', 'exp2'.")
+
     control_means = [np.mean(d) for d in data_control]
     control_stds = [np.std(d) for d in data_control]
     stimulus_means = [np.mean(d) for d in data_stimulus]
@@ -350,21 +376,21 @@ def plot_grouped_barplot_with_black_bg(hab1_stimulus, hab1_control,
         data_control = [[v / factor for v in d] for d in data_control]
         data_stimulus = [[v / factor for v in d] for d in data_stimulus]
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(2.5, 6))
     fig.patch.set_facecolor('black')
     ax.set_facecolor('black')
 
     ax.bar(indices - bar_width/2, control_means, width=bar_width, yerr=control_stds,
-           label='Control', color='gray', capsize=5, error_kw=dict(ecolor='white'))
+           label='Control', color='red', capsize=5, error_kw=dict(ecolor='white'))
     ax.bar(indices + bar_width/2, stimulus_means, width=bar_width, yerr=stimulus_stds,
-           label='Stimulus', color='orange', capsize=5, error_kw=dict(ecolor='white'))
+           label='Stimulus', color='yellow', capsize=5, error_kw=dict(ecolor='white'))
 
     for i in range(len(indices)):
         x_ctrl = np.full(len(data_control[i]), indices[i] - bar_width/2)
         x_stim = np.full(len(data_stimulus[i]), indices[i] + bar_width/2)
 
-        ax.scatter(x_ctrl, data_control[i], color='white', s=40, alpha=0.7)
-        ax.scatter(x_stim, data_stimulus[i], color='white', s=40, alpha=0.7)
+        ax.scatter(x_ctrl, data_control[i], color='red', linewidths= 1.5, edgecolors='yellow', s=40, alpha=0.7)
+        ax.scatter(x_stim, data_stimulus[i], color='yellow', linewidths= 1.5, edgecolors='red', s=40, alpha=0.7)
 
         # Linien verbinden, falls aktiviert
         if connect_paired:

@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass
 from h5_handling import load_modulevariables_from_h5
 from plotting import plot_grouped_barplot_with_black_bg, plot_stimulus_over_days
+from config import FPS
 
 
 path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/h5_files/"
@@ -43,7 +44,6 @@ exp1_control_module_data = []
 exp2_control_module_data = []
 
 # max_value für y-Achsenbeschränkung berechnen
-
 all_data = []
 for mouse_data in data:
     for stats in mouse_data:
@@ -63,32 +63,31 @@ for mouse_data in data:
     # daten sortieren
     if len(mouse_data) == 8:
         if first_stim_modul == 1:
-            hab1_stimulus_module_data.append(mouse_data[0].center_crossings)
-            hab1_control_module_data.append(mouse_data[1].center_crossings)
+            hab1_stimulus_module_data.append(mouse_data[0].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
+            hab1_control_module_data.append(mouse_data[1].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
 
-            hab2_stimulus_module_data.append(mouse_data[4].center_crossings)
-            hab2_control_module_data.append(mouse_data[5].center_crossings)
+            hab2_stimulus_module_data.append(mouse_data[4].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
+            hab2_control_module_data.append(mouse_data[5].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
             
-            exp1_stimulus_module_data.append(mouse_data[2].center_crossings)
-            exp1_control_module_data.append(mouse_data[3].center_crossings)
+            exp1_stimulus_module_data.append(mouse_data[2].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
+            exp1_control_module_data.append(mouse_data[3].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
 
-            exp2_stimulus_module_data.append(mouse_data[7].center_crossings)
-            exp2_control_module_data.append(mouse_data[6].center_crossings)
+            exp2_stimulus_module_data.append(mouse_data[7].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
+            exp2_control_module_data.append(mouse_data[6].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
 
 
         elif first_stim_modul == 2:
-            hab1_stimulus_module_data.append(mouse_data[1].center_crossings)
-            hab1_control_module_data.append(mouse_data[0].center_crossings)
+            hab1_stimulus_module_data.append(mouse_data[1].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
+            hab1_control_module_data.append(mouse_data[0].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
 
-            hab2_stimulus_module_data.append(mouse_data[5].center_crossings)
-            hab2_control_module_data.append(mouse_data[4].center_crossings)
+            hab2_stimulus_module_data.append(mouse_data[5].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
+            hab2_control_module_data.append(mouse_data[4].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
 
-            exp1_stimulus_module_data.append(mouse_data[3].center_crossings)
-            exp1_control_module_data.append(mouse_data[2].center_crossings)  
+            exp1_stimulus_module_data.append(mouse_data[3].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
+            exp1_control_module_data.append(mouse_data[2].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))  
 
-            exp2_stimulus_module_data.append(mouse_data[6].center_crossings)
-            exp2_control_module_data.append(mouse_data[7].center_crossings)
-
+            exp2_stimulus_module_data.append(mouse_data[6].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
+            exp2_control_module_data.append(mouse_data[7].center_crossings / (sum(mouse_data[0].maus_in_modul_über_zeit) / FPS / 3600))
 
 plot_grouped_barplot_with_black_bg(
     hab1_stimulus=hab1_stimulus_module_data,
@@ -100,8 +99,8 @@ plot_grouped_barplot_with_black_bg(
     exp2_stimulus=exp2_stimulus_module_data,
     exp2_control=exp2_control_module_data,
     ymax=max_value,
-    title="Center Crossings - Males",
-    ylabel="#crossings",
-    savename=f'{path}center_crossings_males',
+    title="Center Crossings normalized - Males",
+    ylabel="#crossings per hour in module",
+    savename=f'{path}center_crossings_males_normalized',
     connect_paired=True
 )

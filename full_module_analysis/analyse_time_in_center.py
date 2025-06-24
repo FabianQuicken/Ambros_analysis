@@ -63,31 +63,31 @@ for mouse_data in data:
     # daten sortieren
     if len(mouse_data) == 8:
         if first_stim_modul == 1:
-            hab1_stimulus_module_data.append(mouse_data[0].maus_in_center / sum(mouse_data[0].maus_in_modul_über_zeit))
-            hab1_control_module_data.append(mouse_data[1].maus_in_center / sum(mouse_data[1].maus_in_modul_über_zeit))
+            hab1_stimulus_module_data.append(100 * mouse_data[0].maus_in_center / sum(mouse_data[0].maus_in_modul_über_zeit))
+            hab1_control_module_data.append(100 * mouse_data[1].maus_in_center / sum(mouse_data[1].maus_in_modul_über_zeit))
 
-            hab2_stimulus_module_data.append(mouse_data[4].maus_in_center / sum(mouse_data[4].maus_in_modul_über_zeit))
-            hab2_control_module_data.append(mouse_data[5].maus_in_center / sum(mouse_data[5].maus_in_modul_über_zeit))
+            hab2_stimulus_module_data.append(100 * mouse_data[4].maus_in_center / sum(mouse_data[4].maus_in_modul_über_zeit))
+            hab2_control_module_data.append(100 * mouse_data[5].maus_in_center / sum(mouse_data[5].maus_in_modul_über_zeit))
             
-            exp1_stimulus_module_data.append(mouse_data[2].maus_in_center / sum(mouse_data[2].maus_in_modul_über_zeit))
-            exp1_control_module_data.append(mouse_data[3].maus_in_center / sum(mouse_data[3].maus_in_modul_über_zeit))
+            exp1_stimulus_module_data.append(100 * mouse_data[2].maus_in_center / sum(mouse_data[2].maus_in_modul_über_zeit))
+            exp1_control_module_data.append(100 * mouse_data[3].maus_in_center / sum(mouse_data[3].maus_in_modul_über_zeit))
 
-            exp2_stimulus_module_data.append(mouse_data[7].maus_in_center / sum(mouse_data[7].maus_in_modul_über_zeit))
-            exp2_control_module_data.append(mouse_data[6].maus_in_center / sum(mouse_data[6].maus_in_modul_über_zeit))
+            exp2_stimulus_module_data.append(100 * mouse_data[7].maus_in_center / sum(mouse_data[7].maus_in_modul_über_zeit))
+            exp2_control_module_data.append(100 * mouse_data[6].maus_in_center / sum(mouse_data[6].maus_in_modul_über_zeit))
 
 
         elif first_stim_modul == 2:
-            hab1_stimulus_module_data.append(mouse_data[1].maus_in_center / sum(mouse_data[1].maus_in_modul_über_zeit))
-            hab1_control_module_data.append(mouse_data[0].maus_in_center / sum(mouse_data[0].maus_in_modul_über_zeit))
+            hab1_stimulus_module_data.append(100 * mouse_data[1].maus_in_center / sum(mouse_data[1].maus_in_modul_über_zeit))
+            hab1_control_module_data.append(100 * mouse_data[0].maus_in_center / sum(mouse_data[0].maus_in_modul_über_zeit))
 
-            hab2_stimulus_module_data.append(mouse_data[5].maus_in_center / sum(mouse_data[5].maus_in_modul_über_zeit))
-            hab2_control_module_data.append(mouse_data[4].maus_in_center / sum(mouse_data[4].maus_in_modul_über_zeit))
+            hab2_stimulus_module_data.append(100 * mouse_data[5].maus_in_center / sum(mouse_data[5].maus_in_modul_über_zeit))
+            hab2_control_module_data.append(100 * mouse_data[4].maus_in_center / sum(mouse_data[4].maus_in_modul_über_zeit))
 
-            exp1_stimulus_module_data.append(mouse_data[3].maus_in_center / sum(mouse_data[3].maus_in_modul_über_zeit))
-            exp1_control_module_data.append(mouse_data[2].maus_in_center / sum(mouse_data[2].maus_in_modul_über_zeit))  
+            exp1_stimulus_module_data.append(100 * mouse_data[3].maus_in_center / sum(mouse_data[3].maus_in_modul_über_zeit))
+            exp1_control_module_data.append(100 * mouse_data[2].maus_in_center / sum(mouse_data[2].maus_in_modul_über_zeit))  
 
-            exp2_stimulus_module_data.append(mouse_data[6].maus_in_center / sum(mouse_data[6].maus_in_modul_über_zeit))
-            exp2_control_module_data.append(mouse_data[7].maus_in_center / sum(mouse_data[7].maus_in_modul_über_zeit))
+            exp2_stimulus_module_data.append(100 * mouse_data[6].maus_in_center / sum(mouse_data[6].maus_in_modul_über_zeit))
+            exp2_control_module_data.append(100 * mouse_data[7].maus_in_center / sum(mouse_data[7].maus_in_modul_über_zeit))
 
 
 plot_grouped_barplot_with_black_bg(
