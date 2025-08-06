@@ -61,7 +61,7 @@ def move_files(source, destination):
     if not destination_clear:
         print("Da sind schon Dateien, yikes!")
     if not date_matches:
-        print("Dat Datum vom Ordner passt nicht zum Video, hast du dich vertippt du Larry?")
+        print("Dat Datum vom Ordner passt nicht zum Video, haste dich vertippt du Larry?")
     if len(files_not_sorted) > 0:
         print(f"Bei folgenden Dateien hängt der Haussegen schief und daher wurden sie nicht verschoben: {files_not_sorted}")
 
