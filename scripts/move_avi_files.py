@@ -3,6 +3,7 @@
 import shutil
 import glob
 import os
+from tqdm import tqdm
 
 def move_files(source, destination):
 
@@ -40,12 +41,12 @@ def move_files(source, destination):
         if destination[-10:] not in file:
             # sets flag to false, if date doesn't match
             date_matches = False
-    
+    print(file_list)
     # moves files if destination is clear
     files_not_sorted = []
     if destination_clear and date_matches:
         files_moved = 0
-        for file in file_list:
+        for file in tqdm(file_list):
             file_moved = False
             for i in range(len(possible_destinations)):
                 if possible_destinations[i] in file:
@@ -67,8 +68,8 @@ def move_files(source, destination):
 
 
 
-files_are_at = r'G:/Fabi transfer/Videos/mouse3_exp2'
+files_are_at = r'H:/Fabi transfer/Videos/mouse5778_exp2'
 
-files_go_to = r'Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/raw/female_mice_male_stimuli_plus_ventilation/mouse_3/2025_06_02'
+files_go_to = r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\raw\female_mice_male_stimuli_plus_ventilation\mouse_5778\2025_07_25"
 
 move_files(source=files_are_at, destination=files_go_to)
