@@ -4,7 +4,7 @@ import glob
 import os
 from config import DF_COLS
 
-def likelihood_filtering_nans(df, likelihood_row_name=str, filter_val=0.95):
+def likelihood_filtering_nans(df, likelihood_row_name=str, filter_val=0.3):
     """
     DeepLabCut provides a likelihood for the prediction of 
     each bodypart in each frame to be correct. Filtering predictions
@@ -17,7 +17,7 @@ def likelihood_filtering_nans(df, likelihood_row_name=str, filter_val=0.95):
     #print(f"The filter replaced values in {num_replaced} rows with NaN out of a total of {len(df)} rows.")
     return df_filtered
 
-def likelihood_filtering(df, likelihood_row_name=str, filter_val = 0.95):
+def likelihood_filtering(df, likelihood_row_name=str, filter_val = 0.3):
     """
     DeepLabCut provides a likelihood for the prediction of 
     each bodypart in each frame to be correct. Filtering predictions

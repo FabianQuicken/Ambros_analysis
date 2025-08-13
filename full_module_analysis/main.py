@@ -206,8 +206,8 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     plt.figure()
     plt.plot(food_x_values_over_time)
     plt.plot(food_y_values_over_time)
-    #plt.show()
-    plt.savefig(f"C:/Users/quicken/Desktop/für_fileserver/food_not_interpolated.svg", format='svg')
+    plt.show()
+    #plt.savefig(f"C:/Users/quicken/Desktop/für_fileserver/food_not_interpolated.svg", format='svg')
     
 
     # wie lange ist ein visit im schnitt
@@ -254,14 +254,14 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     return module_vars
 
 
-project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
+project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli_vent/"
 
 #project_path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
 #project_path = project_path_ho
 
-mouse = "mouse_21"
+mouse = "mouse_5778"
 
-dates = ["2025_05_14"]
+dates = ["2025_07_22", "2025_07_23"]
 
 
 for date in dates:
