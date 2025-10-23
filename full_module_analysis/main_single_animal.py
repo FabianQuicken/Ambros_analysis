@@ -261,7 +261,7 @@ project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_o
 
 mouse = "mouse_5778"
 
-dates = ["2025_07_22", "2025_07_23"]
+dates = ["2025_07_22", "2025_07_23", "2025_07_24", "2025_07_25"]
 
 
 for date in dates:
