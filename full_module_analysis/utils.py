@@ -1,7 +1,17 @@
 import numpy as np
 import pandas as pd
 import os
+from shapely.geometry import Point, Polygon
 from config import FPS
+
+def create_polygon(polygon_coords=list):
+    return Polygon(polygon_coords)
+
+def create_point(x, y):
+    return Point(x, y)
+
+def is_point_in_polygon(polygon, point):
+    return polygon.contains(point)
 
 def shrink_rectangle(coords, scale):
       coords = np.array(coords)

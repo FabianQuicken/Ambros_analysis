@@ -4,6 +4,30 @@ import glob
 import os
 from config import DF_COLS
 
+def interpolate_with_max_gap(df, max_gap=30, method="linear"):
+    out = df.copy()
+    num_cols = out.select_dtypes(include=[np.number]).columns
+    #print(num_cols)
+
+    # 1) Nur „echte“ Interpolation zwischen gültigen Punkten
+    out[num_cols] = out[num_cols].interpolate(method=method,
+                                              limit_direction="both",
+                                              limit_area="inside")
+    
+    # 2) NaN-Runs > max_gap identifizieren und wieder auf NaN setzen
+    for col in num_cols:
+        s = df[col]  # Original mit NaNs
+        # Gruppen-IDs zwischen Nicht-NaNs erstellen
+        grp = s.notna().cumsum()
+        # Länge jedes NaN-Runs
+        run_len = s.isna().groupby(grp).transform("sum")
+        # Maske: Positionen in zu langen NaN-Runs
+        too_long = s.isna() & (run_len > max_gap)
+        # Zurücksetzen
+        out.loc[too_long, col] = np.nan
+    
+    return out
+
 def likelihood_filtering_nans(df, likelihood_row_name=str, filter_val=0.3):
     """
     DeepLabCut provides a likelihood for the prediction of 
