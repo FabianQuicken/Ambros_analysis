@@ -5,6 +5,58 @@ from preprocessing import likelihood_filtering, likelihood_filtering_nans
 from utils import euklidean_distance, fill_missing_values, shrink_rectangle
 from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2
 
+def social_investigation(df, scorer, individuals, bodyparts):
+
+    all_nose_x = []
+    all_nose_y = []
+
+    all_x = []
+    all_y = []
+
+    for ind in individuals:
+        nose_x = df.loc[:, (scorer, ind, ["nose"], ["x"])].to_numpy()
+        nose_y = df.loc[:, (scorer, ind, ["nose"], ["y"])].to_numpy()
+
+        all_nose_x.append(nose_x)
+        all_nose_y.append(nose_y)
+
+        x = df.loc[:, (scorer, ind, bodyparts, ["x"])].to_numpy()
+        y = df.loc[:, (scorer, ind, bodyparts, ["y"])].to_numpy()
+
+        all_x.append(x)
+        all_y.append(y)
+
+    social_investigation = np.zeros(len(all_nose_x[0]))
+
+
+
+    for i in range(len(all_nose_x)): # jede Maus als Investigierende
+        
+        for p in range(len(all_x)):  # jede Maus als Ziel
+
+            if not p == i:  
+                
+
+                for c in range(len(all_nose_x[i])):  # jedes Frame
+
+                    closest_bp = 1000  # in px
+
+                    for bp in range(len(all_x)):     # jeder Körperteil der Zielmaus
+
+                        dist = euklidean_distance(x1 = all_nose_x[i][c], y1 = all_nose_y[i][c], x2 = all_x[p][c][bp], y2=all_y[p][c][bp])
+                        if dist < closest_bp:
+                            closest_bp = dist
+
+                    if closest_bp <= PIXEL_PER_CM*3:
+                        social_investigation[c] = 1
+
+    return social_investigation
+
+
+                    
+                       
+    
+
 def time_in_center(df,bodypart, module):
 
     """

@@ -35,6 +35,7 @@ from utils import euklidean_distance, fill_missing_values, time_to_seconds, conv
 from metadata import module_has_stimulus_ma
 from chatgpt_plots import plot_mice_presence_states, plot_mouse_trajectory
 from preprocessing import interpolate_with_max_gap
+from social_behavior_analysis import social_investigation, detail_social_investigation, detail_social_investigation_gpt
 
 # struktur zum speichern erstellen
 @dataclass
@@ -80,6 +81,10 @@ arena_polygon = create_polygon(ARENA_COORDS)
 
 # files für ein modul werden eingelesen (von einem Experimenttag)
 path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\for_labelled_video"
+path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\for_labelled_video"
+ho = True
+if ho:
+    path=path_ho
 #path = r"C:\Users\Fabian\Code\Ambros_analysis\code_test"
 file_list = glob.glob(os.path.join(path, '*.h5'))
 
@@ -127,6 +132,9 @@ sum_min_one_mouse_center = 0
 all_visits = []
 sum_visits = 0
 
+social_inv = None
+
+
 filenames = []
 
 """
@@ -166,6 +174,7 @@ for file in tqdm(file_list):
     scorer = df.columns.levels[0][0]
     individuals = df.columns.levels[1]
     bodyparts = df.columns.levels[2]
+
 
     mouse_1_data = df.loc[:, (scorer, individuals[0], ["nose"], ["x", "y"])]
     
@@ -249,7 +258,20 @@ for file in tqdm(file_list):
         
         # analyse der entries und exits
 
+    # social investigation analyse
+    social_inv = social_investigation(df, scorer, individuals, bodyparts)
+    face_inv = detail_social_investigation(df, scorer, individuals, face_investigation= True)
+    body_inv = detail_social_investigation(df, scorer, individuals, body_investigation= True)
+    anogenital_inv = detail_social_investigation(df, scorer, individuals, anogenital_investigation= True)
 
+
+    test = detail_social_investigation_gpt(df, scorer, individuals, pixel_per_cm=PIXEL_PER_CM, max_dist_cm=2)
+    print("hello")
+    print(sum(face_inv))
+    print(sum(anogenital_inv))
+    print(test["totals"])
+    # nose koordinaten von jeder maus nehmen
+    # für jede dieser nose koordinaten testen, ob sie in der nähe eines bodyparts einer anderen maus ist
 
 
     # alle abgeschlossenen trajectories sammeln und speichern, am besten einmal alle zusammen und dann für jede maus einzeln in passender, zeitlicher relation
@@ -275,13 +297,32 @@ min_one_mouse_in_center = mice_in_center.any(axis=0).astype(int)
 mice_center_per_frame = mice_in_center.sum(axis=0)
 """
 plot_mice_presence_states(mice_in_module=mice_in_center, title = 'Mice in Center')
-"""
 
-from create_labelled_video import create_labelled_video
-create_labelled_video(video_path=r"C:\Users\quicken\Code\Ambros_analysis\code_test\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_40439818DLC_HrnetW32_multi_animal_pretrainedOct24shuffle1_detector_best-270_snapshot_best-120_el_id_p0_labeled.mp4",
-                      output_path=r"C:\Users\quicken\Code\Ambros_analysis\code_test\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_labelled.mp4",
-                      num_mice=mice_per_frame,
-                      num_mice_center=mice_center_per_frame)
+"""
+create_labelled_video = False
+if create_labelled_video:
+    from create_labelled_video import create_labelled_video
+    create_labelled_video(video_path=r'C:\Users\Fabian\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_40439818DLC_HrnetW32_multi_animal_pretrainedOct24shuffle1_detector_best-270_snapshot_best-120_el_id_p0_labeled.mp4',
+                      output_path=r'C:\Users\Fabian\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_labelled.mp4',
+                      metric1=test["presence_per_frame"]["body"],
+                      text1="Body Investigation",
+                      metric2=test["presence_per_frame"]["anogenital"],
+                      text2="Anogenital Investigation")
+
+create_labelled_video_modular = True
+if create_labelled_video_modular:
+    from create_labelled_video import create_labelled_video_modular
+    create_labelled_video_modular(video_path=r'C:\Users\Fabian\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_40439818DLC_HrnetW32_multi_animal_pretrainedOct24shuffle1_detector_best-270_snapshot_best-120_el_id_p0_labeled.mp4',
+                      output_path=r'C:\Users\Fabian\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_labelled.mp4',
+                      metrics=[
+                          ("Face Investigation:", test["presence_per_frame"]["face"]),
+                          ("Body Investigation:", test["presence_per_frame"]["body"]),
+                          ("Anogenital Investigation:", test["presence_per_frame"]["anogenital"])
+                      ],
+                      row_gap=20
+    )
+
+
 
 # center crossings über alle Mäuse zählen
 # mean visit time
