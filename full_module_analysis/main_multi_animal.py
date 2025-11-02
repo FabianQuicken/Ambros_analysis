@@ -315,11 +315,15 @@ if create_labelled_video_modular:
     create_labelled_video_modular(video_path=r'C:\Users\Fabian\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_40439818DLC_HrnetW32_multi_animal_pretrainedOct24shuffle1_detector_best-270_snapshot_best-120_el_id_p0_labeled.mp4',
                       output_path=r'C:\Users\Fabian\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_labelled.mp4',
                       metrics=[
+                          ("Mice in Video:", mice_per_frame),
+                          ("Mice in Center", mice_center_per_frame),
+                          ("Social Investigation:", social_inv),
                           ("Face Investigation:", test["presence_per_frame"]["face"]),
                           ("Body Investigation:", test["presence_per_frame"]["body"]),
                           ("Anogenital Investigation:", test["presence_per_frame"]["anogenital"])
                       ],
-                      row_gap=20
+                      row_gap=20,
+                      scale_factor=1.0
     )
 
 
