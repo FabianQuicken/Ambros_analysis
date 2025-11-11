@@ -82,7 +82,7 @@ arena_polygon = create_polygon(ARENA_COORDS)
 # files für ein modul werden eingelesen (von einem Experimenttag)
 path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\for_labelled_video"
 path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\for_labelled_video"
-ho = True
+ho = False
 if ho:
     path=path_ho
 #path = r"C:\Users\Fabian\Code\Ambros_analysis\code_test"
@@ -278,7 +278,7 @@ for file in tqdm(file_list):
 
 
     # zurückgelegte strecke berechnen: einzelne mäuse addieren
-
+    
 
     # maus in center analyse: ebenfalls für die maximale anzahl an mäusen angepasst
 
@@ -309,18 +309,18 @@ if create_labelled_video:
                       metric2=test["presence_per_frame"]["anogenital"],
                       text2="Anogenital Investigation")
 
-create_labelled_video_modular = True
+create_labelled_video_modular = False
 if create_labelled_video_modular:
     from create_labelled_video import create_labelled_video_modular
-    create_labelled_video_modular(video_path=r'C:\Users\Fabian\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_40439818DLC_HrnetW32_multi_animal_pretrainedOct24shuffle1_detector_best-270_snapshot_best-120_el_id_p0_labeled.mp4',
-                      output_path=r'C:\Users\Fabian\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_labelled.mp4',
+    create_labelled_video_modular(video_path=r'C:\Users\quicken\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_40439818DLC_HrnetW32_multi_animal_pretrainedOct24shuffle1_detector_best-270_snapshot_best-120_el_id_p0_labeled.mp4',
+                      output_path=r'C:\Users\quicken\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_labelled.mp4',
                       metrics=[
                           ("Mice in Video:", mice_per_frame),
                           ("Mice in Center", mice_center_per_frame),
                           ("Social Investigation:", social_inv),
-                          ("Face Investigation:", test["presence_per_frame"]["face"]),
-                          ("Body Investigation:", test["presence_per_frame"]["body"]),
-                          ("Anogenital Investigation:", test["presence_per_frame"]["anogenital"])
+                          ("Face Investigation:", face_inv),
+                          ("Body Investigation:", body_inv),
+                          ("Anogenital Investigation:", anogenital_inv)
                       ],
                       row_gap=20,
                       scale_factor=1.0
