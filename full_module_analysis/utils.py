@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from shapely.geometry import Point, Polygon
 from config import FPS
+import warnings
 
 def create_polygon(polygon_coords=list):
     return Polygon(polygon_coords)
@@ -96,3 +97,37 @@ def calculate_experiment_length(first_file, last_file):
       exp_duration_frames = np.zeros(experiment_dauer_in_s * FPS + len(df_last_file))
 
       return exp_duration_frames, startzeit, endzeit, date
+
+def mouse_center(df, scorer, individuals, bodyparts, min_bp):
+     n_frames = len(df)
+     n_ind = len(individuals)
+
+     all_center_x = np.empty((n_ind, n_frames), dtype=float) 
+     all_center_y = np.empty((n_ind, n_frames), dtype=float)
+
+     for i, ind in enumerate(individuals):
+        # x arrays für alle bodyparts eines individuums 
+        arr_x = df.loc[:, (scorer, ind, bodyparts, ["x", "y"])].values[:,::2]
+        # y arrays für alle bodyparts eines individuums
+        arr_y = df.loc[:, (scorer, ind, bodyparts, ["x", "y"])].values[:,1::2] * -1
+
+        valid = (~np.isnan(arr_x)) & (~np.isnan(arr_y))
+        valid_counts = valid.sum(axis=1)   
+
+        # center der maus als mean aller punkte bestimmen
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            centroid_x = np.nanmean(arr_x, axis=1)
+            centroid_y = np.nanmean(arr_y, axis=1)
+
+        # Wenn kein Minimum an Bodyparts getracfkt wird, wird der center wert auf nan gesetzt
+        too_few = valid_counts < min_bp
+        centroid_x[too_few] = np.nan
+        centroid_y[too_few] = np.nan
+
+        all_center_x[i] = centroid_x
+        all_center_y[i] = centroid_y
+
+     return all_center_x, all_center_y
+
+
