@@ -1,1 +1,15 @@
-print(len("Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli_plus_ventilation/mouse_3/2025_05_27/top1\\2025_05_27_10_27_31_mouse_3_habituation_top1_40439818DLC_resnet50_mice_incubationMar12shuffle1_300000.csv"))
+import os
+
+# === Einstellungen ===
+folder = r"Z:\n2023_odor_related_behavior\2025_omm_mice\Clavel_paradigm\ommpgol\females_33_47_48\side1"   # Zielordner
+old_part = "_omm12prop_"                 # Text, der ersetzt werden soll
+new_part = "_ommpgol_"                 # Neuer Text
+
+# === Dateien umbenennen ===
+for filename in os.listdir(folder):
+    old_path = os.path.join(folder, filename)
+    if os.path.isfile(old_path) and old_part in filename:
+        new_filename = filename.replace(old_part, new_part)
+        new_path = os.path.join(folder, new_filename)
+        os.rename(old_path, new_path)
+        print(f"✔️ {filename} → {new_filename}")

@@ -254,14 +254,14 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     return module_vars
 
 
-project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli_vent/"
+project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli/"
 
 #project_path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
 #project_path = project_path_ho
 
-mouse = "mouse_5778"
+mouse = "mouse_105"
 
-dates = ["2025_07_22", "2025_07_23", "2025_07_24", "2025_07_25"]
+dates = ["2025_10_27", "2025_10_28", "2025_10_29", "2025_10_30"]
 
 
 for date in dates:
