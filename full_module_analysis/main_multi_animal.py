@@ -259,17 +259,18 @@ for file in tqdm(file_list):
         # analyse der entries und exits
 
     # social investigation analyse
-    social_inv = social_investigation(df, scorer, individuals, bodyparts)
-    face_inv = detail_social_investigation(df, scorer, individuals, face_investigation= True)
-    body_inv = detail_social_investigation(df, scorer, individuals, body_investigation= True)
-    anogenital_inv = detail_social_investigation(df, scorer, individuals, anogenital_investigation= True)
+    #social_inv = social_investigation(df, scorer, individuals, bodyparts)
+    #face_inv = detail_social_investigation(df, scorer, individuals, face_investigation= True)
+    #body_inv = detail_social_investigation(df, scorer, individuals, body_investigation= True)
+    #anogenital_inv = detail_social_investigation(df, scorer, individuals, anogenital_investigation= True)
 
 
     test = detail_social_investigation_gpt(df, scorer, individuals, pixel_per_cm=PIXEL_PER_CM, max_dist_cm=2)
     print("hello")
-    print(sum(face_inv))
-    print(sum(anogenital_inv))
-    print(test["totals"])
+
+    face_inv = test["presence_per_frame"]["face"]
+    body_inv = test["presence_per_frame"]["body"]
+    anogenital_inv = test["presence_per_frame"]["anogenital"]
     # nose koordinaten von jeder maus nehmen
     # für jede dieser nose koordinaten testen, ob sie in der nähe eines bodyparts einer anderen maus ist
 
@@ -309,15 +310,12 @@ if create_labelled_video:
                       metric2=test["presence_per_frame"]["anogenital"],
                       text2="Anogenital Investigation")
 
-create_labelled_video_modular = False
+create_labelled_video_modular = True
 if create_labelled_video_modular:
     from create_labelled_video import create_labelled_video_modular
-    create_labelled_video_modular(video_path=r'C:\Users\quicken\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_40439818DLC_HrnetW32_multi_animal_pretrainedOct24shuffle1_detector_best-270_snapshot_best-120_el_id_p0_labeled.mp4',
-                      output_path=r'C:\Users\quicken\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_labelled.mp4',
+    create_labelled_video_modular(video_path=r'Z:\n2023_odor_related_behavior\other\Vorträge\281125_iBehave\2025_11_13_10_37_12_mice_omm12prop_females_home_unfamiliar_top1_40439818DLC_HrnetW32_multi_animal_mmoNov19shuffle1_detector_best-330_snapshot_best-20_el_id_p10_labeled.mp4',
+                      output_path=r'Z:\n2023_odor_related_behavior\other\Vorträge\281125_iBehave\2025_11_13_10_37_12_mice_omm12prop_females_home_unfamiliar_top1_labelled.mp4',
                       metrics=[
-                          ("Mice in Video:", mice_per_frame),
-                          ("Mice in Center", mice_center_per_frame),
-                          ("Social Investigation:", social_inv),
                           ("Face Investigation:", face_inv),
                           ("Body Investigation:", body_inv),
                           ("Anogenital Investigation:", anogenital_inv)
