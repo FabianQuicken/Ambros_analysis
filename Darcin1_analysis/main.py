@@ -280,7 +280,7 @@ def analyse_darcin_exp(path, dist_tresh):
 
 
 
-path = r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\raw\Darcin1\exp1"
+path = r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\raw\Darcin1\exp2"
 
 
 stim_inv_data, con_inv_data, exp_data, hab_data = analyse_darcin_exp(path=path, dist_tresh=PIXEL_PER_CM*2.5)
@@ -288,13 +288,13 @@ stim_inv_data, con_inv_data, exp_data, hab_data = analyse_darcin_exp(path=path, 
 labels = ["mouse_54", "mouse_55", "mouse_52", "mouse_56", "mouse_58"]
 
 plot_save = r"Z:\n2023_odor_related_behavior\other\Vorträge\251114_Data_Club"
-#plot_event_data(stim_inv_data, labels, save_as=plot_save+"\eventplot_stim.svg")
-#plot_event_data(con_inv_data, labels, save_as=plot_save+"\eventplot_con.svg")
-#plot_psth(data=stim_inv_data, save_as=plot_save+"\psthplot_stim.svg")
-#plot_psth(data=con_inv_data, save_as=plot_save+"\pstplot_con.svg")
+#plot_event_data(stim_inv_data, labels, save_as=plot_save+"\eventplot_stim_exp2.svg")
+#plot_event_data(con_inv_data, labels, save_as=plot_save+"\eventplot_con_exp2.svg")
+#plot_psth(data=stim_inv_data, save_as=plot_save+"\psthplot_stim_exp2.svg")
+#plot_psth(data=con_inv_data, save_as=plot_save+"\pstplot_con_exp2.svg")
 
 for index, arr in enumerate(con_inv_data):
-    diff = sum(stim_inv_data[index][0:19000]) / (sum(arr[0:19000]) + sum(stim_inv_data[index][0:19000]))
+    diff = sum(stim_inv_data[index][19000:38000]) / (sum(con_inv_data[index][19000:38000]))
     print(diff)
 
 
