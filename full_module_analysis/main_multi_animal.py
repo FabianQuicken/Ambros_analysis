@@ -31,11 +31,11 @@ import warnings
 
 # interne imports
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS
-from utils import euklidean_distance, fill_missing_values, time_to_seconds, convert_videostart_to_experiment_length, calculate_experiment_length, is_point_in_polygon, create_point, create_polygon, shrink_rectangle
+from utils import euklidean_distance, fill_missing_values, time_to_seconds, convert_videostart_to_experiment_length, calculate_experiment_length, is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
 from metadata import module_has_stimulus_ma
 from chatgpt_plots import plot_mice_presence_states, plot_mouse_trajectory
 from preprocessing import interpolate_with_max_gap
-from social_behavior_analysis import social_investigation, detail_social_investigation, detail_social_investigation_gpt
+from social_behavior_analysis import social_investigation, detail_social_investigation
 
 # struktur zum speichern erstellen
 @dataclass
@@ -177,7 +177,10 @@ for file in tqdm(file_list):
 
 
     mouse_1_data = df.loc[:, (scorer, individuals[0], ["nose"], ["x", "y"])]
-    
+
+    # jeweilige mouse center berechnen (shape n_ind, n_frames)
+    all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bp = math.ceil(len(bodyparts) / 3))
+
 
     # mouse present analyse: für die maximale anzahl an mäusen angepasst (1 mouse in modul, 2 mice in module, 3 mice in module)
     for index, ind in enumerate(individuals):
@@ -195,43 +198,13 @@ for file in tqdm(file_list):
 
 
     # visit number etwas schwieriger, weil eine maus mehrmals das modul verlassen und betreten kann während einem video - maybe die entry zone entries --> arena entries zählen?
+
+    # center analyse
     for index, ind in enumerate(individuals):
 
-        # x arrays für alle bodyparts eines individuums 
-        arr_x = df.loc[:, (scorer, ind, bodyparts, ["x", "y"])].values[:,::2]
-        # y arrays für alle bodyparts eines individuums
-        arr_y = df.loc[:, (scorer, ind, bodyparts, ["x", "y"])].values[:,1::2] * -1
 
-        # einmal die länge des Arrays sowie die anzahl  verschiedener Bodyparts extrahieren
-        n_frames, n_bp = arr_x.shape
-
-        # mindestens ein Drittel der Bodyparts sollte vorhanden sein, um das Center der Maus zu berechnen
-        min_bodyparts = math.ceil(n_bp / 3)
-
-        # valid sind alle einträge, wo sowohl x und y für einen Bodypart vorhanden sind
-        valid = (~np.isnan(arr_x)) & (~np.isnan(arr_y))       # (n_frames, n_bp)
-        # summe aller erfolgreich getrackten bodyparts pro zeile
-        valid_counts = valid.sum(axis=1)                      # (n_frames,)
-
-        """
-        # checkt, ob die maus überhaupt im Video ist
-        valid_x = ~np.isnan(arr_x)
-        valid_y = ~np.isnan(arr_y)
-        valid_points = valid_x & valid_y
-        has_valid = valid_points.sum() > 0
-        """
-        
-
-        # center der maus als mean aller punkte bestimmen
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            centroid_x = np.nanmean(arr_x, axis=1)
-            centroid_y = np.nanmean(arr_y, axis=1)
-
-        # Wenn weniger als die Hälfte der Bodyparts getrackt wurden, wird der center wert auf nan gesetzt
-        too_few = valid_counts < min_bodyparts
-        centroid_x[too_few] = np.nan
-        centroid_y[too_few] = np.nan
+        centroid_x = all_centroid_x[i]
+        centroid_y = all_centroid_y[i]
 
         # mouse in center analyse
         mouse_in_center = np.zeros(len(centroid_x))
@@ -259,21 +232,19 @@ for file in tqdm(file_list):
         # analyse der entries und exits
 
     # social investigation analyse
-    #social_inv = social_investigation(df, scorer, individuals, bodyparts)
-    #face_inv = detail_social_investigation(df, scorer, individuals, face_investigation= True)
-    #body_inv = detail_social_investigation(df, scorer, individuals, body_investigation= True)
-    #anogenital_inv = detail_social_investigation(df, scorer, individuals, anogenital_investigation= True)
+    social_inv = social_investigation(df, scorer, individuals, bodyparts)
 
+    social_inv_details = detail_social_investigation(df, scorer, individuals, pixel_per_cm=PIXEL_PER_CM, max_dist_cm=2)
+    
+    # checkt ob jeweils face, body oder anogenital investigation pro frame (keine doppelzählung, also zB anogenital_inv individual 1 -> individual 2 und invividual 2 -> individual 3 wird hier nicht beides gezählt)
+    face_inv = social_inv_details["presence_per_frame"]["face"]
+    body_inv = social_inv_details["presence_per_frame"]["body"]
+    anogenital_inv = social_inv_details["presence_per_frame"]["anogenital"]
 
-    test = detail_social_investigation_gpt(df, scorer, individuals, pixel_per_cm=PIXEL_PER_CM, max_dist_cm=2)
-    print("hello")
-
-    face_inv = test["presence_per_frame"]["face"]
-    body_inv = test["presence_per_frame"]["body"]
-    anogenital_inv = test["presence_per_frame"]["anogenital"]
-    # nose koordinaten von jeder maus nehmen
-    # für jede dieser nose koordinaten testen, ob sie in der nähe eines bodyparts einer anderen maus ist
-
+    # hier die summen, um auch gleichzeitige investigation gleicher bodyparts zu finden
+    sum_face_inv = social_inv_details["totals"]["face"]
+    sum_body_inv = social_inv_details["totals"]["body"]
+    sum_anogenital_inv = social_inv_details["totals"]["anogenital"]
 
     # alle abgeschlossenen trajectories sammeln und speichern, am besten einmal alle zusammen und dann für jede maus einzeln in passender, zeitlicher relation
 
@@ -310,12 +281,15 @@ if create_labelled_video:
                       metric2=test["presence_per_frame"]["anogenital"],
                       text2="Anogenital Investigation")
 
-create_labelled_video_modular = True
+create_labelled_video_modular = False
 if create_labelled_video_modular:
     from create_labelled_video import create_labelled_video_modular
-    create_labelled_video_modular(video_path=r'Z:\n2023_odor_related_behavior\other\Vorträge\281125_iBehave\2025_11_13_10_37_12_mice_omm12prop_females_home_unfamiliar_top1_40439818DLC_HrnetW32_multi_animal_mmoNov19shuffle1_detector_best-330_snapshot_best-20_el_id_p10_labeled.mp4',
-                      output_path=r'Z:\n2023_odor_related_behavior\other\Vorträge\281125_iBehave\2025_11_13_10_37_12_mice_omm12prop_females_home_unfamiliar_top1_labelled.mp4',
+    create_labelled_video_modular(video_path=r'C:\Users\quicken\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_40439818DLC_HrnetW32_multi_animal_pretrainedOct24shuffle1_detector_best-270_snapshot_best-120_el_id_p0_labeled.mp4',
+                      output_path=r'C:\Users\quicken\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_labelled.mp4',
                       metrics=[
+                          ("Mice in Video:", mice_per_frame),
+                          ("Mice in Center", mice_center_per_frame),
+                          ("Social Investigation:", social_inv),
                           ("Face Investigation:", face_inv),
                           ("Body Investigation:", body_inv),
                           ("Anogenital Investigation:", anogenital_inv)
@@ -335,8 +309,3 @@ if create_labelled_video_modular:
 # speichern als h5
 
 # plots generieren
-
-
-
-
-
