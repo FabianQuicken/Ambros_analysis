@@ -179,7 +179,7 @@ for file in tqdm(file_list):
     mouse_1_data = df.loc[:, (scorer, individuals[0], ["nose"], ["x", "y"])]
 
     # jeweilige mouse center berechnen (shape n_ind, n_frames)
-    all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bp = math.ceil(len(bodyparts) / 3))
+    all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bodyparts = math.ceil(len(bodyparts) / 3))
 
 
     # mouse present analyse: für die maximale anzahl an mäusen angepasst (1 mouse in modul, 2 mice in module, 3 mice in module)
@@ -198,6 +198,9 @@ for file in tqdm(file_list):
 
 
     # visit number etwas schwieriger, weil eine maus mehrmals das modul verlassen und betreten kann während einem video - maybe die entry zone entries --> arena entries zählen?
+    for index, ind in enumerate(individuals):
+        print('Ich kann nichts')
+
 
     # center analyse
     for index, ind in enumerate(individuals):
@@ -230,6 +233,7 @@ for file in tqdm(file_list):
 
         
         # analyse der entries und exits
+    raise ValueError('Das ist der falsche Input du Otto')
 
     # social investigation analyse
     social_inv = social_investigation(df, scorer, individuals, bodyparts)
