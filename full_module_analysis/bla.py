@@ -1,1 +1,34 @@
-print(len("Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli_plus_ventilation/mouse_3/2025_05_27/top1\\2025_05_27_10_27_31_mouse_3_habituation_top1_40439818DLC_resnet50_mice_incubationMar12shuffle1_300000.csv"))
+choice = "cappuccino"
+milk_level = True
+bean_level = 0.5
+
+if choice == "cappuccino":
+    if milk_level > 0.4 and bean_level > 0.2:
+        print("Cappuccino in progress...")
+
+time = 15
+
+has_ring = False
+
+if has_ring == False:
+    print("Nooo")
+
+person = "phd"
+has_safety_training = False
+time = 22
+is_emergency = False
+
+if not is_emergency:
+    if person == "pi":
+        print("All hail the king")
+    elif has_safety_training:
+        if person == "phd" or person == "postdoc":
+            print("Welcome working slave.")
+        elif person == "student" and 18 >= time >= 8:
+            print("Hello there, young padawan.")
+        else:
+            print("Access denied: Outside student hours.")
+    else:
+        print("Access denied: Safety training missing.")
+else:
+    print("Emergency access granted.")
