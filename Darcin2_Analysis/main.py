@@ -35,6 +35,19 @@ import matplotlib.pyplot as plt
 """
 Funktionen
 """
+def euklidean_distance(x1, y1, x2, y2):
+        """
+        This func returns the euklidean distance between two points.
+        (x1, y1) and (x2, y2) are the cartesian coordinates of the points.
+        """
+        if np.isnan(x1):
+            distance = np.nan
+        elif np.isnan(x2):
+            distance = np.nan
+        else:
+            distance = np.sqrt((x2-x1)**2 + (y2-y1)**2)
+
+        return distance
 
 def time_to_seconds(time_str: str) -> int:
     hours, minutes, seconds = map(int, time_str.split("_"))
@@ -134,8 +147,10 @@ def build_master_dlc_dataframe(
 
 FPS = 30
 PIXEL_PER_CM = 36.39
+DIST_THRESH = PIXEL_PER_CM*2.5
+
 all_mice = ["109", "121", "122", "125"]
-mouse = "109"
+mouse = "125"
 
 """
 Daten einlesen und in Stimulus und Kontrolle sortieren
@@ -145,7 +160,7 @@ exp_path = r"Z:\n2023_odor_related_behavior\2025_darcin\Darcin2\raw"
 
 day1_files = sorted(glob.glob(os.path.join(exp_path + "/Day1/" + mouse, '*.h5')))
 day2_files = sorted(glob.glob(os.path.join(exp_path + "/Day2/" + mouse, '*.h5')))
-day3_files = sorted(glob.glob(os.path.join(exp_path + "/Day2/" + mouse, '*.h5')))
+day3_files = sorted(glob.glob(os.path.join(exp_path + "/Day3/" + mouse, '*.h5')))
 
 m1_d1_files = [file for file in day1_files if "top1" in file]
 m2_d1_files = [file for file in day1_files if "top2" in file]
@@ -174,17 +189,68 @@ else:
     stim_data = [m2_d1_files, m2_d2_files, m2_d3_files]
 
 
-for i in range(1): # über jeden Experimenttag iterieren, hier später 3  einfügen
+for i in range(3): # über jeden Experimenttag iterieren, hier später 3  einfügen
 
     d_stim_data = stim_data[i]
     d_con_data = con_data[i]
 
     # Master_df erstellen
     
-    m_stim_df = build_master_dlc_dataframe(files_in_order=d_stim_data, fps=FPS)
-    print(m_stim_df)
+    m_stim_df = build_master_dlc_dataframe(files_in_order=d_stim_data, fps=FPS, allow_overlap=True)
+    m_con_df = build_master_dlc_dataframe(files_in_order=d_con_data, fps=FPS, allow_overlap=True)
+
+    scorer = m_stim_df.columns.levels[0][0]
     
-    m_stim_df.to_csv(exp_path + "test.csv")
+    
+    def get_dish_coords(df, scorer, dish_name):
+
+        dish_likelihood = df.loc[:, (scorer, [dish_name], ["likelihood"])].to_numpy().ravel()
+
+        best_likelihood_frame = 0
+        max_likelihood = 0
+
+        for index, likelihood in enumerate(dish_likelihood):
+            if likelihood > max_likelihood:
+                    best_likelihood_frame = index
+                    
+
+        dish_x = df.loc[best_likelihood_frame, (scorer, [dish_name], ["x"])].to_numpy().item()
+        dish_y = df.loc[best_likelihood_frame, (scorer, [dish_name], ["y"])].to_numpy().item()
+
+
+        return dish_x, dish_y
+
+
+    s_dish_x, s_dish_y = get_dish_coords(df=load_dlc_df(d_stim_data[0]), scorer=scorer, dish_name="dish")
+    c_dish_x, c_dish_y = get_dish_coords(df=load_dlc_df(d_con_data[0]), scorer=scorer, dish_name="dish")
+
+    s_dish_inv = np.zeros(len(m_stim_df))
+    c_dish_inv = np.zeros(len(m_con_df))
+
+    s_nose_x = m_stim_df.loc[:, (scorer, ["nose"], ["x"])].to_numpy().ravel()
+    s_nose_y = m_stim_df.loc[:, (scorer, ["nose"], ["y"])].to_numpy().ravel()
+
+    c_nose_x = m_con_df.loc[:, (scorer, ["nose"], ["x"])].to_numpy().ravel()
+    c_nose_y = m_con_df.loc[:, (scorer, ["nose"], ["y"])].to_numpy().ravel()
+
+    # likelihood filtern über maske
+    stim_nose_likelihood = m_stim_df.loc[:, (scorer, ["nose"], ["likelihood"])].to_numpy().ravel()
+    likelihood_mask = stim_nose_likelihood >= 0.6
+    m_stim_df.loc[~likelihood_mask, (scorer, ["nose"], ["x", "y"])]
+
+
+    for i, (x,y) in enumerate(zip(s_nose_x, s_nose_y)):
+        d_dist = euklidean_distance(x1=s_dish_x, y1=s_dish_y, x2=x, y2=y)
+        if d_dist <= DIST_THRESH:
+            s_dish_inv[i] = 1
+
+    for i, (x,y) in enumerate(zip(c_nose_x, c_nose_y)):
+        d_dist = euklidean_distance(x1=c_dish_x, y1=c_dish_y, x2=x, y2=y)
+        if d_dist <= DIST_THRESH:
+            c_dish_inv[i] = 1
+
+    print(np.nansum(s_dish_inv))
+    print(np.nansum(c_dish_inv))
 
 
 
