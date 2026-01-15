@@ -32,11 +32,110 @@ import os
 import glob
 import matplotlib.pyplot as plt
 
+"""
+Funktionen
+"""
+
+def time_to_seconds(time_str: str) -> int:
+    hours, minutes, seconds = map(int, time_str.split("_"))
+    return hours * 3600 + minutes * 60 + seconds
+
+def seconds_since_first(first_file: str, this_file: str) -> int:
+    first_name = os.path.splitext(os.path.basename(first_file))[0]
+    this_name  = os.path.splitext(os.path.basename(this_file))[0]
+
+    first_time = first_name[11:19]  # HH_MM_SS
+    this_time  = this_name[11:19]
+
+    return time_to_seconds(this_time) - time_to_seconds(first_time)
+
+def load_dlc_df(path: str) -> pd.DataFrame:
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".csv":
+        return pd.read_csv(path)
+    elif ext in [".h5", ".hdf5"]:
+        return pd.read_hdf(path)
+    else:
+        raise ValueError(f"Unsupported file type: {ext}")
+
+def build_master_dlc_dataframe(
+    files_in_order: list[str],
+    fps: int,
+    total_frames: int | None = None,
+    fill_value=np.nan,
+    allow_overlap: bool = False
+) -> pd.DataFrame:
+    """
+    files_in_order: Liste der Fragment-Dateien in zeitlicher Reihenfolge.
+    fps: Frames per second des Experiments.
+    total_frames: Optional. Wenn None, wird aus erstem/letztem File geschätzt:
+                 (end-start)*fps + len(last_df)
+    allow_overlap: Wenn False, wird bei Überschneidungen ein Fehler geworfen.
+    """
+
+    if not files_in_order:
+        raise ValueError("files_in_order is empty")
+
+    first_file = files_in_order[0]
+    last_file = files_in_order[-1]
+
+    # Lade erstes und letztes Fragment einmal, um Spalten + Default total_frames zu bestimmen
+    df_first = load_dlc_df(first_file)
+    df_last  = load_dlc_df(last_file)
+
+    if total_frames is None:
+        exp_seconds = seconds_since_first(first_file, last_file)
+        total_frames = exp_seconds * fps + len(df_last)
+
+    # Master-DF (NaNs) in Zielgröße
+    master = pd.DataFrame(
+        data=fill_value,
+        index=pd.RangeIndex(total_frames),
+        columns=df_first.columns
+    )
+
+    # Optional: Tracking, ob Zeilen schon befüllt wurden (für Overlap-Check)
+    filled_mask = np.zeros(total_frames, dtype=bool)
+
+    for f in files_in_order:
+        df_part = load_dlc_df(f)
+
+        # Spalten konsistent machen (falls einzelne Fragmente Spaltenreihenfolge abweicht)
+        # -> fehlende Spalten werden NaN, zusätzliche Spalten werden verworfen
+        df_part = df_part.reindex(columns=master.columns)
+
+        offset_s = seconds_since_first(first_file, f)
+        if offset_s < 0:
+            raise ValueError(f"File {f} starts before first_file (negative offset).")
+        offset_frames = int(round(offset_s * fps))
+
+        start = offset_frames
+        end = offset_frames + len(df_part)
+
+        if end > total_frames:
+            raise ValueError(
+                f"Fragment {f} would exceed master length: end={end}, total_frames={total_frames}. "
+                f"Increase total_frames or check timestamps/FPS."
+            )
+
+        if not allow_overlap:
+            if filled_mask[start:end].any():
+                raise ValueError(
+                    f"Overlap detected when inserting {f} into range [{start}:{end}]. "
+                    f"Set allow_overlap=True or resolve timestamp issues."
+                )
+
+        # Einfügen (schnell, spaltenweise kompatibel)
+        master.iloc[start:end] = df_part.to_numpy(copy=False)
+
+        filled_mask[start:end] = True
+
+    return master
 
 FPS = 30
 PIXEL_PER_CM = 36.39
 all_mice = ["109", "121", "122", "125"]
-mouse = "111"
+mouse = "109"
 
 """
 Daten einlesen und in Stimulus und Kontrolle sortieren
@@ -75,7 +174,17 @@ else:
     stim_data = [m2_d1_files, m2_d2_files, m2_d3_files]
 
 
+for i in range(1): # über jeden Experimenttag iterieren, hier später 3  einfügen
+
+    d_stim_data = stim_data[i]
+    d_con_data = con_data[i]
+
+    # Master_df erstellen
     
+    m_stim_df = build_master_dlc_dataframe(files_in_order=d_stim_data, fps=FPS)
+    print(m_stim_df)
+    
+    m_stim_df.to_csv(exp_path + "test.csv")
 
 
 
