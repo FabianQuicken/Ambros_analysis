@@ -188,11 +188,28 @@ else:
     con_data = [m1_d1_files, m1_d2_files, m1_d3_files]
     stim_data = [m2_d1_files, m2_d2_files, m2_d3_files]
 
+dish_inv = {
+        "day1": {
+            "stim_dish": None,
+            "con_dish": None
+        },
+        "day2": {
+            "stim_dish": None,
+            "con_dish": None
+        },
+        "day3": {
+            "stim_dish": None,
+            "con_dish": None
+        }
+    }
+
 
 for i in range(3): # über jeden Experimenttag iterieren, hier später 3  einfügen
 
     d_stim_data = stim_data[i]
     d_con_data = con_data[i]
+
+    print(dish_inv[f"day{str(i+1)}"])
 
     # Master_df erstellen
     
@@ -200,6 +217,7 @@ for i in range(3): # über jeden Experimenttag iterieren, hier später 3  einfü
     m_con_df = build_master_dlc_dataframe(files_in_order=d_con_data, fps=FPS, allow_overlap=True)
 
     scorer = m_stim_df.columns.levels[0][0]
+
     
     
     def get_dish_coords(df, scorer, dish_name):
@@ -238,19 +256,22 @@ for i in range(3): # über jeden Experimenttag iterieren, hier später 3  einfü
     likelihood_mask = stim_nose_likelihood >= 0.6
     m_stim_df.loc[~likelihood_mask, (scorer, ["nose"], ["x", "y"])]
 
+    
 
-    for i, (x,y) in enumerate(zip(s_nose_x, s_nose_y)):
+
+    for j, (x,y) in enumerate(zip(s_nose_x, s_nose_y)):
         d_dist = euklidean_distance(x1=s_dish_x, y1=s_dish_y, x2=x, y2=y)
         if d_dist <= DIST_THRESH:
-            s_dish_inv[i] = 1
+            s_dish_inv[j] = 1
 
-    for i, (x,y) in enumerate(zip(c_nose_x, c_nose_y)):
+    for j, (x,y) in enumerate(zip(c_nose_x, c_nose_y)):
         d_dist = euklidean_distance(x1=c_dish_x, y1=c_dish_y, x2=x, y2=y)
         if d_dist <= DIST_THRESH:
-            c_dish_inv[i] = 1
+            c_dish_inv[j] = 1
 
-    print(np.nansum(s_dish_inv))
-    print(np.nansum(c_dish_inv))
+    
+
+
 
 
 
