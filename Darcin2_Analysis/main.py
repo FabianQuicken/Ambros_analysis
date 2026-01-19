@@ -31,10 +31,125 @@ import tqdm
 import os
 import glob
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+
+
 
 """
 Funktionen
 """
+def plot_distance_histogram(
+    distance_values,
+    bins=50,
+    title="Distance per frame",
+    xlabel="Distance (pixel)",
+    save_as=None,
+    show_plot=False
+):
+    """
+    Plots a histogram of per-frame distances.
+    NaN values are ignored automatically.
+    """
+
+    # NaNs entfernen
+    distances = np.asarray(distance_values)
+    distances = distances[np.isfinite(distances)]
+    distances = np.asarray([i for i in distances if i <= 60])
+    
+
+    if distances.size == 0:
+        print("[plot_distance_histogram] No valid distance values to plot.")
+        return
+
+    plt.figure(figsize=(6, 4))
+    plt.hist(distances, bins=bins)
+    plt.xlim(0,60)
+    plt.ylim(0,2500)
+    plt.xlabel(xlabel)
+    plt.ylabel("Frames")
+    plt.title(title)
+
+    if save_as is not None:
+        plt.savefig(save_as, format="svg")
+    if show_plot:
+        plt.show()
+
+def heatmap_plot(x_values = np.array, y_values = np.array, plotname = str, save_as = str, num_bins = 35, cmap = 'hot', plot_time_frame_hours = (None, None)):
+    """
+    This function plots a heatmap of x and y coordinates, e.g. of the snout. Pass the coordinates of a complete experiment, and they get filtered for all
+    values that are not "0". Plotname and savepath need to be provided. Binsize is 50 per default. Colormap is "hot" per default.
+    """
+
+    if plot_time_frame_hours[1]:
+        plot_time_frame_frames = (round(plot_time_frame_hours[0]*108000), round(plot_time_frame_hours[1]*108000))
+        x_values = x_values[plot_time_frame_frames[0]:plot_time_frame_frames[1]]
+        y_values = y_values[plot_time_frame_frames[0]:plot_time_frame_frames[1]]
+
+    # Filter: finite Werte und ungleich 0
+    mask = np.isfinite(x_values) & np.isfinite(y_values) & (x_values != 0) & (y_values != 0)
+    heatmap_x = x_values[mask]
+    heatmap_y = y_values[mask]
+
+    if heatmap_x.size == 0:
+        print(f"[heatmap_plot] No valid data after filtering for: {plotname}")
+        return
+
+
+    # get max x value and max y value to scale the heatmap
+    x_max = np.nanmax(heatmap_x)
+
+    # tested, ob die y-Werte schon invertiert wurden
+    if np.nanmax(heatmap_y) > 0:
+        y_max = np.nanmax(heatmap_y)
+    else:
+        y_max = np.nanmin(heatmap_y)
+
+        y_max = round(y_max *-1)
+
+    # calculate number of y-bins based on ratio between x and y axis
+    y_bins = round((y_max / x_max) * num_bins)
+    bins = (num_bins, y_bins)
+
+
+    # create a 2D histogram
+    heatmap, xedges, yedges = np.histogram2d(heatmap_x, heatmap_y, bins=bins)
+
+    plt.figure(figsize=(8,6))
+    #sns.heatmap(heatmap.T, cmap=cmap, square=True, cbar=True, xticklabels=True, yticklabels=True)
+    
+    plt.imshow(heatmap.T, origin='lower', cmap=cmap,
+           extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
+           aspect=1)  # Set aspect ratio 
+    
+    plt.colorbar(label='Frames')
+    plt.title(plotname)
+    plt.savefig(save_as, format='svg')
+    plt.show()
+
+def interpolate_with_max_gap(df, max_gap=30, method="linear"):
+    out = df.copy()
+    num_cols = out.select_dtypes(include=[np.number]).columns
+    #print(num_cols)
+
+    # 1) Nur „echte“ Interpolation zwischen gültigen Punkten
+    out[num_cols] = out[num_cols].interpolate(method=method,
+                                              limit_direction="both",
+                                              limit_area="inside")
+    
+    # 2) NaN-Runs > max_gap identifizieren und wieder auf NaN setzen
+    for col in num_cols:
+        s = df[col]  # Original mit NaNs
+        # Gruppen-IDs zwischen Nicht-NaNs erstellen
+        grp = s.notna().cumsum()
+        # Länge jedes NaN-Runs
+        run_len = s.isna().groupby(grp).transform("sum")
+        # Maske: Positionen in zu langen NaN-Runs
+        too_long = s.isna() & (run_len > max_gap)
+        # Zurücksetzen
+        out.loc[too_long, col] = np.nan
+    
+    return out
+
 def euklidean_distance(x1, y1, x2, y2):
         """
         This func returns the euklidean distance between two points.
@@ -145,12 +260,64 @@ def build_master_dlc_dataframe(
 
     return master
 
+def filter_and_interpolate_all_bodyparts(
+    df: pd.DataFrame,
+    scorer: str,
+    bodyparts: list[str] | None = None,
+    filter_value: float = 0.8,
+    max_gap: int = 30,
+    method: str = "linear",
+    keep_likelihood: bool = True,
+):
+    """
+    Für jeden Bodypart:
+    - erstellt Maske: likelihood >= filter_value
+    - setzt x/y bei schlechter likelihood auf NaN
+    - interpoliert nur x/y mit max_gap-Regel
+    - lässt likelihood unverändert (keine Interpolation), optional aber mit zurückgeben
+
+    Returns:
+      df_out: DataFrame mit gefilterten+interpolierten x/y (und optional likelihood)
+      masks: dict[bodypart] -> boolean mask (True = valid)
+    """
+
+    df_out = df.copy()
+    masks = {}
+
+    # Wenn bodyparts nicht angegeben: aus Spalten ableiten
+    if bodyparts is None:
+        bodyparts = list(df_out.loc[:, (scorer, slice(None), slice(None))].columns.levels[1])
+
+    for bp in bodyparts:
+        # Likelihood-Serien (Index: Frames)
+        lh = df_out.loc[:, (scorer, bp, "likelihood")]
+        mask = lh >= filter_value
+        masks[bp] = mask.to_numpy()
+
+        # x/y extrahieren
+        xy = df_out.loc[:, (scorer, bp, ["x", "y"])].copy()
+
+        # schlechte Frames -> NaN (nur x/y)
+        xy.loc[~mask, :] = np.nan
+
+        # interpolieren (nur x/y)
+        xy_interp = interpolate_with_max_gap(xy, max_gap=max_gap, method=method)
+
+        # zurückschreiben
+        df_out.loc[:, (scorer, bp, ["x", "y"])] = xy_interp
+
+        # optional: likelihood in Ausgabe behalten oder komplett auf NaN setzen bei invalid
+        if not keep_likelihood:
+            df_out.loc[:, (scorer, bp, "likelihood")] = np.nan
+
+    return df_out, masks
+
 FPS = 30
 PIXEL_PER_CM = 36.39
 DIST_THRESH = PIXEL_PER_CM*2.5
 
 all_mice = ["109", "121", "122", "125"]
-mouse = "125"
+mouse = "109"
 
 """
 Daten einlesen und in Stimulus und Kontrolle sortieren
@@ -203,16 +370,29 @@ dish_inv = {
         }
     }
 
+time_present = {
+        "day1": {
+            "stim_modul": None,
+            "con_modul": None
+        },
+        "day2": {
+            "stim_modul": None,
+            "con_modul": None
+        },
+        "day3": {
+            "stim_modul": None,
+            "con_modul": None
+        }
+    }
 
-for i in range(3): # über jeden Experimenttag iterieren, hier später 3  einfügen
+
+
+for i in tqdm(range(3)): # über jeden Experimenttag iterieren, hier später 3  einfügen
 
     d_stim_data = stim_data[i]
     d_con_data = con_data[i]
 
-    print(dish_inv[f"day{str(i+1)}"])
-
-    # Master_df erstellen
-    
+    # Master_df erstellen: packt alle einzelnen h5 dateien in eine zeitlich sortierte Datei
     m_stim_df = build_master_dlc_dataframe(files_in_order=d_stim_data, fps=FPS, allow_overlap=True)
     m_con_df = build_master_dlc_dataframe(files_in_order=d_con_data, fps=FPS, allow_overlap=True)
 
@@ -228,8 +408,9 @@ for i in range(3): # über jeden Experimenttag iterieren, hier später 3  einfü
         max_likelihood = 0
 
         for index, likelihood in enumerate(dish_likelihood):
-            if likelihood > max_likelihood:
-                    best_likelihood_frame = index
+            if np.isfinite(likelihood) and likelihood > max_likelihood:
+                max_likelihood = likelihood
+                best_likelihood_frame = index
                     
 
         dish_x = df.loc[best_likelihood_frame, (scorer, [dish_name], ["x"])].to_numpy().item()
@@ -245,20 +426,44 @@ for i in range(3): # über jeden Experimenttag iterieren, hier später 3  einfü
     s_dish_inv = np.zeros(len(m_stim_df))
     c_dish_inv = np.zeros(len(m_con_df))
 
-    s_nose_x = m_stim_df.loc[:, (scorer, ["nose"], ["x"])].to_numpy().ravel()
-    s_nose_y = m_stim_df.loc[:, (scorer, ["nose"], ["y"])].to_numpy().ravel()
+    # nose coordinaten likelihood filtern über maske
+    filter_value = 0.99
 
-    c_nose_x = m_con_df.loc[:, (scorer, ["nose"], ["x"])].to_numpy().ravel()
-    c_nose_y = m_con_df.loc[:, (scorer, ["nose"], ["y"])].to_numpy().ravel()
-
-    # likelihood filtern über maske
     stim_nose_likelihood = m_stim_df.loc[:, (scorer, ["nose"], ["likelihood"])].to_numpy().ravel()
-    likelihood_mask = stim_nose_likelihood >= 0.6
-    m_stim_df.loc[~likelihood_mask, (scorer, ["nose"], ["x", "y"])]
+    stim_likelihood_mask = stim_nose_likelihood >= filter_value
+    #stim_nose_filtered = m_stim_df.loc[stim_likelihood_mask, (scorer, ["nose"], ["x", "y", "likelihood"])].copy()
+    stim_nose_filtered = m_stim_df.loc[:, (scorer, ["nose"], ["x", "y", "likelihood"])].copy()
+    stim_nose_filtered.loc[~stim_likelihood_mask, :] = np.nan
+    stim_nose_filtered = interpolate_with_max_gap(stim_nose_filtered)
 
-    
+    # nose coordinaten likelihood filtern über maske
+    con_nose_likelihood = m_con_df.loc[:, (scorer, ["nose"], ["likelihood"])].to_numpy().ravel()
+    con_likelihood_mask = con_nose_likelihood >= filter_value
+    #con_nose_filtered = m_con_df.loc[con_likelihood_mask, (scorer, ["nose"], ["x", "y"])]
+    con_nose_filtered = m_con_df.loc[:, (scorer, ["nose"], ["x", "y", "likelihood"])].copy()
+    con_nose_filtered.loc[~con_likelihood_mask, :] = np.nan
+    con_nose_filtered = interpolate_with_max_gap(con_nose_filtered)
 
+    # zeit im modul based on hoher nose likelihood
+    time_present_s = (stim_nose_filtered.loc[:, (scorer, "nose", "likelihood")] > filter_value).sum()
+    time_present_c = (con_nose_filtered.loc[:, (scorer, "nose", "likelihood")] > filter_value).sum()
 
+    #time_present[f"day{str(i+1)}"]["stim_modul"] = round(counter/len(stim_likelihood_mask), 3)
+    time_present[f"day{str(i+1)}"]["stim_modul"] = round(time_present_s/len(stim_likelihood_mask), 3)
+    time_present[f"day{str(i+1)}"]["con_modul"] = round(time_present_c/len(con_likelihood_mask), 3)
+
+    # nose coordinaten extrahieren s= stimulus, c=control
+    s_nose_x = stim_nose_filtered.loc[:, (scorer, ["nose"], ["x"])].to_numpy().ravel()
+    s_nose_y = stim_nose_filtered.loc[:, (scorer, ["nose"], ["y"])].to_numpy().ravel()
+
+    #heatmap_plot(x_values=s_nose_x, y_values=s_nose_y, plotname=mouse + " stim modul", save_as=exp_path + f"/{mouse}_day{i+1}_stim.svg")
+
+    c_nose_x = con_nose_filtered.loc[:, (scorer, ["nose"], ["x"])].to_numpy().ravel()
+    c_nose_y = con_nose_filtered.loc[:, (scorer, ["nose"], ["y"])].to_numpy().ravel()
+
+    #heatmap_plot(x_values=c_nose_x, y_values=c_nose_y, plotname=mouse + " con modul", save_as=exp_path + f"/{mouse}_day{i+1}_con.svg")
+
+    # über Abstand die investigation time checken
     for j, (x,y) in enumerate(zip(s_nose_x, s_nose_y)):
         d_dist = euklidean_distance(x1=s_dish_x, y1=s_dish_y, x2=x, y2=y)
         if d_dist <= DIST_THRESH:
@@ -269,11 +474,60 @@ for i in range(3): # über jeden Experimenttag iterieren, hier später 3  einfü
         if d_dist <= DIST_THRESH:
             c_dish_inv[j] = 1
 
+    dish_inv[f"day{str(i+1)}"]["stim_dish"] = int(np.nansum(s_dish_inv))
+    dish_inv[f"day{str(i+1)}"]["con_dish"] = int(np.nansum(c_dish_inv))
+
+    def calculate_dist(df):
+
+        df, masks = filter_and_interpolate_all_bodyparts(df=df, scorer=scorer, bodyparts=["nose", "left_ear", "right_ear"], filter_value=0.8)
+        # zurückgelegte Strecke (Pixel pro Frame)
+        x = df.loc[:, (scorer, ["nose", "left_ear", "right_ear"], "x")]
+        y = df.loc[:, (scorer, ["nose", "left_ear", "right_ear"], "y")]
+
+        # pro Frame den Mittelwert über die 3 Punkte (NaNs werden ignoriert)
+        mean_x = np.nanmean(x.to_numpy(), axis=1)  # shape: (n_frames,)
+        mean_y = np.nanmean(y.to_numpy(), axis=1)  # shape: (n_frames,)
+
+        distance_values = np.full(len(mean_x), np.nan)
+
+        for k in range(len(mean_x) - 1):
+            distance_values[k] = euklidean_distance(
+                x1=mean_x[k], y1=mean_y[k],
+                x2=mean_x[k+1], y2=mean_y[k+1]
+        )
+        return distance_values
     
+    dist_stim = calculate_dist(m_stim_df)
+    dist_con = calculate_dist(m_con_df)
+
+    plot_distance_histogram(distance_values=dist_stim,
+                            title=f"Distance per Frame, mouse{mouse}, day {i+1}, stim",
+                            save_as=exp_path+f"/disthist_day{i+1}_{mouse}_stim.svg")
+    plot_distance_histogram(distance_values=dist_con,
+                            title=f"Distance per Frame, mouse{mouse}, day {i+1}, con",
+                            save_as=exp_path+f"/disthist_day{i+1}_{mouse}_con.svg")
+    
+    dist_sum_stim = np.nansum(dist_stim)
+    dist_sum_con = np.nansum(dist_con)
+    dist_cm_s = dist_sum_stim/PIXEL_PER_CM
+    dist_cm_c = dist_sum_con/PIXEL_PER_CM
+
+    # geschwindigkeit
+    avg_speed_s = dist_cm_s / (time_present_s/FPS)
+    avg_speed_c = dist_cm_c / (time_present_c/FPS)
+
+    """
+    print("\nDistance and speed Stim:\n")
+    print(dist_cm_s)
+    print(avg_speed_s)
+    print("\nDistance and speed Con:\n")
+    print(dist_cm_c)
+    print(avg_speed_c)
+    """
 
 
-
-
+#print(dish_inv)
+#print(time_present)
 
 
 
