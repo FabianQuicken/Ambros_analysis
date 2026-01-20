@@ -31,9 +31,12 @@ import tqdm
 import os
 import glob
 import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
 from tqdm import tqdm
 
-
+FPS = 30
+PIXEL_PER_CM = 36.39
+DIST_THRESH = PIXEL_PER_CM*2.5
 
 """
 Funktionen
@@ -44,87 +47,188 @@ def plot_distance_histogram(
     title="Distance per frame",
     xlabel="Distance (pixel)",
     save_as=None,
-    show_plot=False
+    show_plot=False,
+    clip_max=60,
+    normalize_counts=False
 ):
     """
     Plots a histogram of per-frame distances.
-    NaN values are ignored automatically.
+
+    If normalize_counts=True:
+        Min–max normalizes the histogram counts (frame counts),
+        NOT the distance values.
     """
 
-    # NaNs entfernen
-    distances = np.asarray(distance_values)
+    # ---- Daten vorbereiten ----
+    distances = np.asarray(distance_values, dtype=float)
     distances = distances[np.isfinite(distances)]
-    distances = np.asarray([i for i in distances if i <= 60])
-    
+
+    if clip_max is not None:
+        distances = distances[distances <= clip_max]
 
     if distances.size == 0:
         print("[plot_distance_histogram] No valid distance values to plot.")
         return
 
+    # ---- Histogramm berechnen ----
+    counts, bin_edges = np.histogram(distances, bins=bins, range=(0, clip_max))
+    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+    # ---- Min–Max Normalisierung der COUNTS ----
+    if normalize_counts:
+        c_min = counts.min()
+        c_max = counts.max()
+
+        if c_max > c_min:
+            counts = (counts - c_min) / (c_max - c_min)
+        else:
+            counts = np.zeros_like(counts)
+
+        ylabel = "Normalized frame count (min–max)"
+    else:
+        ylabel = "Frames"
+
+    # ---- Plot ----
     plt.figure(figsize=(6, 4))
-    plt.hist(distances, bins=bins)
-    plt.xlim(0,60)
-    plt.ylim(0,2500)
+    plt.bar(
+        bin_centers,
+        counts,
+        width=np.diff(bin_edges),
+        align="center"
+    )
+
+    plt.xlim(0, clip_max)
     plt.xlabel(xlabel)
-    plt.ylabel("Frames")
+    plt.ylabel(ylabel)
     plt.title(title)
 
     if save_as is not None:
-        plt.savefig(save_as, format="svg")
+        plt.savefig(save_as, format="svg", bbox_inches="tight")
+
     if show_plot:
         plt.show()
+    else:
+        plt.close()
 
-def heatmap_plot(x_values = np.array, y_values = np.array, plotname = str, save_as = str, num_bins = 35, cmap = 'hot', plot_time_frame_hours = (None, None)):
+
+def heatmap_plot(
+    x_values,
+    y_values,
+    plotname: str,
+    save_as: str = None,
+    num_x_bins: int = 35,
+    num_y_bins: int = None,
+    x_max: float = 2000,
+    y_max: float = 1100,
+    cmap: str = "hot",
+    plot_time_frame_hours=(None, None),
+    fps: float = FPS,
+    vmin: float = 0.0,
+    vmax_fixed: float = None,
+    vmax_percentile: float = None,  # z.B. 99.5 für robuste Skalierung
+    show: bool = True
+):
     """
-    This function plots a heatmap of x and y coordinates, e.g. of the snout. Pass the coordinates of a complete experiment, and they get filtered for all
-    values that are not "0". Plotname and savepath need to be provided. Binsize is 50 per default. Colormap is "hot" per default.
+    Plottet eine 2D-Histogramm-Heatmap aus x/y Koordinaten.
+
+    Fixiert:
+    - den räumlichen Bereich (0..x_max, 0..y_max) via range + extent
+    - die Matrixgröße via feste Binanzahl (num_x_bins, num_y_bins)
+
+    Colormap-Skalierung:
+    - Standard: vmax = max(heatmap) (datenabhängig)
+    - Optional: vmax_fixed (konstant über Experimente)
+    - Optional: vmax_percentile (robust, z.B. 99 oder 99.5)
+      (Wenn beide gesetzt sind, hat vmax_fixed Priorität.)
     """
 
-    if plot_time_frame_hours[1]:
-        plot_time_frame_frames = (round(plot_time_frame_hours[0]*108000), round(plot_time_frame_hours[1]*108000))
-        x_values = x_values[plot_time_frame_frames[0]:plot_time_frame_frames[1]]
-        y_values = y_values[plot_time_frame_frames[0]:plot_time_frame_frames[1]]
+    x_values = np.asarray(x_values)
+    y_values = np.asarray(y_values)
 
-    # Filter: finite Werte und ungleich 0
+    # Zeitfenster (in Frames)
+    if plot_time_frame_hours[0] is not None and plot_time_frame_hours[1] is not None:
+        start_f = int(round(plot_time_frame_hours[0] * 3600 * fps))
+        end_f   = int(round(plot_time_frame_hours[1] * 3600 * fps))
+        start_f = max(start_f, 0)
+        end_f   = min(end_f, len(x_values))
+        x_values = x_values[start_f:end_f]
+        y_values = y_values[start_f:end_f]
+
+    # Filter: finite und ungleich 0
     mask = np.isfinite(x_values) & np.isfinite(y_values) & (x_values != 0) & (y_values != 0)
     heatmap_x = x_values[mask]
     heatmap_y = y_values[mask]
 
     if heatmap_x.size == 0:
-        print(f"[heatmap_plot] No valid data after filtering for: {plotname}")
-        return
+        print(f"[heatmap_plot_fixed] No valid data after filtering for: {plotname}")
+        return None
 
+    # Falls num_y_bins nicht gegeben: Seitenverhältnis konsistent festlegen (einmalig, deterministisch)
+    if num_y_bins is None:
+        # besser als round(): stabiler, immer >=1
+        num_y_bins = max(1, int(np.ceil((y_max / x_max) * num_x_bins)))
 
-    # get max x value and max y value to scale the heatmap
-    x_max = np.nanmax(heatmap_x)
+    # 2D Histogramm mit fixiertem Wertebereich
+    heatmap, xedges, yedges = np.histogram2d(
+        heatmap_x,
+        heatmap_y,
+        bins=(num_x_bins, num_y_bins),
+        range=[[0, x_max], [0, y_max]]
+    )
 
-    # tested, ob die y-Werte schon invertiert wurden
-    if np.nanmax(heatmap_y) > 0:
-        y_max = np.nanmax(heatmap_y)
+    # vmax bestimmen
+    if vmax_fixed is not None:
+        vmax = float(vmax_fixed)
+    elif vmax_percentile is not None:
+        vmax = float(np.percentile(heatmap, vmax_percentile))
+        # falls alles 0 ist
+        if vmax <= 0:
+            vmax = float(np.max(heatmap))
     else:
-        y_max = np.nanmin(heatmap_y)
+        vmax = float(np.max(heatmap))
 
-        y_max = round(y_max *-1)
+    # Safety: falls vmax == vmin (z.B. keine Hits), sonst gibt Normalize Warnungen
+    if vmax <= vmin:
+        vmax = vmin + 1.0
 
-    # calculate number of y-bins based on ratio between x and y axis
-    y_bins = round((y_max / x_max) * num_bins)
-    bins = (num_bins, y_bins)
+    norm = Normalize(vmin=vmin, vmax=vmax)
 
+    fig, ax = plt.subplots(figsize=(8, 6))
+    im = ax.imshow(
+        heatmap.T,
+        origin="lower",
+        cmap=cmap,
+        norm=norm,
+        extent=[0, x_max, 0, y_max],
+        aspect="equal"  # echte Daten-Einheiten quadratisch
+    )
 
-    # create a 2D histogram
-    heatmap, xedges, yedges = np.histogram2d(heatmap_x, heatmap_y, bins=bins)
+    cbar = fig.colorbar(im, ax=ax)
+    cbar.set_label("Frames")
 
-    plt.figure(figsize=(8,6))
-    #sns.heatmap(heatmap.T, cmap=cmap, square=True, cbar=True, xticklabels=True, yticklabels=True)
-    
-    plt.imshow(heatmap.T, origin='lower', cmap=cmap,
-           extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
-           aspect=1)  # Set aspect ratio 
-    
-    plt.colorbar(label='Frames')
-    plt.title(plotname)
-    plt.savefig(save_as, format='svg')
-    plt.show()
+    ax.set_title(plotname)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_xlim(0, x_max)
+    ax.set_ylim(0, y_max)
+
+    if save_as:
+        fig.savefig(save_as, dpi=300, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
+
+    return {
+        "heatmap": heatmap,
+        "xedges": xedges,
+        "yedges": yedges,
+        "vmin": vmin,
+        "vmax": vmax,
+        "num_x_bins": num_x_bins,
+        "num_y_bins": num_y_bins
+    }
 
 def interpolate_with_max_gap(df, max_gap=30, method="linear"):
     out = df.copy()
@@ -312,9 +416,7 @@ def filter_and_interpolate_all_bodyparts(
 
     return df_out, masks
 
-FPS = 30
-PIXEL_PER_CM = 36.39
-DIST_THRESH = PIXEL_PER_CM*2.5
+
 
 all_mice = ["109", "121", "122", "125"]
 mouse = "109"
@@ -427,7 +529,7 @@ for i in tqdm(range(3)): # über jeden Experimenttag iterieren, hier später 3  
     c_dish_inv = np.zeros(len(m_con_df))
 
     # nose coordinaten likelihood filtern über maske
-    filter_value = 0.99
+    filter_value = 0.8
 
     stim_nose_likelihood = m_stim_df.loc[:, (scorer, ["nose"], ["likelihood"])].to_numpy().ravel()
     stim_likelihood_mask = stim_nose_likelihood >= filter_value
@@ -499,13 +601,17 @@ for i in tqdm(range(3)): # über jeden Experimenttag iterieren, hier später 3  
     
     dist_stim = calculate_dist(m_stim_df)
     dist_con = calculate_dist(m_con_df)
-
+    
     plot_distance_histogram(distance_values=dist_stim,
                             title=f"Distance per Frame, mouse{mouse}, day {i+1}, stim",
-                            save_as=exp_path+f"/disthist_day{i+1}_{mouse}_stim.svg")
+                            save_as=exp_path+f"/disthist_day{i+1}_{mouse}_stim_norm.svg",
+                            normalize_counts=True,
+                            show_plot=True)
     plot_distance_histogram(distance_values=dist_con,
                             title=f"Distance per Frame, mouse{mouse}, day {i+1}, con",
-                            save_as=exp_path+f"/disthist_day{i+1}_{mouse}_con.svg")
+                            save_as=exp_path+f"/disthist_day{i+1}_{mouse}_con_norm.svg",
+                            normalize_counts=True,
+                            show_plot=True)
     
     dist_sum_stim = np.nansum(dist_stim)
     dist_sum_con = np.nansum(dist_con)
@@ -527,7 +633,7 @@ for i in tqdm(range(3)): # über jeden Experimenttag iterieren, hier später 3  
 
 
 #print(dish_inv)
-#print(time_present)
+print(time_present)
 
 
 
