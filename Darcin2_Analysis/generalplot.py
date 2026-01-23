@@ -166,6 +166,17 @@ m122_p_corrected = {'day2': 0.132, 'day3': -0.104}
 m121_p_corrected = {'day2': 0.038, 'day3': 0.049}
 m109_p_corrected = {'day2': 0.027, 'day3': 0.128}
 
+# discrimination index (T(stimulus) - T(control)) / (T(stimulus) + T(control))
+m125_d = {'day1': 0.009, 'day2': 0.100, 'day3': 0.086}
+m122_d = {'day1': -0.119, 'day2': 0.110, 'day3': -0.259}
+m121_d = {'day1': -0.174, 'day2': 0.000, 'day3': 0.023}
+m109_d = {'day1': -0.657, 'day2': -0.183, 'day3': 0.024}
+
+# corrected discrimination index
+m125_d_corrected = {'day2': 0.081, 'day3': 0.076}
+m122_d_corrected = {'day2': 0.229, 'day3': -0.140}
+m121_d_corrected = {'day2': 0.174, 'day3': 0.197}
+m109_d_corrected = {'day2': 0.474, 'day3': 0.785}
 
 mice_data = {
     "109": mouse_109,
@@ -225,6 +236,7 @@ ax.set_xticks(x)
 ax.set_xticklabels(["Day2", "Day3"])
 ax.set_ylabel("ΔP = (stim - con) - baseline (day1)")
 ax.set_title("Baseline-corrected preference shift")
+ax.set_ylim(-1, 1)
 ax.grid(True, axis="y", alpha=0.3)
 ax.legend(frameon=False, ncols=2)
 fig.savefig(exp_path + "/modul_preferenceindex_baselinecorrected.svg", dpi=300, bbox_inches="tight")
@@ -247,6 +259,7 @@ ax.set_xticks(x)
 ax.set_xticklabels(["Day1", "Day2", "Day3"])
 ax.set_ylabel("P = stim - con")
 ax.set_title("Raw preference score across days")
+ax.set_ylim(-1, 1)
 ax.grid(True, axis="y", alpha=0.3)
 ax.legend(frameon=False, ncols=2)
 fig.savefig(exp_path + "/modul_preferenceindex.svg", dpi=300, bbox_inches="tight")
