@@ -97,12 +97,7 @@ Beschneiden der Filelist für die Testruns
 
 # information über die Anzahl individuen extrahieren, um Variablen zu initialisieren
 first_df = pd.read_hdf(file_list[0])
-
-
-
 individuals = first_df.columns.levels[1]
-
-
 
 
 # dauer des Experiments wird berechnet, based on start und end video Zeitdaten
@@ -120,6 +115,7 @@ min_one_mouse_in_module = exp_duration_frames.copy()
 mice_in_center = np.zeros((len(individuals), len(exp_duration_frames)), dtype=int)
 min_one_mouse_in_center = exp_duration_frames.copy()
 
+mice_distances = np.zeros((len(individuals), len(exp_duration_frames)), dtype=int)
 distance_over_time = exp_duration_frames.copy()
 
 nose_x_values_over_time = exp_duration_frames.copy()
@@ -131,6 +127,9 @@ sum_min_one_mouse_center = 0
 
 all_visits = []
 sum_visits = 0
+
+# speichert alle einzelnen trajectories
+trajectories = []
 
 social_inv = None
 
@@ -195,19 +194,21 @@ for file in tqdm(file_list):
         for i in range(len(ind_is_present)):
             mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]
 
+    # alle abgeschlossenen trajectories sammeln und speichern, am besten einmal alle zusammen und dann für jede maus einzeln in passender, zeitlicher relation
+
 
 
     # visit number etwas schwieriger, weil eine maus mehrmals das modul verlassen und betreten kann während einem video - maybe die entry zone entries --> arena entries zählen?
     for index, ind in enumerate(individuals):
-        print('Ich kann nichts')
+        pass
 
 
     # center analyse
     for index, ind in enumerate(individuals):
 
 
-        centroid_x = all_centroid_x[i]
-        centroid_y = all_centroid_y[i]
+        centroid_x = all_centroid_x[index]
+        centroid_y = all_centroid_y[index]
 
         # mouse in center analyse
         mouse_in_center = np.zeros(len(centroid_x))
@@ -233,7 +234,7 @@ for file in tqdm(file_list):
 
         
         # analyse der entries und exits
-    raise ValueError('Das ist der falsche Input du Otto')
+
 
     # social investigation analyse
     social_inv = social_investigation(df, scorer, individuals, bodyparts)
@@ -250,7 +251,7 @@ for file in tqdm(file_list):
     sum_body_inv = social_inv_details["totals"]["body"]
     sum_anogenital_inv = social_inv_details["totals"]["anogenital"]
 
-    # alle abgeschlossenen trajectories sammeln und speichern, am besten einmal alle zusammen und dann für jede maus einzeln in passender, zeitlicher relation
+    
 
 
     # zurückgelegte strecke berechnen: einzelne mäuse addieren
@@ -271,10 +272,11 @@ plot_mice_presence_states(mice_in_module=mice_in_module)
 min_one_mouse_in_center = mice_in_center.any(axis=0).astype(int)
 # berechnen, wieviele mäuse pro frame im Center sind
 mice_center_per_frame = mice_in_center.sum(axis=0)
+
 """
 plot_mice_presence_states(mice_in_module=mice_in_center, title = 'Mice in Center')
 
-"""
+
 create_labelled_video = False
 if create_labelled_video:
     from create_labelled_video import create_labelled_video
@@ -302,7 +304,7 @@ if create_labelled_video_modular:
                       scale_factor=1.0
     )
 
-
+"""
 
 # center crossings über alle Mäuse zählen
 # mean visit time
