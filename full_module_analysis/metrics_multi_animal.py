@@ -3,12 +3,52 @@ import pandas as pd
 from shapely.geometry import Point, Polygon
 from preprocessing import likelihood_filtering, likelihood_filtering_nans
 from utils import euklidean_distance, fill_missing_values, shrink_rectangle, is_point_in_polygon, create_point
-from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2, FPS
+from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2, FPS, ENTER_ZONE_COORDS
 
-
+import matplotlib.pyplot as plt
 
 
 def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
+
+    def plot_trajectory_segment(x, y, e, ex, close_after=2.0):
+        """
+        Plots a trajectory segment x[e:ex+1], y[e:ex+1] and closes automatically.
+
+        Parameters
+        ----------
+        x, y : array-like
+            Coordinate arrays (same length).
+        e : int
+            Entry index (start).
+        ex : int
+            Exit index (end, inclusive).
+        close_after : float
+            Seconds after which the plot closes automatically.
+        """
+
+        x_seg = np.asarray(x[e:ex+1])
+        y_seg = np.asarray(y[e:ex+1])
+
+        if x_seg.size == 0:
+            print("[plot_trajectory_segment] Empty segment, nothing to plot.")
+            return
+
+        fig, ax = plt.subplots(figsize=(4, 4))
+
+        ax.plot(x_seg, y_seg, "-o", markersize=3)
+        ax.scatter(x_seg[0], y_seg[0], c="green", label="start", zorder=3)
+        ax.scatter(x_seg[-1], y_seg[-1], c="red", label="end", zorder=3)
+
+        ax.set_aspect("equal")
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_title(f"Trajectory {e}:{ex}")
+        ax.legend()
+
+        plt.tight_layout()
+        plt.show(block=False)
+        plt.pause(close_after)
+        plt.close(fig)
     
     n_ind = len(individuals)
     n_frames = len(x_arrs[0])
@@ -40,7 +80,7 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
             if not np.isnan(coord):
                 example_y = coord
                 break
-        polygon_y = entry_polygon[0][1]
+        polygon_y = ENTER_ZONE_COORDS[0][1]
         if np.sign(example_y) != np.sign(polygon_y):
             raise ValueError(
                 f"\nY-axis mismatch detected:\n"
@@ -102,6 +142,8 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
             mice_exit[index, ex] = 1
             traj_x[index, e:ex+1] = x[e:ex+1]
             traj_y[index, e:ex+1] = y[e:ex+1]
+
+            plot_trajectory_segment(x,y,e=1200, ex=1350)
 
         
     return mice_enter, mice_exit, traj_x, traj_y

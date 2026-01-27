@@ -3,6 +3,8 @@ import pandas as pd
 import os
 from shapely.geometry import Point, Polygon
 from config import FPS
+import math
+import warnings
 
 def create_polygon(polygon_coords=list):
     return Polygon(polygon_coords)
@@ -96,3 +98,83 @@ def calculate_experiment_length(first_file, last_file):
       exp_duration_frames = np.zeros(experiment_dauer_in_s * FPS + len(df_last_file))
 
       return exp_duration_frames, startzeit, endzeit, date
+
+def mouse_center(df, scorer, individuals, bodyparts, min_bodyparts=None):
+    """
+    Compute the geometric center (centroid) of each mouse across frames
+    using the x/y coordinates of DeepLabCut bodyparts.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DLC multi-animal prediction dataframe with columns:
+        (scorer, individual, bodypart, [x, y, likelihood]).
+    scorer : str
+        Name of the DLC scorer (df.columns.levels[0]).
+    individuals : list of str
+        List of individual mouse identifiers.
+    bodyparts : list of str
+        List of bodyparts belonging to each mouse.
+    min_bodyparts : int, optional
+        Minimum number of valid bodyparts required to compute a center.
+        If None, defaults to ceil(n_bodyparts / 2).
+
+    Returns
+    -------
+    centers : dict
+        Dictionary:
+        {
+            individual_name: (center_x, center_y)
+        }
+        where center_x and center_y are 1D arrays of length n_frames,
+        containing NaNs for frames with insufficient valid points.
+    """
+
+    centers = {}
+
+    n_ind = len(individuals)
+    n_frames = len(df)
+
+    all_center_x = np.full((n_ind, n_frames), np.nan, dtype=float)
+    all_center_y = np.full((n_ind, n_frames), np.nan, dtype=float)
+
+    for i, ind in enumerate(individuals):
+        # Extrahiere alle x- und y-Koordinaten dieses Individuums
+        data = df.loc[:, (scorer, ind, bodyparts, ["x", "y"])].to_numpy()
+
+        # x-Werte sind in Spalten [0, 2, 4, ...]
+        arr_x = data[:, ::2]
+        # y-Werte sind in Spalten [1, 3, 5, ...]
+        arr_y = data[:, 1::2]
+
+        # Y invertieren für "echte" geometrische Orientierung
+        arr_y = -arr_y
+
+        n_frames, n_bp = arr_x.shape
+
+        # Defaults: mindestens die Hälfte der Bodyparts müssen valid sein
+        if min_bodyparts is None:
+            min_bodyparts = math.ceil(n_bp / 2)
+
+        # Valid Masks (x und y müssen beide gültig sein)
+        valid = (~np.isnan(arr_x)) & (~np.isnan(arr_y))
+        valid_counts = valid.sum(axis=1)
+
+        # Warnungen über "Mean of empty slice" unterdrücken
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            center_x = np.nanmean(arr_x, axis=1)
+            center_y = np.nanmean(arr_y, axis=1)
+
+        # Frames mit zu wenigen validen Punkten → hart auf NaN setzen
+        too_few = valid_counts < min_bodyparts
+        center_x[too_few] = np.nan
+        center_y[too_few] = np.nan
+
+        centers[ind] = (center_x, center_y)
+
+        all_center_x[i] = center_x
+        all_center_y[i] = center_y
+
+    return all_center_x, all_center_y
+     

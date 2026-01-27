@@ -36,6 +36,7 @@ from metadata import module_has_stimulus_ma
 from chatgpt_plots import plot_mice_presence_states, plot_mouse_trajectory
 from preprocessing import interpolate_with_max_gap
 from social_behavior_analysis import social_investigation, detail_social_investigation
+from metrics_multi_animal import entry_exit_trajectories
 
 # struktur zum speichern erstellen
 @dataclass
@@ -80,8 +81,8 @@ enter_zone_polygon = create_polygon(ENTER_ZONE_COORDS)
 arena_polygon = create_polygon(ARENA_COORDS)
 
 # files für ein modul werden eingelesen (von einem Experimenttag)
-path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\for_labelled_video"
-path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\for_labelled_video"
+path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\ma_unfamiliar"
+path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\ma_unfamiliar"
 ho = False
 if ho:
     path=path_ho
@@ -195,6 +196,11 @@ for file in tqdm(file_list):
             mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]
 
     # alle abgeschlossenen trajectories sammeln und speichern, am besten einmal alle zusammen und dann für jede maus einzeln in passender, zeitlicher relation
+    mice_enter, mice_exit, traj_x, traj_y = entry_exit_trajectories(entry_polygon=enter_zone_polygon,
+                                                                    x_arrs=all_centroid_x,
+                                                                    y_arrs=all_centroid_y,
+                                                                    individuals=individuals)
+   
 
 
 
@@ -273,8 +279,8 @@ min_one_mouse_in_center = mice_in_center.any(axis=0).astype(int)
 # berechnen, wieviele mäuse pro frame im Center sind
 mice_center_per_frame = mice_in_center.sum(axis=0)
 
-"""
-plot_mice_presence_states(mice_in_module=mice_in_center, title = 'Mice in Center')
+
+#plot_mice_presence_states(mice_in_module=mice_in_center, title = 'Mice in Center')
 
 
 create_labelled_video = False
@@ -304,7 +310,7 @@ if create_labelled_video_modular:
                       scale_factor=1.0
     )
 
-"""
+
 
 # center crossings über alle Mäuse zählen
 # mean visit time
