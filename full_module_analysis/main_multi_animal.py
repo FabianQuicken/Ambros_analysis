@@ -36,7 +36,7 @@ from metadata import module_has_stimulus_ma
 from chatgpt_plots import plot_mice_presence_states, plot_mouse_trajectory
 from preprocessing import interpolate_with_max_gap
 from social_behavior_analysis import social_investigation, detail_social_investigation
-from metrics_multi_animal import entry_exit_trajectories
+from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio
 
 # struktur zum speichern erstellen
 @dataclass
@@ -196,12 +196,14 @@ for file in tqdm(file_list):
             mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]
 
     # alle abgeschlossenen trajectories sammeln und speichern, am besten einmal alle zusammen und dann für jede maus einzeln in passender, zeitlicher relation
-    mice_enter, mice_exit, traj_x, traj_y = entry_exit_trajectories(entry_polygon=enter_zone_polygon,
+    mice_enter, mice_exit, traj_x, traj_y, all_traj = entry_exit_trajectories(entry_polygon=enter_zone_polygon,
                                                                     x_arrs=all_centroid_x,
                                                                     y_arrs=all_centroid_y,
-                                                                    individuals=individuals)
-   
-
+                                                                    individuals=individuals,
+                                                                    plot=True)
+    #print(all_traj)
+    arc_chord_ratio(trajectory=all_traj[0])
+    
 
 
     # visit number etwas schwieriger, weil eine maus mehrmals das modul verlassen und betreten kann während einem video - maybe die entry zone entries --> arena entries zählen?

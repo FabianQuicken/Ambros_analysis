@@ -35,4 +35,10 @@ trajectories = trajectories + trajectories2
 
 
 a = [-1, -5, -10]
-print(min(a))
+#print(min(a))
+
+
+
+a = 3.6
+
+print(int(3.9))

@@ -8,7 +8,69 @@ from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2, FPS, ENTE
 import matplotlib.pyplot as plt
 
 
-def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
+def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals, plot=False):
+    """
+    Detects arena entry and exit events for multiple individuals based on tracking
+    data and an entry-zone polygon, and extracts the corresponding trajectory
+    segments.
+
+    For each individual, the function identifies contiguous tracking bouts
+    (appearance → disappearance) in the coordinate time series. A bout is
+    classified as an arena entry if the first valid coordinate lies within the
+    given entry polygon, and as an arena exit if the last valid coordinate before
+    disappearance lies within the same polygon. Entry and exit events are paired
+    robustly in temporal order.
+
+    For each valid entry–exit pair, the function:
+    - Marks the entry and exit frame in binary indicator arrays
+    - Stores the x/y trajectory segment between entry and exit (inclusive)
+    - Optionally visualizes each trajectory segment for manual inspection
+
+    Frames outside detected arena visits are filled with NaN in the trajectory
+    arrays.
+
+    Parameters
+    ----------
+    entry_polygon : array-like or polygon object
+        Polygon defining the entry/exit zone (same coordinate system as x/y data).
+    x_arrs : list of array-like
+        List of x-coordinate arrays, one per individual. All arrays must have
+        identical length (number of frames).
+    y_arrs : list of array-like
+        List of y-coordinate arrays, one per individual. Must match x_arrs in
+        shape and coordinate system.
+    individuals : list
+        Identifiers (e.g. IDs or names) corresponding to each individual trajectory.
+
+    Returns
+    -------
+    mice_enter : ndarray, shape (n_individuals, n_frames)
+        Binary array marking arena entry frames (1 = entry, 0 = otherwise).
+    mice_exit : ndarray, shape (n_individuals, n_frames)
+        Binary array marking arena exit frames (1 = exit, 0 = otherwise).
+    traj_x : ndarray, shape (n_individuals, n_frames)
+        X-coordinates during arena visits; NaN outside entry–exit intervals.
+    traj_y : ndarray, shape (n_individuals, n_frames)
+        Y-coordinates during arena visits; NaN outside entry–exit intervals.
+    all_traj : list of tuples (x,y) of ndarray
+        contains all trajectories of all individuals 
+
+    Raises
+    ------
+    ValueError
+        If x and y arrays differ in length, if coordinate systems between data and
+        polygon do not match (e.g. inverted y-axis), or if an entry cannot be paired
+        with a subsequent exit.
+
+    Notes
+    -----
+    - Entry and exit detection relies on transitions in valid tracking data
+    (NaN → valid for entry, valid → NaN for exit).
+    - The first and last frame are ignored as potential transitions to avoid
+    edge artifacts.
+    - This function assumes that all arena visits must pass through the
+    entry polygon.
+    """
 
     def plot_trajectory_segment(x, y, e, ex, close_after=2.0):
         """
@@ -61,6 +123,8 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
     traj_x = np.full((n_ind, n_frames), np.nan, dtype=float)
     traj_y = np.full((n_ind, n_frames), np.nan, dtype=float)
 
+    all_traj = []
+
     for index, ind in enumerate(individuals):
         x = x_arrs[index]
         y = y_arrs[index]
@@ -73,7 +137,7 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
 
         # testen ob daten da sind für das jeweilige individum, sonst nächstes Ind
         valid = np.isfinite(x) & np.isfinite(y)
-        # mind 1s insgesamt getrackt?
+        # mind 1 sekunde insgesamt getrackt?
         if valid.sum() < FPS:
             continue
 
@@ -104,10 +168,7 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
         # finden wo coordinaten neu getrackt werden
         diff = np.diff(valid.astype(int))
         appearances = np.where(diff == 1)[0] + 1
-        print(f"Ind {ind} appeared in the following frame:")
-        print(appearances)
-        print(f"\nThese are the coords:")
-        [print(x[a], y[a]) for a in appearances]
+
         # neues tracking muss in entry polygon passieren
         entries = []
         for idx in appearances:
@@ -151,10 +212,12 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
             traj_x[index, e:ex+1] = x[e:ex+1]
             traj_y[index, e:ex+1] = y[e:ex+1]
 
-            plot_trajectory_segment(x,y,e, ex)
+            all_traj.append((x[e:ex+1], y[e:ex+1]))
+            if plot:
+                plot_trajectory_segment(x,y,e, ex)
+    
         
-        
-    return mice_enter, mice_exit, traj_x, traj_y
+    return mice_enter, mice_exit, traj_x, traj_y, all_traj
 
 
 
@@ -162,5 +225,43 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
 
 
 
-def get_trajectories(individuals, x_arr, y_arr):
-    pass
+def arc_chord_ratio(trajectory):
+    
+    
+    x = np.asarray(trajectory[0], dtype=float)
+    y = np.asarray(trajectory[1], dtype=float)
+
+    t_len = len(x)
+
+    fragment_size = FPS/3
+
+    fragments = []
+
+    # int um abzurunden
+    n_fragments = int(t_len / fragment_size)
+
+    fragments = np.zeros(n_fragments)
+
+    counter = 0
+    f_window = 0
+    while counter < n_fragments:
+        fragments[counter] = (x[f_window:f_window+fragment_size], y[f_window:f_window+fragment_size])
+        f_window += fragment_size
+        counter += 1
+
+    for f in fragments:
+        start_end_dist = euklidean_distance(x1=f[0][0], y1=f[1][0], x2 = f[0][-1], y2 = f[1][-1])
+        # hier summe der dist values berechnen
+        distance_values = np.zeros((len(f[0])))
+        for i in range(len(f[0])):
+            distance_values[i] = euklidean_distance(x1=f[0][i],
+                                                    y1=f[1][i],
+                                                    x2=f[0][i+1],
+                                                    y2=f[1][i+1])
+        curve_length = sum(distance_values)
+        tortuosity = curve_length / start_end_dist
+    
+    print(tortuosity)
+
+    # man könnte alternativ auch erst eine maske erstellen, die bewegung misst
+    # und dann die stellen ohne x oder y bewegung rausnehmen
