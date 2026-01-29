@@ -40,6 +40,8 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
         ax.scatter(x_seg[-1], y_seg[-1], c="red", label="end", zorder=3)
 
         ax.set_aspect("equal")
+        ax.set_xlim(0,2000)
+        ax.set_ylim(0,-1100)
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_title(f"Trajectory {e}:{ex}")
@@ -62,6 +64,8 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
     for index, ind in enumerate(individuals):
         x = x_arrs[index]
         y = y_arrs[index]
+
+
 
         # x und y arrays müssen gleich lang sein
         if len(x) != len(y):
@@ -100,6 +104,10 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
         # finden wo coordinaten neu getrackt werden
         diff = np.diff(valid.astype(int))
         appearances = np.where(diff == 1)[0] + 1
+        print(f"Ind {ind} appeared in the following frame:")
+        print(appearances)
+        print(f"\nThese are the coords:")
+        [print(x[a], y[a]) for a in appearances]
         # neues tracking muss in entry polygon passieren
         entries = []
         for idx in appearances:
@@ -124,7 +132,7 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
 
         entries.sort()
         exits.sort()
-
+        
         # robustes Pairing: für jeden entry den nächsten exit danach
         paired = []
         ex_ptr = 0
@@ -143,8 +151,8 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals):
             traj_x[index, e:ex+1] = x[e:ex+1]
             traj_y[index, e:ex+1] = y[e:ex+1]
 
-            plot_trajectory_segment(x,y,e=1200, ex=1350)
-
+            plot_trajectory_segment(x,y,e, ex)
+        
         
     return mice_enter, mice_exit, traj_x, traj_y
 
