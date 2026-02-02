@@ -81,7 +81,7 @@ enter_zone_polygon = create_polygon(ENTER_ZONE_COORDS)
 arena_polygon = create_polygon(ARENA_COORDS)
 
 # files für ein modul werden eingelesen (von einem Experimenttag)
-path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectorytest"
+path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectory_immobile"
 path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\ma_unfamiliar"
 ho = False
 if ho:
@@ -202,9 +202,9 @@ for file in tqdm(file_list):
                                                                     individuals=individuals,
                                                                     plot=True)
     #print(all_traj)
-    arc_chord_ratio(trajectory=all_traj[0])
+    #[arc_chord_ratio(trajectory=t) for t in all_traj]
     
-
+    #arc_chord_ratio(trajectory=(all_centroid_x[0], all_centroid_y[0]))
 
     # visit number etwas schwieriger, weil eine maus mehrmals das modul verlassen und betreten kann während einem video - maybe die entry zone entries --> arena entries zählen?
     for index, ind in enumerate(individuals):

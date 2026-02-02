@@ -7,6 +7,54 @@ from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2, FPS, ENTE
 
 import matplotlib.pyplot as plt
 
+def arc_chord_ratio(trajectory, fragmentsize_divisor = 3, speed_thr = 2):
+    
+    
+    x = np.asarray(trajectory[0], dtype=float)
+    y = np.asarray(trajectory[1], dtype=float)
+    
+    t_len = len(x)
+
+    fragment_size = int(FPS/fragmentsize_divisor)
+
+
+    # int um abzurunden
+    n_fragments = int(t_len / fragment_size)
+
+    fragments = []
+
+    counter = 0
+    f_window = 0
+    while counter < n_fragments:
+        x_y = (x[f_window:f_window+fragment_size], y[f_window:f_window+fragment_size])
+        fragments.append(x_y)
+        f_window += fragment_size
+        counter += 1
+    
+    tortuosity = []
+    for f in fragments:
+        start_end_dist = euklidean_distance(x1=f[0][0], y1=f[1][0], x2 = f[0][-1], y2 = f[1][-1])
+        # hier summe der dist values berechnen
+        distance_values = np.zeros((len(f[0])-1))
+        for i in range(len(f[0])-1):
+            distance_values[i] = euklidean_distance(x1=f[0][i],
+                                                    y1=f[1][i],
+                                                    x2=f[0][i+1],
+                                                    y2=f[1][i+1])
+        curve_length = sum(distance_values)
+        print(distance_values)
+        speed = curve_length / (1/fragmentsize_divisor)  / PIXEL_PER_CM # cm/s
+        #print(f"\n{speed}")
+        if speed > speed_thr:
+            continue
+            #print(f"Avg Speed in Fragment [cm/s]: {curve_length*3 / PIXEL_PER_CM}")
+        tortuosity.append(curve_length / start_end_dist)
+    
+    print(f"\nT = {np.mean(tortuosity)}")
+
+    # man könnte alternativ auch erst eine maske erstellen, die bewegung misst
+    # und dann die stellen ohne x oder y bewegung rausnehmen
+
 
 def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals, plot=False):
     """
@@ -212,7 +260,9 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals, plot=Fal
             traj_x[index, e:ex+1] = x[e:ex+1]
             traj_y[index, e:ex+1] = y[e:ex+1]
 
-            all_traj.append((x[e:ex+1], y[e:ex+1]))
+            traj = (x[e:ex+1], y[e:ex+1])
+            arc_chord_ratio(traj)
+            all_traj.append(traj)
             if plot:
                 plot_trajectory_segment(x,y,e, ex)
     
@@ -225,43 +275,3 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals, plot=Fal
 
 
 
-def arc_chord_ratio(trajectory):
-    
-    
-    x = np.asarray(trajectory[0], dtype=float)
-    y = np.asarray(trajectory[1], dtype=float)
-
-    t_len = len(x)
-
-    fragment_size = FPS/3
-
-    fragments = []
-
-    # int um abzurunden
-    n_fragments = int(t_len / fragment_size)
-
-    fragments = np.zeros(n_fragments)
-
-    counter = 0
-    f_window = 0
-    while counter < n_fragments:
-        fragments[counter] = (x[f_window:f_window+fragment_size], y[f_window:f_window+fragment_size])
-        f_window += fragment_size
-        counter += 1
-
-    for f in fragments:
-        start_end_dist = euklidean_distance(x1=f[0][0], y1=f[1][0], x2 = f[0][-1], y2 = f[1][-1])
-        # hier summe der dist values berechnen
-        distance_values = np.zeros((len(f[0])))
-        for i in range(len(f[0])):
-            distance_values[i] = euklidean_distance(x1=f[0][i],
-                                                    y1=f[1][i],
-                                                    x2=f[0][i+1],
-                                                    y2=f[1][i+1])
-        curve_length = sum(distance_values)
-        tortuosity = curve_length / start_end_dist
-    
-    print(tortuosity)
-
-    # man könnte alternativ auch erst eine maske erstellen, die bewegung misst
-    # und dann die stellen ohne x oder y bewegung rausnehmen
