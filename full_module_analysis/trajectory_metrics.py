@@ -42,18 +42,18 @@ def arc_chord_ratio(trajectory, fragmentsize_divisor = 3, speed_thr = 2):
                                                     x2=f[0][i+1],
                                                     y2=f[1][i+1])
         curve_length = sum(distance_values)
-        print(distance_values)
+
+        # fragmente unter speed threshold (= Maus ist immobile) fallen raus
         speed = curve_length / (1/fragmentsize_divisor)  / PIXEL_PER_CM # cm/s
-        #print(f"\n{speed}")
         if speed > speed_thr:
             continue
-            #print(f"Avg Speed in Fragment [cm/s]: {curve_length*3 / PIXEL_PER_CM}")
+
         tortuosity.append(curve_length / start_end_dist)
     
-    print(f"\nT = {np.mean(tortuosity)}")
+    #print(f"\nT = {np.mean(tortuosity)}")
+    return np.mean(tortuosity)
 
-    # man könnte alternativ auch erst eine maske erstellen, die bewegung misst
-    # und dann die stellen ohne x oder y bewegung rausnehmen
+
 
 
 def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals, plot=False):
