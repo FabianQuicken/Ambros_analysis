@@ -6,6 +6,105 @@ from utils import euklidean_distance, fill_missing_values, shrink_rectangle, is_
 from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2, FPS, ENTER_ZONE_COORDS
 
 import matplotlib.pyplot as plt
+import math
+
+def get_theta(a, b1, b2, signed_angle=True):
+    """
+    Computes the angle between two direction vectors defined by a common
+    intersection point.
+
+    The function calculates the angle between the vectors a→b1 and a→b2,
+    which can be interpreted as a change in movement or body orientation
+    between two time points.
+
+    Depending on the parameter `signed_angle`, the function returns either:
+    - the unsigned (inner) angle in the range [0°, 180°], or
+    - the signed angle in the range (-180°, 180°], encoding left/right turns.
+
+    Parameters
+    ----------
+    a : array-like of shape (2,)
+        Intersection point (x, y), e.g. the tail base of a mouse.
+        This point defines the origin of both direction vectors.
+    b1 : array-like of shape (2,)
+        Endpoint of the first direction vector (a→b1),
+        e.g. the front of the animal at time point t.
+    b2 : array-like of shape (2,)
+        Endpoint of the second direction vector (a→b2),
+        e.g. the front of the animal at time point t+1.
+    signed_angle : bool, default=True
+        If True, returns a signed angle using atan2(cross, dot):
+            - positive values indicate a left (counter-clockwise) turn
+            - negative values indicate a right (clockwise) turn
+        If False, returns the unsigned inner angle using arccos(dot),
+        always in the range [0°, 180°].
+
+        Note: The interpretation of left/right assumes a standard
+        Cartesian coordinate system (x right, y up). For image-based
+        coordinate systems (x right, y down), the sign needs to be inverted.
+
+    Returns
+    -------
+    angle : float
+        Angle between vectors a→b1 and a→b2 in degrees.
+        Range depends on `signed_angle`:
+        - signed_angle=True  → (-180°, 180°]
+        - signed_angle=False → [0°, 180°]
+
+    Notes
+    -----
+    - If either vector has zero length (a == b1 or a == b2), the angle
+      is undefined and a warning is raised.
+    - The signed angle is numerically more stable and should be preferred
+      for trajectory analysis, turning-angle statistics, and left/right
+      bias estimation.
+    - The unsigned angle is useful when only the magnitude of direction
+      change is of interest.
+    """
+    # hilfsfunktion für Vektorbetrag 2D
+    def vektorbetrag(v):
+        return math.sqrt(v[0]**2 + v[1]**2)
+    
+    # punkte als array für einfachere rechnungen
+    a = np.asarray(a, float)
+    b1 = np.asarray(b1, float)
+    b2 = np.asarray(b2, float)
+
+    # vektoren berechnen ("spitze minus fuss")
+    v1 = b1 - a
+    v2 = b2 - a
+
+    # wir wollen den inneren Winkel θ Theta berechnen, der von beiden Vektoren eingeschlossen wird
+    # cos θ = Skalarprodukt v1 * v2 dividied by |v1| * |v2|
+    # daraus folgt θ = cos^-1 ((Skalarprodukt v1 * v2) / (|v1| * |v2|))
+
+    # betrag v1 und v2:
+    betrag1 = vektorbetrag(v1)
+    betrag2 = vektorbetrag(v2)
+
+    # skalarprodukt v1 * v2:
+    sp = v1[0] * v2[0] + v1[1] * v2[1]
+
+    # Nullvektoren info
+    if betrag1 == 0 or betrag2 == 0:
+        raise Warning("Achtung, Vektorbetrag von 0. Trajectory Analyse fehlerhaft.")
+        
+    
+    if signed_angle:
+        cross = v1[0]*v2[1] - v1[1]*v2[0]
+        radians = np.arctan2(cross, sp)  # radians in (-pi, pi]
+        return np.degrees(radians)
+
+
+    # tetha berechnen
+    cos_theta = sp / (betrag1 * betrag2)
+    # float rundungsfehler könnten 1.00000000000001 ergeben, was zu NaN Werten führen könnte
+    cos_theta = np.clip(cos_theta, -1.0, 1.0)
+
+    radians = np.arccos(cos_theta)
+    return np.degrees(radians)
+
+
 
 def arc_chord_ratio(trajectory, fragmentsize_divisor = 3, speed_thr = 2):
     
