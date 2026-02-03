@@ -36,7 +36,7 @@ from metadata import module_has_stimulus_ma
 from chatgpt_plots import plot_mice_presence_states, plot_mouse_trajectory
 from preprocessing import interpolate_with_max_gap
 from social_behavior_analysis import social_investigation, detail_social_investigation
-from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio
+from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio, get_all_traj
 
 # struktur zum speichern erstellen
 @dataclass
@@ -171,12 +171,13 @@ for file in tqdm(file_list):
     # kleinere fehlende Fragmente werden interpoliert, e.g. wenn Mäuse sich gegenseitig überdecken oder Keypoints fehlen
     df = interpolate_with_max_gap(df)
 
+
     scorer = df.columns.levels[0][0]
     individuals = df.columns.levels[1]
     bodyparts = df.columns.levels[2]
 
-
-    mouse_1_data = df.loc[:, (scorer, individuals[0], ["nose"], ["x", "y"])]
+    # y invertieren, da DLC Bildkoordinaten nutzt (y=0 ist oberer Bildrand)
+    df.loc[:, (scorer, individuals, bodyparts, ["y"])] *= -1
 
     # jeweilige mouse center berechnen (shape n_ind, n_frames)
     all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bodyparts = math.ceil(len(bodyparts) / 3))
@@ -195,12 +196,16 @@ for file in tqdm(file_list):
         for i in range(len(ind_is_present)):
             mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]
 
+    """
     # alle abgeschlossenen trajectories sammeln und speichern, am besten einmal alle zusammen und dann für jede maus einzeln in passender, zeitlicher relation
     mice_enter, mice_exit, traj_x, traj_y, all_traj = entry_exit_trajectories(entry_polygon=enter_zone_polygon,
                                                                     x_arrs=all_centroid_x,
                                                                     y_arrs=all_centroid_y,
                                                                     individuals=individuals,
                                                                     plot=True)
+    """
+    all_traj = get_all_traj(x_arrs = all_centroid_x, y_arrs=all_centroid_y, individuals=individuals)
+
     #print(all_traj)
     #[arc_chord_ratio(trajectory=t) for t in all_traj]
     

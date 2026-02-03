@@ -147,8 +147,10 @@ def mouse_center(df, scorer, individuals, bodyparts, min_bodyparts=None):
         # y-Werte sind in Spalten [1, 3, 5, ...]
         arr_y = data[:, 1::2]
 
-        # Y invertieren für "echte" geometrische Orientierung
-        arr_y = -arr_y
+        # Y invertieren für "echte" geometrische Orientierung, falls noch nicht geschehen
+        if np.max(arr_y) > 0:
+            print("Inverting y")
+            arr_y = -arr_y
 
         n_frames, n_bp = arr_x.shape
 

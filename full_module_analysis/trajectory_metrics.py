@@ -2,11 +2,12 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Point, Polygon
 from preprocessing import likelihood_filtering, likelihood_filtering_nans
-from utils import euklidean_distance, fill_missing_values, shrink_rectangle, is_point_in_polygon, create_point
+from utils import euklidean_distance, fill_missing_values, shrink_rectangle, is_point_in_polygon, create_point, mouse_center
 from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2, FPS, ENTER_ZONE_COORDS
 
 import matplotlib.pyplot as plt
 import math
+import warnings
 
 def get_theta(a, b1, b2, signed_angle=True):
     """
@@ -87,7 +88,12 @@ def get_theta(a, b1, b2, signed_angle=True):
 
     # Nullvektoren info
     if betrag1 == 0 or betrag2 == 0:
-        raise Warning("Achtung, Vektorbetrag von 0. Trajectory Analyse fehlerhaft.")
+        warnings.warn(
+            "Zero-length direction vector encountered (a == b1 or a == b2). "
+            "Angle is undefined; returning NaN.",
+            RuntimeWarning
+            )
+        return np.nan
         
     
     if signed_angle:
@@ -370,7 +376,55 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals, plot=Fal
 
 
 
+def get_all_traj(x_arrs, y_arrs, individuals):
 
+    all_traj = []
 
+    for idx, ind in enumerate(individuals):
+        x = x_arrs[idx]
+        y = y_arrs[idx]
 
+        # x und y arrays müssen gleich lang sein
+        if len(x) != len(y):
+            raise ValueError("x and y arrays have different length.")
+        
+        # testen ob daten da sind für das jeweilige individum, sonst nächstes Ind
+        valid = np.isfinite(x) & np.isfinite(y)
+        # mind 1 sekunde insgesamt getrackt?
+        if valid.sum() < FPS:
+            continue
 
+        # um Randfälle (Maus wird schon im ersten Frame getrackt bzw noch im letzten) zu berechnen:
+        if valid[0]:
+            valid[0] = False
+        if valid[-1]:
+            valid[-1] = False
+
+        # finden wo coordinaten neu getrackt werden
+        diff = np.diff(valid.astype(int))
+        appearances = np.where(diff == 1)[0] + 1
+        disappearances = np.where(diff == -1)[0] + 1
+
+        # wenn alles klappt, müsste es für jeden entry einen exit geben
+        if len(appearances) != len(disappearances):
+            print(f"\nEntry number ({len(appearances)}) and exit number dont match ({len(disappearances)})")
+
+        # robustes Pairing: für jeden entry den nächsten exit danach
+        paired = []
+        dis_ptr = 0
+        for a in appearances:
+            while dis_ptr < len(disappearances) and disappearances[dis_ptr] <= a:
+                dis_ptr += 1
+            if dis_ptr >= len(disappearances):
+                raise ValueError(f"{ind}: Entry at {a} has no subsequent exit.")
+            paired.append((a, disappearances[dis_ptr]))
+            dis_ptr += 1
+        
+
+        for a, d in paired:
+            traj_x = x_arrs[a:d+1]
+            traj_y = y_arrs[a:d+1]
+
+            all_traj.append((traj_x, traj_y))
+
+    return all_traj
