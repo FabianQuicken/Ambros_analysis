@@ -34,9 +34,9 @@ from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORD
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, convert_videostart_to_experiment_length, calculate_experiment_length, is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
 from metadata import module_has_stimulus_ma
 from chatgpt_plots import plot_mice_presence_states, plot_mouse_trajectory
-from preprocessing import interpolate_with_max_gap
+from preprocessing import interpolate_with_max_gap, ma_likelihood_filter
 from social_behavior_analysis import social_investigation, detail_social_investigation
-from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio, get_all_traj
+from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio, get_all_traj, theta_analysis
 
 # struktur zum speichern erstellen
 @dataclass
@@ -81,7 +81,7 @@ enter_zone_polygon = create_polygon(ENTER_ZONE_COORDS)
 arena_polygon = create_polygon(ARENA_COORDS)
 
 # files für ein modul werden eingelesen (von einem Experimenttag)
-path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectory_immobile"
+path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectorytest"
 path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\ma_unfamiliar"
 ho = False
 if ho:
@@ -168,13 +168,16 @@ for file in tqdm(file_list):
     read_in_df = pd.read_hdf(file)
     df = read_in_df.copy()
 
-    # kleinere fehlende Fragmente werden interpoliert, e.g. wenn Mäuse sich gegenseitig überdecken oder Keypoints fehlen
-    df = interpolate_with_max_gap(df)
-
-
     scorer = df.columns.levels[0][0]
     individuals = df.columns.levels[1]
     bodyparts = df.columns.levels[2]
+
+    # likelihood filter, um sehr unwahrscheinliche predictions rauszunehmen
+    df = ma_likelihood_filter(df, scorer, individuals, bodyparts, filter_value=0.3)
+
+    
+    # kleinere fehlende Fragmente werden interpoliert, e.g. wenn Mäuse sich gegenseitig überdecken oder Keypoints fehlen
+    df = interpolate_with_max_gap(df)
 
     # y invertieren, da DLC Bildkoordinaten nutzt (y=0 ist oberer Bildrand)
     df.loc[:, (scorer, individuals, bodyparts, ["y"])] *= -1
@@ -204,7 +207,101 @@ for file in tqdm(file_list):
                                                                     individuals=individuals,
                                                                     plot=True)
     """
-    all_traj = get_all_traj(x_arrs = all_centroid_x, y_arrs=all_centroid_y, individuals=individuals)
+    
+    front_center_x, front_center_y = mouse_center(df, scorer, individuals, ["shoulder_left", "shoulder_right", "dorsal_1"], min_bodyparts=3)
+    rear_center_x, rear_center_y = mouse_center(df, scorer, individuals, ["hip_left", "hip_right", "dorsal_4"], min_bodyparts=3)
+    all_traj, traj_slices = get_all_traj(x_arrs = all_centroid_x, y_arrs=all_centroid_y, individuals=individuals)
+    theta_list, theta_dic = theta_analysis(individuals=[individuals[1], individuals[2]],
+                   front_x=front_center_x[1:],
+                   front_y=front_center_y[1:],
+                   rear_x=rear_center_x[1:],
+                   rear_y=rear_center_y[1:],
+                   slices=traj_slices)
+    #print(traj_slices)
+    thetafull = np.zeros(len(df))
+    
+    ind2_data = theta_dic[individuals[1]]
+
+    for t in ind2_data:
+        thetafull[t["frame t0"]:t["frame t1"]] = t["theta"]
+
+
+    create_labelled_video_modular = False
+    if create_labelled_video_modular:
+        from create_labelled_video import create_labelled_video_modular
+        create_labelled_video_modular(video_path=r'C:\Users\quicken\Code\2025_11_13_11_47_13_mice_omm12prop_females_home_unfamiliar_top1_40439818DLC_HrnetW32_multi_animal_mmoNov19shuffle1_detector_best-330_snapshot_best-20_el_id_p10_labeled.mp4',
+                        output_path=r'C:\Users\quicken\Code\2025_11_13_11_47_13_mice_omm12prop_females_home_unfamiliar_top1_labelled_theta.mp4',
+                        metrics=[
+                            ("Theta mouse2:", thetafull)
+                        ],
+                        row_gap=20,
+                        scale_factor=1.0
+        )
+
+    def polar_angle_histogram(
+        angles_deg,
+        n_bins=36,
+        density=True,
+        ax=None,
+        title=None,
+        color="C0",
+        alpha=0.7
+    ):
+        
+        # --- prepare data ---
+        angles_deg = np.asarray(angles_deg, dtype=float)
+        angles_deg = angles_deg[np.isfinite(angles_deg)]
+
+        if angles_deg.size == 0:
+            raise ValueError("No valid angle values provided.")
+
+        # convert to radians [-pi, pi]
+        angles_rad = np.deg2rad(angles_deg)
+
+        # bin edges over full circle
+        bin_edges = np.linspace(-np.pi, np.pi, n_bins + 1)
+
+        # histogram
+        hist, _ = np.histogram(angles_rad, bins=bin_edges, density=density)
+
+        # bin centers for plotting
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+        bin_width = bin_edges[1] - bin_edges[0]
+
+        # --- plotting ---
+        if ax is None:
+            fig, ax = plt.subplots(subplot_kw={"projection": "polar"}, figsize=(5, 5))
+
+        ax.bar(
+            bin_centers,
+            hist,
+            width=bin_width,
+            bottom=0.0,
+            align="center",
+            color=color,
+            alpha=alpha,
+            edgecolor="black",
+            linewidth=0.5,
+        )
+
+        # polar aesthetics
+        ax.set_theta_zero_location("N")   # 0° at top
+        ax.set_theta_direction(-1)        # clockwise positive (common for trajectories)
+        ax.set_thetalim(-np.pi, np.pi)
+
+        if title is not None:
+            ax.set_title(title, va="bottom")
+
+        return ax, hist, bin_edges
+    
+    ax, hist, bins = polar_angle_histogram(
+        theta_list,
+        n_bins=36,
+        density=True,
+        title="Turning angle distribution"
+        )
+
+    plt.show()
 
     #print(all_traj)
     #[arc_chord_ratio(trajectory=t) for t in all_traj]

@@ -376,9 +376,52 @@ def entry_exit_trajectories(entry_polygon, x_arrs, y_arrs, individuals, plot=Fal
 
 
 
-def get_all_traj(x_arrs, y_arrs, individuals):
+def get_all_traj(x_arrs, y_arrs, individuals, len_thr=FPS):
+
+    def plot_trajectory_segment(x, y, e, ex, close_after=2.0):
+        """
+        Plots a trajectory segment x[e:ex+1], y[e:ex+1] and closes automatically.
+
+        Parameters
+        ----------
+        x, y : array-like
+            Coordinate arrays (same length).
+        e : int
+            Entry index (start).
+        ex : int
+            Exit index (end, inclusive).
+        close_after : float
+            Seconds after which the plot closes automatically.
+        """
+
+        x_seg = np.asarray(x[e:ex+1])
+        y_seg = np.asarray(y[e:ex+1])
+
+        if x_seg.size == 0:
+            print("[plot_trajectory_segment] Empty segment, nothing to plot.")
+            return
+
+        fig, ax = plt.subplots(figsize=(4, 4))
+
+        ax.plot(x_seg, y_seg, "-o", markersize=3)
+        ax.scatter(x_seg[0], y_seg[0], c="green", label="start", zorder=3)
+        ax.scatter(x_seg[-1], y_seg[-1], c="red", label="end", zorder=3)
+
+        ax.set_aspect("equal")
+        ax.set_xlim(0,2000)
+        ax.set_ylim(0,-1100)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_title(f"Trajectory {e}:{ex}")
+        ax.legend()
+
+        plt.tight_layout()
+        plt.show(block=False)
+        plt.pause(close_after)
+        plt.close(fig)
 
     all_traj = []
+    traj_slices = {}
 
     for idx, ind in enumerate(individuals):
         x = x_arrs[idx]
@@ -408,7 +451,8 @@ def get_all_traj(x_arrs, y_arrs, individuals):
         # wenn alles klappt, müsste es für jeden entry einen exit geben
         if len(appearances) != len(disappearances):
             print(f"\nEntry number ({len(appearances)}) and exit number dont match ({len(disappearances)})")
-
+        appearances.sort()
+        disappearances.sort()
         # robustes Pairing: für jeden entry den nächsten exit danach
         paired = []
         dis_ptr = 0
@@ -417,14 +461,93 @@ def get_all_traj(x_arrs, y_arrs, individuals):
                 dis_ptr += 1
             if dis_ptr >= len(disappearances):
                 raise ValueError(f"{ind}: Entry at {a} has no subsequent exit.")
-            paired.append((a, disappearances[dis_ptr]))
+            d = disappearances[dis_ptr]
             dis_ptr += 1
-        
+            # trajectories unter 1s sind vermutlich fake
+            if d-a < len_thr:
+                continue
+            paired.append((a, d))
+
+
+        # slice indices speichern
+        traj_slices[ind] = paired
 
         for a, d in paired:
-            traj_x = x_arrs[a:d+1]
-            traj_y = y_arrs[a:d+1]
+            all_traj.append((x[a:d+1], y[a:d+1]))
+            #plot_trajectory_segment(x=x, y=y, e=a, ex=d)
 
-            all_traj.append((traj_x, traj_y))
+    return all_traj, traj_slices
 
-    return all_traj
+"""
+Was brauche ich für die Theta analyse?
+- mittlere nacken Koordinaten
+- mittlere tailbase koordinaten
+- slice des trajectories
+- iteration über  das trajectory in einem gewissen window, um jeweils theta zu berechnen
+
+- nimmt ein individuum nach dem anderen
+--> nimmt alle slices für dieses individuum
+--> iteriert über die slicelänge in x-er schritten
+--> bildet aus rear, base t1 und base t1+x theta und hängt ihn an theta liste an
+- returned alle thetas aus dieser datei als np.array
+"""
+
+
+
+def theta_analysis(individuals, front_x, front_y, rear_x, rear_y, slices, stepsize = 10):
+    """
+    Docstring for theta_analysis
+    """
+    thetas = []
+
+    dic = {}
+    
+
+    for idx, ind in enumerate(individuals):
+
+        dic[ind] = []
+
+        discarded_frames = 0
+        length_all_traj = 0
+        
+        for s in slices[ind]:
+            # start und end index des trajectories nehmen
+            start = s[0]
+            end = s[1]
+            
+            step = 0
+            
+            
+            
+            while (start + step + stepsize) <= end:
+                
+                current_frame = start + step
+                comparison_frame = start + step + stepsize
+                step += stepsize
+                length_all_traj += stepsize
+
+                rx = rear_x[idx][current_frame]
+                ry = rear_y[idx][current_frame]
+                fx1 = front_x[idx][current_frame]
+                fy1 = front_y[idx][current_frame]
+                fx2 = front_x[idx][comparison_frame]
+                fy2 = front_y[idx][comparison_frame]
+
+                if not np.isfinite(rx) or not np.isfinite(fx1) or not np.isfinite(fx2):
+                    discarded_frames += stepsize
+                    continue
+                
+                t = get_theta(a = [rx, ry], b1 = [fx1, fy1], b2 = [fx2, fy2])
+                thetas.append(t)
+                dic[ind].append({"frame t0": current_frame, "frame t1": comparison_frame, "theta":t})
+            
+        if discarded_frames > 0:
+            print(f"\nWarning: {discarded_frames} out of a total of {length_all_traj} frames have been discarded due to missing tracking during trajectory for {ind}."
+                  "\nThis might be normal, due to partial occlusion of animals during entering and exiting."
+                  f"\nAn average of {int(discarded_frames/len(slices[ind]))} frames was discarded per visit.")
+            
+    #for ind in dic:
+        #for d in dic[ind]:
+            #print(d)
+    thetas = np.asarray(thetas)
+    return thetas, dic

@@ -4,6 +4,24 @@ import glob
 import os
 from config import DF_COLS
 
+def ma_likelihood_filter(df, scorer, individuals, bodyparts, filter_value = 0.3):
+    
+    for ind in individuals:
+        for bp in bodyparts:
+            # likelihood als 1D-Array
+            lh = df.loc[:, (scorer, ind, bp, "likelihood")]
+
+            # Maske: True wo likelihood < threshold
+            mask = lh < filter_value
+
+            # x und y auf NaN setzen
+            df.loc[mask, (scorer, ind, bp, "x")] = np.nan
+            df.loc[mask, (scorer, ind, bp, "y")] = np.nan
+            df.loc[mask, (scorer, ind, bp, "likelihood")] = np.nan
+
+    return df
+            
+
 def interpolate_with_max_gap(df, max_gap=30, method="linear"):
     out = df.copy()
     num_cols = out.select_dtypes(include=[np.number]).columns
