@@ -234,8 +234,6 @@ for file in tqdm(file_list):
     # alle trajectories, auch von mäusen die bereits in der Kammer sind bei Videostart
     all_traj, traj_slices = get_all_traj(x_arrs = all_centroid_x, y_arrs=all_centroid_y, individuals=individuals)
     
-    for t in all_traj:
-        trajectories.append(t)
 
     # trajectories von Mäusen, die im Video die Kamera betreten und wieder verlassen
     e_ex_all_traj = entry_exit_trajectories(x_arrs=all_centroid_x,
@@ -243,7 +241,17 @@ for file in tqdm(file_list):
                                             traj_slices=traj_slices,
                                             individuals=individuals,
                                             entry_polygon=enter_zone_polygon,
-                                            plot=True)
+                                            plot=False)
+
+    # # # WARNUNG # # # 
+    # DAS SIND IM MOMENT NUR DIE VISITS, DIE IN STARTZONE BEGINNEN/ENDEN
+    # TIERE DIE IM GANZEN VIDEO IM MODUL SIND, TRAGEN EINEN VISIT IN VIDEOLÄNGE BEI
+    # # # WARNUNG # # #
+
+    # visits info hinzufügen
+    for traj in e_ex_all_traj:
+        all_visits.append(len(traj))
+    sum_visits += len(e_ex_all_traj)
 
     # front & rear auf wirbelsäule der Maus, um Richtungsänderung zu berechnen
     front_center_x, front_center_y = mouse_center(df,
@@ -264,7 +272,7 @@ for file in tqdm(file_list):
                    rear_y=rear_center_y,
                    slices=traj_slices)
     
-    polarplot = True
+    polarplot = False
 
     if polarplot:
         print(len(theta_list))
@@ -279,7 +287,9 @@ for file in tqdm(file_list):
         plt.show()
 
     # mittlere arc/chord ratio je trajectory für alle trajectories
-    [all_arc_chord.append(arc_chord_ratio(trajectory=t)) for t in all_traj]
+    for t in all_traj:
+        trajectories.append(t)
+        all_arc_chord.append(arc_chord_ratio(trajectory=t))
     
 
 
@@ -336,7 +346,7 @@ for file in tqdm(file_list):
     
 
     # maus in center analyse: ebenfalls für die maximale anzahl an mäusen angepasst
-
+print(len(all_visits))
 
 # berechnen, ob mindestens eine Maus präsent ist 
 min_one_mouse_in_module = mice_in_module.any(axis=0).astype(int)
