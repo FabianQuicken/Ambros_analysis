@@ -37,6 +37,7 @@ from chatgpt_plots import plot_mice_presence_states, plot_mouse_trajectory
 from preprocessing import interpolate_with_max_gap, ma_likelihood_filter
 from social_behavior_analysis import social_investigation, detail_social_investigation
 from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio, get_all_traj, theta_analysis
+from plotting import polar_angle_histogram
 
 # struktur zum speichern erstellen
 @dataclass
@@ -81,7 +82,7 @@ enter_zone_polygon = create_polygon(ENTER_ZONE_COORDS)
 arena_polygon = create_polygon(ARENA_COORDS)
 
 # files für ein modul werden eingelesen (von einem Experimenttag)
-path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectorytest"
+path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\ma_home"
 path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\ma_unfamiliar"
 ho = False
 if ho:
@@ -131,6 +132,8 @@ sum_visits = 0
 
 # speichert alle einzelnen trajectories
 trajectories = []
+# speichert alle arc/chord ratios einzelner trajectories
+all_arc_chord = []
 
 social_inv = None
 
@@ -158,23 +161,29 @@ Ideen für weitere Analysemetriken:
 
 # iteration über jede videofile
 for file in tqdm(file_list):
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+    # # # # # # # # # # # # # # # # DATAFRAME EINLESEN UND VORBEREITEN # # # # # # # # # # # # # # # # # 
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     
     filenames.append(os.path.basename(file))
 
     # an welchem Zeitpunkt der Experimenttdauer befindet sich diese File
     time_position_in_frames = convert_videostart_to_experiment_length(first_file=file_list[0], filename=file) * FPS
 
-
+    # einlesen und copy anlegen
     read_in_df = pd.read_hdf(file)
     df = read_in_df.copy()
 
+    # überschriften des df auslesen
     scorer = df.columns.levels[0][0]
     individuals = df.columns.levels[1]
     bodyparts = df.columns.levels[2]
 
     # likelihood filter, um sehr unwahrscheinliche predictions rauszunehmen
     df = ma_likelihood_filter(df, scorer, individuals, bodyparts, filter_value=0.3)
-
     
     # kleinere fehlende Fragmente werden interpoliert, e.g. wenn Mäuse sich gegenseitig überdecken oder Keypoints fehlen
     df = interpolate_with_max_gap(df)
@@ -182,8 +191,110 @@ for file in tqdm(file_list):
     # y invertieren, da DLC Bildkoordinaten nutzt (y=0 ist oberer Bildrand)
     df.loc[:, (scorer, individuals, bodyparts, ["y"])] *= -1
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+    # # # # # # # # # # # # # Mouse Center + Damit zusammenhängende Analysen # # # # # # # # # # # # # # 
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
     # jeweilige mouse center berechnen (shape n_ind, n_frames)
     all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bodyparts = math.ceil(len(bodyparts) / 3))
+
+    # # # # # arena center analyse # # # # # 
+
+    for index, ind in enumerate(individuals):
+
+
+        centroid_x = all_centroid_x[index]
+        centroid_y = all_centroid_y[index]
+
+
+        # mouse in center analyse
+        mouse_in_center = np.zeros(len(centroid_x))
+        # arena polygon verkleinern, damit es zum center polygon wird
+        center_coords = shrink_rectangle(ARENA_COORDS, scale=0.6)
+        center_polygon = create_polygon(center_coords)
+
+        for i in range(len(mouse_in_center)):
+            # point object erstellen
+            point = create_point(x=centroid_x[i], y=centroid_y[i])
+            # testen, ob point im polygon liegt oder nicht
+            mouse_in_center[i] = is_point_in_polygon(polygon = center_polygon, point=point)
+        #print(f"Mouse in center for {sum(mouse_in_center)} frames")
+        # speichern der information im Kontext des gesamten Experiments
+        for i in range(len(mouse_in_center)):
+            mice_in_center[index][i+(time_position_in_frames-1)] = mouse_in_center[i]
+    
+
+    # # # # # trajectory analyse # # # # # 
+    
+    # alle trajectories, auch von mäusen die bereits in der Kammer sind bei Videostart
+    all_traj, traj_slices = get_all_traj(x_arrs = all_centroid_x, y_arrs=all_centroid_y, individuals=individuals)
+    
+    for t in all_traj:
+        trajectories.append(t)
+
+    # trajectories von Mäusen, die im Video die Kamera betreten und wieder verlassen
+    e_ex_all_traj = entry_exit_trajectories(x_arrs=all_centroid_x,
+                                            y_arrs=all_centroid_y,
+                                            traj_slices=traj_slices,
+                                            individuals=individuals,
+                                            entry_polygon=enter_zone_polygon,
+                                            plot=True)
+
+    # front & rear auf wirbelsäule der Maus, um Richtungsänderung zu berechnen
+    front_center_x, front_center_y = mouse_center(df,
+                                                  scorer, individuals,
+                                                  ["shoulder_left", "shoulder_right", "dorsal_1"],
+                                                  min_bodyparts=3)
+    
+    rear_center_x, rear_center_y = mouse_center(df,
+                                                scorer,
+                                                individuals,
+                                                ["hip_left", "hip_right", "dorsal_4"],
+                                                min_bodyparts=3)
+    
+    theta_list, theta_dic = theta_analysis(individuals=individuals,
+                   front_x=front_center_x,
+                   front_y=front_center_y,
+                   rear_x=rear_center_x,
+                   rear_y=rear_center_y,
+                   slices=traj_slices)
+    
+    polarplot = True
+
+    if polarplot:
+        print(len(theta_list))
+        ax, hist, bins = polar_angle_histogram(
+            theta_list,
+            n_bins=36,
+            angle_cutoff=20,
+            density=True,
+            title="Turning angle distribution"
+            )
+
+        plt.show()
+
+    # mittlere arc/chord ratio je trajectory für alle trajectories
+    [all_arc_chord.append(arc_chord_ratio(trajectory=t)) for t in all_traj]
+    
+
+
+    # visit number etwas schwieriger, weil eine maus mehrmals das modul verlassen und betreten kann während einem video - maybe die entry zone entries --> arena entries zählen?
+    for index, ind in enumerate(individuals):
+        pass
+
+
+    
+
+
+        """
+        if '2025_10_08_13_07_18_mice_c1_exp1_male_none_top1' in file:
+            plot_mouse_trajectory(center_x=centroid_x, center_y=centroid_y)
+        """
 
 
     # mouse present analyse: für die maximale anzahl an mäusen angepasst (1 mouse in modul, 2 mice in module, 3 mice in module)
@@ -198,149 +309,6 @@ for file in tqdm(file_list):
         # speichern der information im Kontext des gesamten Experiments
         for i in range(len(ind_is_present)):
             mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]
-
-    """
-    # alle abgeschlossenen trajectories sammeln und speichern, am besten einmal alle zusammen und dann für jede maus einzeln in passender, zeitlicher relation
-    mice_enter, mice_exit, traj_x, traj_y, all_traj = entry_exit_trajectories(entry_polygon=enter_zone_polygon,
-                                                                    x_arrs=all_centroid_x,
-                                                                    y_arrs=all_centroid_y,
-                                                                    individuals=individuals,
-                                                                    plot=True)
-    """
-    
-    front_center_x, front_center_y = mouse_center(df, scorer, individuals, ["shoulder_left", "shoulder_right", "dorsal_1"], min_bodyparts=3)
-    rear_center_x, rear_center_y = mouse_center(df, scorer, individuals, ["hip_left", "hip_right", "dorsal_4"], min_bodyparts=3)
-    all_traj, traj_slices = get_all_traj(x_arrs = all_centroid_x, y_arrs=all_centroid_y, individuals=individuals)
-    theta_list, theta_dic = theta_analysis(individuals=[individuals[1], individuals[2]],
-                   front_x=front_center_x[1:],
-                   front_y=front_center_y[1:],
-                   rear_x=rear_center_x[1:],
-                   rear_y=rear_center_y[1:],
-                   slices=traj_slices)
-    #print(traj_slices)
-    thetafull = np.zeros(len(df))
-    
-    ind2_data = theta_dic[individuals[1]]
-
-    for t in ind2_data:
-        thetafull[t["frame t0"]:t["frame t1"]] = t["theta"]
-
-
-    create_labelled_video_modular = False
-    if create_labelled_video_modular:
-        from create_labelled_video import create_labelled_video_modular
-        create_labelled_video_modular(video_path=r'C:\Users\quicken\Code\2025_11_13_11_47_13_mice_omm12prop_females_home_unfamiliar_top1_40439818DLC_HrnetW32_multi_animal_mmoNov19shuffle1_detector_best-330_snapshot_best-20_el_id_p10_labeled.mp4',
-                        output_path=r'C:\Users\quicken\Code\2025_11_13_11_47_13_mice_omm12prop_females_home_unfamiliar_top1_labelled_theta.mp4',
-                        metrics=[
-                            ("Theta mouse2:", thetafull)
-                        ],
-                        row_gap=20,
-                        scale_factor=1.0
-        )
-
-    def polar_angle_histogram(
-        angles_deg,
-        n_bins=36,
-        density=True,
-        ax=None,
-        title=None,
-        color="C0",
-        alpha=0.7
-    ):
-        
-        # --- prepare data ---
-        angles_deg = np.asarray(angles_deg, dtype=float)
-        angles_deg = angles_deg[np.isfinite(angles_deg)]
-
-        if angles_deg.size == 0:
-            raise ValueError("No valid angle values provided.")
-
-        # convert to radians [-pi, pi]
-        angles_rad = np.deg2rad(angles_deg)
-
-        # bin edges over full circle
-        bin_edges = np.linspace(-np.pi, np.pi, n_bins + 1)
-
-        # histogram
-        hist, _ = np.histogram(angles_rad, bins=bin_edges, density=density)
-
-        # bin centers for plotting
-        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
-        bin_width = bin_edges[1] - bin_edges[0]
-
-        # --- plotting ---
-        if ax is None:
-            fig, ax = plt.subplots(subplot_kw={"projection": "polar"}, figsize=(5, 5))
-
-        ax.bar(
-            bin_centers,
-            hist,
-            width=bin_width,
-            bottom=0.0,
-            align="center",
-            color=color,
-            alpha=alpha,
-            edgecolor="black",
-            linewidth=0.5,
-        )
-
-        # polar aesthetics
-        ax.set_theta_zero_location("N")   # 0° at top
-        ax.set_theta_direction(-1)        # clockwise positive (common for trajectories)
-        ax.set_thetalim(-np.pi, np.pi)
-
-        if title is not None:
-            ax.set_title(title, va="bottom")
-
-        return ax, hist, bin_edges
-    
-    ax, hist, bins = polar_angle_histogram(
-        theta_list,
-        n_bins=36,
-        density=True,
-        title="Turning angle distribution"
-        )
-
-    plt.show()
-
-    #print(all_traj)
-    #[arc_chord_ratio(trajectory=t) for t in all_traj]
-    
-    #arc_chord_ratio(trajectory=(all_centroid_x[0], all_centroid_y[0]))
-
-    # visit number etwas schwieriger, weil eine maus mehrmals das modul verlassen und betreten kann während einem video - maybe die entry zone entries --> arena entries zählen?
-    for index, ind in enumerate(individuals):
-        pass
-
-
-    # center analyse
-    for index, ind in enumerate(individuals):
-
-
-        centroid_x = all_centroid_x[index]
-        centroid_y = all_centroid_y[index]
-
-        # mouse in center analyse
-        mouse_in_center = np.zeros(len(centroid_x))
-        # arena polygon verkleinern, damit es zum center polygon wird
-        center_coords = shrink_rectangle(ARENA_COORDS, scale=0.6)
-        center_polygon = create_polygon(center_coords)
-
-        for i in range(len(mouse_in_center)):
-            # point object erstellen
-            point = create_point(x=centroid_x[i], y=centroid_y[i])
-            # testen, ob point im polygon liegt oder nicht
-            mouse_in_center[i] = is_point_in_polygon(polygon = center_polygon, point=point)
-
-        # speichern der information im Kontext des gesamten Experiments
-        for i in range(len(mouse_in_center)):
-            mice_in_center[index][i+(time_position_in_frames-1)] = mouse_in_center[i]
-
-
-        """
-        if '2025_10_08_13_07_18_mice_c1_exp1_male_none_top1' in file:
-            plot_mouse_trajectory(center_x=centroid_x, center_y=centroid_y)
-        """
 
         
         # analyse der entries und exits

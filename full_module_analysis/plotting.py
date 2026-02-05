@@ -2,6 +2,69 @@ import matplotlib.pyplot as plt
 import numpy as np
 from config import FPS
 
+def polar_angle_histogram(
+    angles_deg,
+    angle_cutoff=None,
+    n_bins=36,
+    density=True,
+    ax=None,
+    title=None,
+    color="C0",
+    alpha=0.7
+):
+        
+    # --- prepare data ---
+    angles_deg = np.asarray(angles_deg, dtype=float)
+    angles_deg = angles_deg[np.isfinite(angles_deg)]
+
+    if angle_cutoff:
+        min_abs_deg = angle_cutoff
+        angles_deg = angles_deg[np.abs(angles_deg) >= min_abs_deg]
+
+    if angles_deg.size == 0:
+        raise ValueError("No valid angle values provided.")
+
+    # convert to radians [-pi, pi]
+    angles_rad = np.deg2rad(angles_deg)
+
+    # bin edges over full circle
+    bin_edges = np.linspace(-np.pi, np.pi, n_bins + 1)
+
+    # histogram
+    #hist, _ = np.histogram(angles_rad, bins=bin_edges, density=density)
+    hist, _ = np.histogram(angles_rad, bins=bin_edges)
+    hist = hist / hist.sum()
+
+    # bin centers for plotting
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2.0
+    bin_width = bin_edges[1] - bin_edges[0]
+
+    # --- plotting ---
+    if ax is None:
+        fig, ax = plt.subplots(subplot_kw={"projection": "polar"}, figsize=(5, 5))
+
+    ax.bar(
+        bin_centers,
+        hist,
+        width=bin_width,
+        bottom=0.0,
+        align="center",
+        color=color,
+        alpha=alpha,
+        edgecolor="black",
+        linewidth=0.5,
+    )
+
+    # polar aesthetics
+    ax.set_theta_zero_location("N")   # 0° at top
+    ax.set_theta_direction(-1)        # clockwise positive (common for trajectories)
+    ax.set_thetalim(-np.pi, np.pi)
+
+    if title is not None:
+        ax.set_title(title, va="bottom")
+
+    return ax, hist, bin_edges
+
 
 def visits_multi_histogram(data_list, xmax=None, xlabel="visit length [s]",
                            datalabels=["Dataset 1", "Dataset 2"], plotname="",
