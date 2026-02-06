@@ -249,10 +249,21 @@ for file in tqdm(file_list):
     # # # WARNUNG # # #
 
     # visits info hinzufügen
-    for traj in e_ex_all_traj:
-        all_visits.append(len(traj))
-    sum_visits += len(e_ex_all_traj)
+    print(f"in file {file}, the following traj are found:")
+    for ind in individuals:
+        sum_visits += len(e_ex_all_traj[ind])
+        for x,y in e_ex_all_traj[ind]:
+            all_visits.append(len(x))
+            
+            
+    """
+    for ind in e_ex_all_traj:
+        for traj in e_ex_all_traj[ind]:
 
+            for t in traj:
+                all_visits.append(len(t))
+        sum_visits += len(e_ex_all_traj[ind])
+    """
     # front & rear auf wirbelsäule der Maus, um Richtungsänderung zu berechnen
     front_center_x, front_center_y = mouse_center(df,
                                                   scorer, individuals,
@@ -346,7 +357,8 @@ for file in tqdm(file_list):
     
 
     # maus in center analyse: ebenfalls für die maximale anzahl an mäusen angepasst
-print(len(all_visits))
+print(sum_visits)
+print(sum(all_visits))
 
 # berechnen, ob mindestens eine Maus präsent ist 
 min_one_mouse_in_module = mice_in_module.any(axis=0).astype(int)
