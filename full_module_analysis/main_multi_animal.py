@@ -249,12 +249,14 @@ for file in tqdm(file_list):
     # # # WARNUNG # # #
 
     # visits info hinzufügen
-    print(f"in file {file}, the following traj are found:")
     for ind in individuals:
         sum_visits += len(e_ex_all_traj[ind])
+
         for x,y in e_ex_all_traj[ind]:
             all_visits.append(len(x))
-            
+
+
+
             
     """
     for ind in e_ex_all_traj:
@@ -322,11 +324,13 @@ for file in tqdm(file_list):
     for index, ind in enumerate(individuals):
 
         # nose data extrahieren für die präsenz analyse
-        nose_data = df.loc[:, (scorer, ind, ["nose"], ["x", "y", "likelihood"])].to_numpy()
+        nose_data = df.loc[:, (scorer, ind, ["nose"], "x")].to_numpy()
 
-        # über die likelihood checken, ob die Maus im Modul ist
-        ind_is_present = (nose_data[:,2] >= 0.05).astype(int)
-
+        # über finite koordinaten checken, ob die maus im modul ist (bezieht interpolation mit ein)
+        ind_is_present = np.zeros(len(nose_data)).astype(int)
+        for idx, x_coord in enumerate(nose_data):
+            if np.isfinite(x_coord):
+                ind_is_present[idx] = 1
         # speichern der information im Kontext des gesamten Experiments
         for i in range(len(ind_is_present)):
             mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]
