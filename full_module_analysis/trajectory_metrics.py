@@ -474,7 +474,6 @@ def get_all_traj(x_arrs, y_arrs, individuals, len_thr=FPS):
         traj_slices[ind] = paired
         for a, d in paired:
             all_traj.append((x[a:d+1], y[a:d+1]))
-            counter += len(x[a:d+1])
             #plot_trajectory_segment(x=x, y=y, e=a, ex=d)
 
     return all_traj, traj_slices

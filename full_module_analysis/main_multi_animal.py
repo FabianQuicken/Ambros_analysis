@@ -335,8 +335,7 @@ for file in tqdm(file_list):
         for i in range(len(ind_is_present)):
             mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]
 
-        
-        # analyse der entries und exits
+
 
 
     # social investigation analyse
@@ -354,13 +353,11 @@ for file in tqdm(file_list):
     sum_body_inv = social_inv_details["totals"]["body"]
     sum_anogenital_inv = social_inv_details["totals"]["anogenital"]
 
+
+    # zurückgelegte strecke berechnen: einzelne mäuse addieren, nimmt center
     
 
 
-    # zurückgelegte strecke berechnen: einzelne mäuse addieren
-    
-
-    # maus in center analyse: ebenfalls für die maximale anzahl an mäusen angepasst
 print(sum_visits)
 print(sum(all_visits))
 
