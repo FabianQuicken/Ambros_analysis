@@ -243,6 +243,42 @@ def distance_travelled(df,bodypart=str):
         #distance_values[i] = distance_values[i] / (pixel_per_cm*100) # umrechnung in meter
     return distance_values
 
+def distance_travelled_arraybased(x_arr,y_arr):
+    """
+    Compute frame-to-frame Euclidean distances based on center coordinates.
+
+    The function calculates the distance travelled between consecutive frames
+    using paired x and y coordinate arrays. The output array has length
+    len(x_arr) - 1, where each entry corresponds to the distance between
+    frame i and i+1.
+
+    Parameters
+    ----------
+    x_arr : array-like
+        1D array of x-coordinates (e.g. center positions per frame).
+    y_arr : array-like
+        1D array of y-coordinates (same length as x_arr).
+
+    Returns
+    -------
+    distance_values : np.ndarray
+        1D array of Euclidean distances between consecutive frames.
+    """
+    distance_values = np.zeros((len(x_arr))-1)
+    prev_coords = None
+    for i, (x, y) in enumerate(zip(x_arr,y_arr)):
+        if prev_coords:
+            
+            distance_values[i-1] = euklidean_distance(x1=x,
+                                                    y1=y,
+                                                    x2=prev_coords[0],
+                                                    y2=prev_coords[1])
+        prev_coords = (x,y)    
+
+    return distance_values
+
+
+
 def analyze_deg_file(file_path, behavior = str):
     """
     

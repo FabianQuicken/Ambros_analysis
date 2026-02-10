@@ -31,6 +31,7 @@ import warnings
 
 # interne imports
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS
+from metrics import distance_travelled_arraybased
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, convert_videostart_to_experiment_length, calculate_experiment_length, is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
 from metadata import module_has_stimulus_ma
 from chatgpt_plots import plot_mice_presence_states, plot_mouse_trajectory
@@ -117,8 +118,8 @@ min_one_mouse_in_module = exp_duration_frames.copy()
 mice_in_center = np.zeros((len(individuals), len(exp_duration_frames)), dtype=int)
 min_one_mouse_in_center = exp_duration_frames.copy()
 
-mice_distances = np.zeros((len(individuals), len(exp_duration_frames)), dtype=int)
-distance_over_time = exp_duration_frames.copy()
+mice_distances = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+distance_over_time = mice_distances.copy()
 
 nose_x_values_over_time = exp_duration_frames.copy()
 nose_y_values_over_time = exp_duration_frames.copy()
@@ -140,6 +141,75 @@ social_inv = None
 
 filenames = []
 
+stitch_dataframes = True
+if stitch_dataframes:
+    def stitch_dfs_realtime(dfs, start_frames, total_frames):
+        """
+        Stitches multiple dataframes into a single realtime-aligned dataframe.
+
+        Parameters
+        ----------
+        dfs : list[pd.DataFrame]
+            DataFrames with identical columns.
+        start_frames : list[int]
+            Start frame of each dataframe in global time.
+        total_frames : int
+            Total number of frames of the experiment.
+
+        Returns
+        -------
+        pd.DataFrame
+            Stitched dataframe with NaNs for gaps.
+        """
+        master = pd.DataFrame(
+            index=np.arange(total_frames),
+            columns=dfs[0].columns,
+            dtype=float
+        )
+
+        for df, start in zip(dfs, start_frames):
+            end = start + len(df)
+            master.iloc[start:end] = df.to_numpy()
+
+        existing = master.iloc[start:end]
+        has_overlap = existing.notna().any().any()
+        if has_overlap:
+            print("\nOverlap detected")
+
+        return master
+    
+    def stitch_dfs_no_overlap(dfs, start_seconds, fps=FPS):
+        """
+        Stitches dataframes by enforcing continuous frame order.
+        Overlaps caused by coarse timestamps are removed.
+        """
+
+        stitched = []
+        current_end = 0
+
+        for df, sec in zip(dfs, start_seconds):
+            theoretical_start = int(sec * fps)
+
+            start = max(theoretical_start, current_end)
+            df = df.copy()
+            df.index = np.arange(start, start + len(df))
+
+            stitched.append(df)
+            current_end = start + len(df)
+
+        return pd.concat(stitched).sort_index()
+
+    dfs = [pd.read_hdf(file) for file in file_list]
+    t_frames = len(exp_duration_frames)
+    s_frames = [convert_videostart_to_experiment_length(first_file=file_list[0], filename=file) * FPS for file in file_list]
+    master_df = stitch_dfs_realtime(dfs,
+                             s_frames,
+                             t_frames)
+    #master_df = stitch_dfs_no_overlap(dfs,
+    #                                  [convert_videostart_to_experiment_length(first_file=file_list[0], filename=file) for file in file_list]
+    #                                  )
+
+
 """
 Ideen für weitere Analysemetriken:
 # path length to straight-line distance (path meander)
@@ -158,9 +228,11 @@ Ideen für weitere Analysemetriken:
 # grooming-like stationary bouts (low speed + posture change)
 
 """
-
+if stitch_dataframes:
+    file_list = [file_list[0]]
 # iteration über jede videofile
 for file in tqdm(file_list):
+    
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -174,8 +246,11 @@ for file in tqdm(file_list):
     time_position_in_frames = convert_videostart_to_experiment_length(first_file=file_list[0], filename=file) * FPS
 
     # einlesen und copy anlegen
-    read_in_df = pd.read_hdf(file)
-    df = read_in_df.copy()
+    if stitch_dataframes:
+        df = master_df.copy()
+    else:
+        read_in_df = pd.read_hdf(file)
+        df = read_in_df.copy()
 
     # überschriften des df auslesen
     scorer = df.columns.levels[0][0]
@@ -202,6 +277,21 @@ for file in tqdm(file_list):
 
     # jeweilige mouse center berechnen (shape n_ind, n_frames)
     all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bodyparts = math.ceil(len(bodyparts) / 3))
+
+    # # # # # distance travelled # # # # # 
+
+    for index, ind in enumerate(individuals):
+
+        dist_values = distance_travelled_arraybased(x_arr=all_centroid_x[index],
+                                                    y_arr=all_centroid_y[index])
+        
+        for i in range(len(dist_values)):
+            if not np.isnan(dist_values[i]):
+                mice_distances[index][i+(time_position_in_frames-1)] = dist_values[i]
+
+        cum_dist = np.nancumsum(dist_values)
+        for i in range(len(dist_values)):
+            distance_over_time[index][i+(time_position_in_frames-1)] = cum_dist[i]
 
     # # # # # arena center analyse # # # # # 
 
@@ -354,17 +444,23 @@ for file in tqdm(file_list):
     sum_anogenital_inv = social_inv_details["totals"]["anogenital"]
 
 
-    # zurückgelegte strecke berechnen: einzelne mäuse addieren, nimmt center
+    
     
 
 
-print(sum_visits)
-print(sum(all_visits))
+
 
 # berechnen, ob mindestens eine Maus präsent ist 
 min_one_mouse_in_module = mice_in_module.any(axis=0).astype(int)
 # berechnen, wie viele mäuse pro frame im Bild sind
 mice_per_frame = mice_in_module.sum(axis=0)
+# distanz, die pro frame zurückgelegt wird (addiert mehrere Mäuse)
+distance_per_frame = mice_distances.sum(axis=0)
+# kumulative distanz pro frame
+cumdist_per_frame = np.nancumsum(distance_per_frame)
+# full dist
+distance_in_px = cumdist_per_frame[-1]
+
 """
 plot_mice_presence_states(mice_in_module=mice_in_module)
 """
@@ -374,6 +470,10 @@ min_one_mouse_in_center = mice_in_center.any(axis=0).astype(int)
 # berechnen, wieviele mäuse pro frame im Center sind
 mice_center_per_frame = mice_in_center.sum(axis=0)
 
+print("\n Metrics:")
+print(np.nansum(mice_center_per_frame))
+print(np.nansum(mice_in_module))
+print(distance_in_px)
 
 #plot_mice_presence_states(mice_in_module=mice_in_center, title = 'Mice in Center')
 
