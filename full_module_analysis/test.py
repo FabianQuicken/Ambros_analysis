@@ -69,3 +69,8 @@ betrag2 = math.sqrt(v2[0]**2 + v2[1]**2)
 radians = np.arccos(sp / (betrag1 * betrag2))
 degrees = np.degrees(radians)
 print(degrees)
+
+a = {'mouse1 and mouse2': [], 'mouse1 and mouse3': [], 'mouse2 and mouse3': [(np.int64(1907), np.int64(1937))]}
+
+for entry in a:
+    print(entry)

@@ -2,6 +2,297 @@ import cv2
 import numpy as np
 import sys
 
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
+import cv2
+import numpy as np
+
+
+@dataclass
+class OverlayStyle:
+    point_radius: int = 6
+    point_thickness: int = -1  # -1 = filled
+    font: int = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale: float = 0.6
+    font_thickness: int = 2
+    line_spacing: int = 22
+    pad: int = 10
+    box_alpha: float = 0.35
+    box_offset: Tuple[int, int] = (25, -25)  # (dx, dy) from center
+    box_max_width: int = 340
+    box_min_width: int = 220
+
+
+def _to_bgr(rgb: Tuple[int, int, int]) -> Tuple[int, int, int]:
+    r, g, b = rgb
+    return (b, g, r)
+
+
+def _default_palette(n: int) -> List[Tuple[int, int, int]]:
+    base = [
+        (66, 133, 244),  # blue
+        (234, 67, 53),   # red
+        (251, 188, 5),   # yellow
+        (52, 168, 83),   # green
+        (171, 71, 188),  # purple
+        (0, 172, 193),   # cyan
+        (255, 112, 67),  # orange
+        (124, 179, 66),  # lime
+    ]
+    return [base[i % len(base)] for i in range(n)]
+
+
+def stack_centers_from_bodyparts(
+    x: np.ndarray,
+    y: np.ndarray,
+    likelihood: Optional[np.ndarray] = None,
+    likelihood_thresh: float = 0.3,
+    weighted: bool = True,
+) -> np.ndarray:
+    """
+    Compute per-individual center coordinates as mean over bodyparts.
+
+    Expected shapes
+    ---------------
+    x, y:           (n_ind, n_frames, n_bodyparts)
+    likelihood:     (n_ind, n_frames, n_bodyparts)  (optional)
+
+    Returns
+    -------
+    centers: (n_ind, n_frames, 2)  with [x_center, y_center]
+    """
+
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+
+    if x.shape != y.shape or x.ndim != 3:
+        raise ValueError("x and y must have shape (n_ind, n_frames, n_bodyparts) and match exactly.")
+
+    if likelihood is None:
+        # simple mean ignoring NaNs
+        cx = np.nanmean(x, axis=2)
+        cy = np.nanmean(y, axis=2)
+        return np.stack([cx, cy], axis=2)
+
+    l = np.asarray(likelihood, dtype=float)
+    if l.shape != x.shape:
+        raise ValueError("likelihood must have the same shape as x/y: (n_ind, n_frames, n_bodyparts)")
+
+    # mask low-confidence points
+    valid = l >= likelihood_thresh
+    x_masked = np.where(valid, x, np.nan)
+    y_masked = np.where(valid, y, np.nan)
+
+    if not weighted:
+        cx = np.nanmean(x_masked, axis=2)
+        cy = np.nanmean(y_masked, axis=2)
+        return np.stack([cx, cy], axis=2)
+
+    # weighted mean (avoid nan propagation)
+    w = np.where(valid, l, 0.0)
+    wx = np.where(np.isfinite(x), x, 0.0) * w
+    wy = np.where(np.isfinite(y), y, 0.0) * w
+
+    wsum = np.sum(w, axis=2)
+    # where wsum==0 -> nan
+    cx = np.where(wsum > 0, np.sum(wx, axis=2) / wsum, np.nan)
+    cy = np.where(wsum > 0, np.sum(wy, axis=2) / wsum, np.nan)
+
+    return np.stack([cx, cy], axis=2)
+
+
+def overlay_metrics_on_video_arrays(
+    video_in_path: str,
+    video_out_path: str,
+    individuals: List[str],
+    centers_nif2: np.ndarray,                 # (n_ind, n_frames, 2)
+    metrics_nif: Dict[str, np.ndarray],       # each (n_ind, n_frames) OR (n_frames,)
+    metric_formats: Optional[Dict[str, str]] = None,
+    fps_out: Optional[float] = None,
+    colors_rgb: Optional[Dict[str, Tuple[int, int, int]]] = None,
+    style: OverlayStyle = OverlayStyle(),
+    codec_fourcc: Optional[str] = None,
+    draw_trails: bool = False,
+    trail_len: int = 25,
+    trail_thickness: int = 2,
+) -> None:
+    """
+    Annotate video with per-individual center points and arbitrary per-frame metrics.
+
+    Your native format is supported:
+    - centers: (n_ind, n_frames, 2)
+    - metrics: (n_ind, n_frames) or (n_frames,) for global metrics
+
+    Output video is written to `video_out_path`.
+    """
+
+    if metric_formats is None:
+        metric_formats = {}
+    default_fmt = "{:.3g}"
+
+    centers = np.asarray(centers_nif2, dtype=float)
+    if centers.ndim != 3 or centers.shape[2] != 2:
+        raise ValueError("centers_nif2 must have shape (n_ind, n_frames, 2).")
+
+    n_ind, n_frames = centers.shape[0], centers.shape[1]
+    if len(individuals) != n_ind:
+        raise ValueError(f"len(individuals)={len(individuals)} does not match centers n_ind={n_ind}.")
+
+    # Open video
+    cap = cv2.VideoCapture(video_in_path)
+    if not cap.isOpened():
+        raise FileNotFoundError(f"Could not open video: {video_in_path}")
+
+    fps_in = cap.get(cv2.CAP_PROP_FPS)
+    fps = fps_out if fps_out is not None else (fps_in if fps_in and fps_in > 0 else 30.0)
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    ext = os.path.splitext(video_out_path)[1].lower()
+    if codec_fourcc is None:
+        codec_fourcc = "mp4v" if ext == ".mp4" else "XVID"
+    fourcc = cv2.VideoWriter_fourcc(*codec_fourcc)
+
+    out = cv2.VideoWriter(video_out_path, fourcc, fps, (w, h))
+    if not out.isOpened():
+        cap.release()
+        raise RuntimeError(
+            f"Could not open VideoWriter for {video_out_path}. "
+            f"Try codec_fourcc='mp4v' (mp4) or 'XVID' (avi)."
+        )
+
+    # colors
+    if colors_rgb is None:
+        pal = _default_palette(n_ind)
+        colors_rgb = {individuals[i]: pal[i] for i in range(n_ind)}
+
+    trails = {ind: [] for ind in individuals}
+
+    frame_idx = 0
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+
+        if frame_idx >= n_frames:
+            # Safety: stop if your arrays are shorter than the video
+            break
+
+        overlay = frame.copy()
+
+        for i, ind in enumerate(individuals):
+            rgb = colors_rgb[ind]
+            color = _to_bgr(rgb)
+
+            x, y = centers[i, frame_idx, 0], centers[i, frame_idx, 1]
+            if np.isnan(x) or np.isnan(y):
+                continue
+
+            xi, yi = int(round(float(x))), int(round(float(y)))
+            if xi < 0 or xi >= w or yi < 0 or yi >= h:
+                continue
+
+            # trails
+            if draw_trails:
+                trails[ind].append((xi, yi))
+                if len(trails[ind]) > trail_len:
+                    trails[ind] = trails[ind][-trail_len:]
+                if len(trails[ind]) >= 2:
+                    cv2.polylines(
+                        overlay,
+                        [np.array(trails[ind], dtype=np.int32)],
+                        isClosed=False,
+                        color=color,
+                        thickness=trail_thickness,
+                    )
+
+            # point
+            cv2.circle(
+                overlay,
+                (xi, yi),
+                style.point_radius,
+                color,
+                style.point_thickness,
+                lineType=cv2.LINE_AA,
+            )
+
+            # metric lines (per ind)
+            lines = []
+            for name, arr in metrics_nif.items():
+                arr = np.asarray(arr)
+
+                if arr.ndim == 1:
+                    v = arr[frame_idx]
+                elif arr.ndim == 2:
+                    # (n_ind, n_frames)
+                    v = arr[i, frame_idx]
+                else:
+                    raise ValueError(f"Metric '{name}' has ndim={arr.ndim}. Expected 1 or 2.")
+
+                fmt = metric_formats.get(name, default_fmt)
+                if isinstance(v, (float, np.floating, int, np.integer)):
+                    if isinstance(v, (float, np.floating)) and np.isnan(v):
+                        v_str = "nan"
+                    else:
+                        v_str = fmt.format(v)
+                else:
+                    v_str = str(v)
+
+                lines.append(f"{name}: {v_str}")
+
+            lines.append(f"x: {xi}, y: {yi}")
+
+            # measure box
+            max_tw = 0
+            for txt in lines:
+                (tw, _), _ = cv2.getTextSize(txt, style.font, style.font_scale, style.font_thickness)
+                max_tw = max(max_tw, tw)
+
+            box_w = int(np.clip(max_tw + 2 * style.pad, style.box_min_width, style.box_max_width))
+            box_h = int(len(lines) * style.line_spacing + style.pad)
+
+            dx, dy = style.box_offset
+            bx = int(np.clip(xi + dx, 0, w - box_w))
+            by = int(np.clip(yi + dy - box_h, 0, h - box_h))
+
+            # box
+            cv2.rectangle(
+                overlay,
+                (bx, by),
+                (bx + box_w, by + box_h),
+                (255, 255, 255),
+                thickness=-1,
+            )
+
+            # text
+            tx = bx + style.pad
+            ty = by + style.pad + style.line_spacing - 6
+            for txt in lines:
+                cv2.putText(
+                    overlay,
+                    txt,
+                    (tx, ty),
+                    style.font,
+                    style.font_scale,
+                    color,
+                    style.font_thickness,
+                    lineType=cv2.LINE_AA,
+                )
+                ty += style.line_spacing
+
+        # blend
+        cv2.addWeighted(overlay, style.box_alpha, frame, 1.0 - style.box_alpha, 0, frame)
+        out.write(frame)
+        frame_idx += 1
+
+    cap.release()
+    out.release()
+
+
 
 def create_labelled_video(video_path, output_path, metric1, text1, metric2, text2):
     # ===============================

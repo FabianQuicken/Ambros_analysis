@@ -3,6 +3,215 @@ import pandas as pd
 import glob
 import os
 from config import DF_COLS
+from utils import mouse_center, euklidean_distance
+
+def filter_id_overlays(overlay_inds, overlay_slices, scorer, bodyparts, df):
+    """
+    Resolve identity overlay artifacts between two individuals by invalidating
+    duplicated tracking data within detected overlay segments.
+
+    This function operates on overlay segments previously identified by
+    `find_id_overlay`, where two individuals share identical center coordinates
+    for contiguous frame ranges. Such overlays typically occur in multi-animal
+    DeepLabCut tracking when fewer than the maximum number of animals are visible,
+    causing a newly appearing identity to be assigned to an already tracked animal.
+
+    For each overlay segment [start, end), the function determines which individual
+    represents the physically continuous track and invalidates (sets to NaN) the
+    other individual's data (x, y, likelihood) within the overlay segment.
+
+    Decision logic (applied per overlay segment)
+    ---------------------------------------------
+    1. Presence check at frame `start - 1`:
+       An individual is considered present if more than half of its x
+       values across the specified bodyparts are finite.
+    2. If only one individual was present at `start - 1`, that individual is kept and
+       the other is invalidated within the overlay segment.
+    3. If neither individual was present at `start - 1`, the second individual
+       (`overlay_inds[1]`) is invalidated by convention.
+    4. If both individuals were present at `start - 1`, continuity is used as a
+       tie-breaker: the individual with the smaller mean Euclidean jump distance
+       between frames `start - 1` and `start` (averaged across bodyparts) is kept,
+       while the other is invalidated.
+
+    Overlay segments are assumed to follow Python slicing conventions, i.e. each
+    segment is defined as (start, end) with `end` being exclusive. Because `.loc`
+    slicing is inclusive, invalidation is applied to frames [start, end - 1].
+
+    Parameters
+    ----------
+    overlay_inds : sequence of str
+        Exactly two individual identifiers (e.g. ["mouse1", "mouse2"]) involved in
+        the overlay.
+    overlay_slices : sequence of tuple(int, int)
+        Overlay segments as (start, end) tuples, where `end` is exclusive.
+    scorer : str
+        Name of the DeepLabCut scorer used in the DataFrame.
+    bodyparts : sequence of str
+        Bodyparts considered for presence estimation and jump-distance computation.
+    df : pandas.DataFrame
+        DeepLabCut output DataFrame with a MultiIndex column structure
+        (scorer, individual, bodypart, coordinate).
+
+    Returns
+    -------
+    pandas.DataFrame
+        The modified DataFrame with overlay artifacts removed. The input DataFrame
+        is edited in place and returned for convenience.
+
+    Notes
+    -----
+    - This function assumes that likelihood filtering and interpolation have already
+      been applied upstream.
+    - The method is designed to resolve true overlay artifacts and does not address
+      identity swaps that occur without spatial overlap.
+    - Jump distances are computed using the user-defined `euklidean_distance`
+      utility function.
+
+    See Also
+    --------
+    find_id_overlay : Detection of temporal overlay segments between individuals.
+    mouse_center : Computation of per-frame center coordinates for individuals.
+    """
+    def mean_jump_distance(df, scorer, ind, bodyparts, prev_frame, cur_frame):
+        dists = []
+
+        for bp in bodyparts:
+            x_prev, y_prev = df.loc[prev_frame, (scorer, ind, bp, ["x", "y"])]
+            x_cur,  y_cur  = df.loc[cur_frame,  (scorer, ind, bp, ["x", "y"])]
+
+            if np.isfinite(x_prev) and np.isfinite(y_prev) and np.isfinite(x_cur) and np.isfinite(y_cur):
+                dists.append(
+                    euklidean_distance(x_prev, y_prev, x_cur, y_cur)
+                )
+
+        return np.nanmean(dists) if len(dists) > 0 else np.inf
+
+    # get data first
+    for start, end in overlay_slices:
+
+        ind1_previous_data = df.loc[start-1, (scorer, overlay_inds[0], bodyparts, ["x"])].to_numpy().ravel()
+        ind2_previous_data = df.loc[start-1, (scorer, overlay_inds[1], bodyparts, ["x"])].to_numpy().ravel()
+
+        ind1_previous_present = False
+        ind2_previous_present = False
+
+        # schauen ob die Mäuse vorher präsent waren
+        if np.sum(np.isfinite(ind1_previous_data)) > len(ind1_previous_data) / 2:
+            ind1_previous_present = True
+        if np.sum(np.isfinite(ind2_previous_data)) > len(ind2_previous_data) / 2:
+            ind2_previous_present = True
+
+        # wenn ind 1 vorher präsent war, aber nicht ind 2, werden die daten von maus 2 mit nan ersetzt
+        if ind1_previous_present and not ind2_previous_present:
+            df.loc[start:end-1, (scorer, overlay_inds[1], bodyparts, ["x", "y", "likelihood"])] = np.nan
+        # wenn ind 2 vorher präsent war, aber nicht ind 1, werden die daten von maus 1 mit nan ersetzt
+        if ind2_previous_present and not ind1_previous_present:
+            df.loc[start:end-1, (scorer, overlay_inds[0], bodyparts, ["x", "y", "likelihood"])] = np.nan
+        # wenn keine von beiden vorher im modul waren, ist es egal welche deleted wird, wir deleted einfach das 2. ind
+        if not ind2_previous_present and not ind1_previous_present:
+            df.loc[start:end-1, (scorer, overlay_inds[1], bodyparts, ["x", "y", "likelihood"])] = np.nan
+        # wenn beide präsent waren, schauen welche koordinaten weiter "springen" zwischen dem frame vor dem doppellabel und 
+        # dem ersten doppelframe
+        if ind1_previous_present and ind2_previous_present:
+            
+            jump_1 = mean_jump_distance(df, scorer, overlay_inds[0], bodyparts, start-1, start)
+            jump_2 = mean_jump_distance(df, scorer, overlay_inds[1], bodyparts, start-1, start)
+
+            if jump_1 <= jump_2:
+                df.loc[start:end-1, (scorer, overlay_inds[1], bodyparts, ["x", "y", "likelihood"])] = np.nan
+            else:
+                df.loc[start:end-1, (scorer, overlay_inds[0], bodyparts, ["x", "y", "likelihood"])] = np.nan
+
+    return df
+
+
+def find_id_overlay(df, scorer, individuals, bodyparts):
+
+    """
+    Identify temporal segments in which two different individuals share identical
+    center coordinates, indicating potential ID overlay artifacts in multi-animal
+    DeepLabCut tracking data.
+
+    For each pair of individuals (i < j), the function compares their center
+    coordinates (x, y) frame-by-frame and detects contiguous frame ranges where
+    both coordinates are exactly identical. Such segments typically arise when
+    DeepLabCut assigns the same physical animal to multiple identities, often
+    during identity swaps or interpolation artifacts.
+
+    Center coordinates are obtained via `mouse_center(...)` and are assumed to be
+    aligned in time across individuals.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DeepLabCut output DataFrame with a MultiIndex column structure
+        (scorer, individual, bodypart, coordinate).
+    scorer : str
+        Name of the DeepLabCut scorer used in the DataFrame.
+    individuals : list of str
+        List of individual identifiers to be compared pairwise.
+    bodyparts : list of str
+        Bodyparts used to compute the center position of each individual.
+
+    Returns
+    -------
+    overlays_dic : dict
+        Dictionary mapping individual pairs to lists of overlay segments.
+        Keys are strings of the form "indA and indB".
+        Values are lists of (start, end) tuples, where `start` is inclusive
+        and `end` is exclusive, following Python slicing conventions
+        (i.e., frames [start:end]).
+
+        Example:
+            {
+                "mouse1 and mouse2": [(120, 145), (300, 312)],
+                "mouse1 and mouse3": []
+            }
+
+    Notes
+    -----
+    - Overlay detection is based on exact equality of both x and y center coordinates.
+      This is suitable when DLC outputs are quantized and when interpolated plateaus
+      are considered indicative of identity overlays.
+    - NaN values do not produce false positives, as NaN comparisons evaluate to False.
+    - Only unique individual pairs are evaluated (i < j); reverse duplicates are omitted.
+    - Segment boundaries are computed robustly, including overlays starting at the
+      first frame or ending at the final frame.
+
+    See Also
+    --------
+    mouse_center : Function used to compute per-frame center coordinates for each individual.
+    """
+
+    x_centers, y_centers = mouse_center(df, scorer, individuals, bodyparts)
+    overlays_dic = {}
+
+
+    for idx, ind in enumerate(individuals):
+        counter = 0
+        while counter < len(individuals):
+            if counter > idx:
+                overlays = []
+                overlay_mask = np.where((x_centers[idx] == x_centers[counter]) & (y_centers[idx] == y_centers[counter]), 1, 0)
+
+                if np.nansum(overlay_mask) > 0:
+                    diff = np.diff(overlay_mask)
+                    if overlay_mask[0] == 1:
+                        starts = [0]
+                        starts += list(np.where(diff == 1)[0] + 1)
+                    else:
+                        starts = list(np.where(diff == 1)[0] + 1)
+                    ends = list(np.where(diff == -1)[0] + 1)
+                    if overlay_mask[-1] == 1:
+                        ends += [len(overlay_mask)]
+                    for (start, end) in zip(starts, ends):
+                        overlays.append((start, end))
+                    overlays_dic[f"{ind} and {individuals[counter]}"] = overlays
+                    
+            counter += 1
+    return overlays_dic
+
 
 def ma_likelihood_filter(df, scorer, individuals, bodyparts, filter_value = 0.3):
     
@@ -17,7 +226,7 @@ def ma_likelihood_filter(df, scorer, individuals, bodyparts, filter_value = 0.3)
             # x und y auf NaN setzen
             df.loc[mask, (scorer, ind, bp, "x")] = np.nan
             df.loc[mask, (scorer, ind, bp, "y")] = np.nan
-            df.loc[mask, (scorer, ind, bp, "likelihood")] = np.nan
+            
 
     return df
             

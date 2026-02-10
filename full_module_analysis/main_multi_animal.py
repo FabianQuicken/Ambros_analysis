@@ -35,7 +35,7 @@ from metrics import distance_travelled_arraybased
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, convert_videostart_to_experiment_length, calculate_experiment_length, is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
 from metadata import module_has_stimulus_ma
 from chatgpt_plots import plot_mice_presence_states, plot_mouse_trajectory
-from preprocessing import interpolate_with_max_gap, ma_likelihood_filter
+from preprocessing import interpolate_with_max_gap, ma_likelihood_filter, find_id_overlay, filter_id_overlays
 from social_behavior_analysis import social_investigation, detail_social_investigation
 from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio, get_all_traj, theta_analysis
 from plotting import polar_angle_histogram
@@ -141,7 +141,7 @@ social_inv = None
 
 filenames = []
 
-stitch_dataframes = True
+stitch_dataframes = False
 if stitch_dataframes:
     def stitch_dfs_realtime(dfs, start_frames, total_frames):
         """
@@ -232,6 +232,7 @@ if stitch_dataframes:
     file_list = [file_list[0]]
 # iteration über jede videofile
 for file in tqdm(file_list):
+
     
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -262,6 +263,22 @@ for file in tqdm(file_list):
     
     # kleinere fehlende Fragmente werden interpoliert, e.g. wenn Mäuse sich gegenseitig überdecken oder Keypoints fehlen
     df = interpolate_with_max_gap(df)
+
+    # selten treten ID Overlays auf, DeepLabCut labelt die selbe Maus zwei Mal mit den exakt selben Koordinaten
+    overlays_dic = find_id_overlay(df, scorer, individuals, bodyparts)
+    if overlays_dic:
+        
+        for entry in overlays_dic:
+            overlay_inds = []
+            for ind in individuals:
+                if ind in entry:
+                    overlay_inds.append(ind)
+
+            df = filter_id_overlays(overlay_inds=overlay_inds,
+                               overlay_slices=overlays_dic[entry],
+                               scorer=scorer,
+                               bodyparts=bodyparts,
+                               df=df)
 
     # y invertieren, da DLC Bildkoordinaten nutzt (y=0 ist oberer Bildrand)
     df.loc[:, (scorer, individuals, bodyparts, ["y"])] *= -1
@@ -470,10 +487,10 @@ min_one_mouse_in_center = mice_in_center.any(axis=0).astype(int)
 # berechnen, wieviele mäuse pro frame im Center sind
 mice_center_per_frame = mice_in_center.sum(axis=0)
 
-print("\n Metrics:")
-print(np.nansum(mice_center_per_frame))
-print(np.nansum(mice_in_module))
-print(distance_in_px)
+#print("\n Metrics:")
+#print(np.nansum(mice_center_per_frame))
+#print(np.nansum(mice_in_module))
+#print(distance_in_px)
 
 #plot_mice_presence_states(mice_in_module=mice_in_center, title = 'Mice in Center')
 
