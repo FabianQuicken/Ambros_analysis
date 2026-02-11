@@ -5,6 +5,32 @@ from shapely.geometry import Point, Polygon
 from config import FPS
 import math
 import warnings
+import scipy as sc
+
+def moving_average(data, window=15):
+    """
+    Centered moving average smoothing.
+
+    Parameters
+    ----------
+    data : array-like
+    window : int
+        Window size in samples
+
+    Returns
+    -------
+    smoothed : ndarray
+        Same length as input
+    """
+    kernel = np.ones(window) / window
+    return np.convolve(data, kernel, mode='same')
+
+def bessel_filter(data, order = 2, cutoff = 3, sampling_rate = 30):
+    b, a = sc.signal.bessel(order, cutoff, btype = 'low', fs=sampling_rate)
+
+    data_filtered = sc.signal.lfilter(b, a, data)  
+
+    return data_filtered
 
 def create_polygon(polygon_coords=list):
     return Polygon(polygon_coords)

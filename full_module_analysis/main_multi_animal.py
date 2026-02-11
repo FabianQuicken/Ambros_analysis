@@ -28,17 +28,21 @@ import matplotlib.pyplot as plt
 from dataclasses import dataclass
 import math
 import warnings
+import scipy as sc
 
 # interne imports
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS
 from metrics import distance_travelled_arraybased
-from utils import euklidean_distance, fill_missing_values, time_to_seconds, convert_videostart_to_experiment_length, calculate_experiment_length, is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
+from utils import euklidean_distance, fill_missing_values, time_to_seconds, moving_average
+from utils import convert_videostart_to_experiment_length, calculate_experiment_length
+from utils import is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
 from metadata import module_has_stimulus_ma
 from chatgpt_plots import plot_mice_presence_states, plot_mouse_trajectory
 from preprocessing import interpolate_with_max_gap, ma_likelihood_filter, find_id_overlay, filter_id_overlays
 from social_behavior_analysis import social_investigation, detail_social_investigation
 from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio, get_all_traj, theta_analysis
 from plotting import polar_angle_histogram
+from animated_plots import animate_trace
 
 # struktur zum speichern erstellen
 @dataclass
@@ -83,7 +87,8 @@ enter_zone_polygon = create_polygon(ENTER_ZONE_COORDS)
 arena_polygon = create_polygon(ARENA_COORDS)
 
 # files für ein modul werden eingelesen (von einem Experimenttag)
-path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\ma_home"
+#path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectory_immobile"
+path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\analyse tests"
 path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\ma_unfamiliar"
 ho = False
 if ho:
@@ -226,8 +231,8 @@ Ideen für weitere Analysemetriken:
 # time to last entry
 # exploration index (unique area visited / total arena)
 # grooming-like stationary bouts (low speed + posture change)
-
 """
+
 if stitch_dataframes:
     file_list = [file_list[0]]
 # iteration über jede videofile
@@ -301,6 +306,28 @@ for file in tqdm(file_list):
 
         dist_values = distance_travelled_arraybased(x_arr=all_centroid_x[index],
                                                     y_arr=all_centroid_y[index])
+        
+
+
+        dist_values = moving_average(data=dist_values, window=10)    
+
+        is_immobile = np.where(dist_values < 4, 1, 0)
+
+        #print(f"\n Dist Traveled: {sum(dist_values)}")
+        print(f"\n Total immobile frames: {sum(is_immobile) / len(is_immobile)}")
+
+        animated_plot = False
+        if animated_plot:
+            colors = ["purple", "green", "red"]
+            color = colors[index]
+
+            animate_trace(dist_values[0:1800],
+                fps=30,
+                window_seconds=1,
+                color=color,
+                save_path=path+f"/trace_animation_{ind}.mp4")
+            
+            
         
         for i in range(len(dist_values)):
             if not np.isnan(dist_values[i]):
