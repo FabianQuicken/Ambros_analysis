@@ -2,8 +2,38 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Point, Polygon
 from preprocessing import likelihood_filtering, likelihood_filtering_nans
-from utils import euklidean_distance, fill_missing_values, shrink_rectangle
-from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2
+from utils import euklidean_distance, fill_missing_values, shrink_rectangle, moving_average_coords
+from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2, FPS
+import matplotlib.pyplot as plt
+
+def speed_and_acceleration(x_arr, y_arr, fps=FPS, px_per_cm=PIXEL_PER_CM, smoothing=True):
+
+
+    x = np.asarray(x_arr, dtype=float)
+    y = np.asarray(y_arr, dtype=float)
+
+
+    if smoothing:
+        x = moving_average_coords(data=x, window=5)
+        y = moving_average_coords(data=y, window=5)
+
+    plt.plot(x[0:10])
+    plt.plot(y[0:10])
+    plt.show()
+    dx = np.diff(x)  # px / frame
+    dy = np.diff(y)  # px / frame
+
+    # Velocity components (cm/s)
+    vx = (dx * fps) / px_per_cm
+    vy = (dy * fps) / px_per_cm
+    v  = np.sqrt(vx**2 + vy**2)  # cm/s, length N-1
+
+    # Acceleration components (cm/s^2)
+    ax = np.diff(vx) * fps
+    ay = np.diff(vy) * fps
+    a  = np.sqrt(ax**2 + ay**2)  # cm/s^2, length N-2
+
+    return v, a
 
 def social_investigation(df, scorer, individuals, bodyparts):
 

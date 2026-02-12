@@ -25,6 +25,15 @@ def moving_average(data, window=15):
     kernel = np.ones(window) / window
     return np.convolve(data, kernel, mode='same')
 
+def moving_average_coords(data, window=15):
+    kernel = np.ones(window) / window
+    pad = window // 2
+
+    padded = np.pad(data, pad_width=pad, mode="edge")
+    smoothed = np.convolve(padded, kernel, mode="valid")
+
+    return smoothed
+
 def bessel_filter(data, order = 2, cutoff = 3, sampling_rate = 30):
     b, a = sc.signal.bessel(order, cutoff, btype = 'low', fs=sampling_rate)
 

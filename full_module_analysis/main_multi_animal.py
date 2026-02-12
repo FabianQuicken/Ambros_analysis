@@ -32,7 +32,7 @@ import scipy as sc
 
 # interne imports
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS
-from metrics import distance_travelled_arraybased
+from metrics import distance_travelled_arraybased, speed_and_acceleration
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, moving_average
 from utils import convert_videostart_to_experiment_length, calculate_experiment_length
 from utils import is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
@@ -125,6 +125,7 @@ min_one_mouse_in_center = exp_duration_frames.copy()
 
 mice_distances = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
 distance_over_time = mice_distances.copy()
+immobile_over_ime = mice_distances.copy()
 
 nose_x_values_over_time = exp_duration_frames.copy()
 nose_y_values_over_time = exp_duration_frames.copy()
@@ -300,32 +301,51 @@ for file in tqdm(file_list):
     # jeweilige mouse center berechnen (shape n_ind, n_frames)
     all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bodyparts = math.ceil(len(bodyparts) / 3))
 
-    # # # # # distance travelled # # # # # 
+    # # # # # distance & speed analysis  # # # # # 
 
     for index, ind in enumerate(individuals):
 
         dist_values = distance_travelled_arraybased(x_arr=all_centroid_x[index],
-                                                    y_arr=all_centroid_y[index])
+                                                    y_arr=all_centroid_y[index]
+                                                    )
         
 
 
-        dist_values = moving_average(data=dist_values, window=10)    
+        dist_values = moving_average(data=dist_values,
+                                     window=10
+                                     )    
 
-        is_immobile = np.where(dist_values < 4, 1, 0)
+
+        speed_values, acceleration_values = speed_and_acceleration(x_arr=all_centroid_x[index],
+                             y_arr=all_centroid_y[index],
+                             smoothing = True
+                             )
+
+
+        is_immobile = np.where(dist_values > 4, 1, 0)
+        for i in range(len(is_immobile)):
+            if not np.isnan(is_immobile[i]):
+                immobile_over_ime[index][i+(time_position_in_frames-1)] = is_immobile[i]
+        
 
         #print(f"\n Dist Traveled: {sum(dist_values)}")
         print(f"\n Total immobile frames: {sum(is_immobile) / len(is_immobile)}")
 
+        #plt.plot(all_centroid_x[index][0:10])
+        #plt.show()
+
         animated_plot = False
+
         if animated_plot:
             colors = ["purple", "green", "red"]
             color = colors[index]
 
-            animate_trace(dist_values[0:1800],
+            animate_trace(acceleration_values[0:1800],
                 fps=30,
                 window_seconds=1,
                 color=color,
-                save_path=path+f"/trace_animation_{ind}.mp4")
+                save_path=path+f"/trace_animation_{ind}_acc.mp4"
+                )
             
             
         
@@ -498,6 +518,8 @@ for file in tqdm(file_list):
 min_one_mouse_in_module = mice_in_module.any(axis=0).astype(int)
 # berechnen, wie viele mäuse pro frame im Bild sind
 mice_per_frame = mice_in_module.sum(axis=0)
+# berechnen, wie viele mäuse pro frame immobile sind
+immobile_per_frame = immobile_over_ime.sum(axis=0)
 # distanz, die pro frame zurückgelegt wird (addiert mehrere Mäuse)
 distance_per_frame = mice_distances.sum(axis=0)
 # kumulative distanz pro frame
