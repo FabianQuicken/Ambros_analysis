@@ -334,17 +334,17 @@ for file in tqdm(file_list):
         #plt.plot(all_centroid_x[index][0:10])
         #plt.show()
 
-        animated_plot = False
+        animated_plot = True
 
         if animated_plot:
             colors = ["purple", "green", "red"]
             color = colors[index]
 
-            animate_trace(acceleration_values[0:1800],
+            animate_trace(speed_values[0:1800],
                 fps=30,
-                window_seconds=1,
+                window_seconds=5,
                 color=color,
-                save_path=path+f"/trace_animation_{ind}_acc.mp4"
+                save_path=path+f"/trace_animation_{ind}_speed.mp4"
                 )
             
             

@@ -14,12 +14,10 @@ def speed_and_acceleration(x_arr, y_arr, fps=FPS, px_per_cm=PIXEL_PER_CM, smooth
 
 
     if smoothing:
-        x = moving_average_coords(data=x, window=5)
-        y = moving_average_coords(data=y, window=5)
+        x = moving_average_coords(data=x, window=10)
+        y = moving_average_coords(data=y, window=10)
 
-    plt.plot(x[0:10])
-    plt.plot(y[0:10])
-    plt.show()
+
     dx = np.diff(x)  # px / frame
     dy = np.diff(y)  # px / frame
 
