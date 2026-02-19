@@ -88,25 +88,27 @@ arena_polygon = create_polygon(ARENA_COORDS)
 
 # files für ein modul werden eingelesen (von einem Experimenttag)
 #path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectory_immobile"
-path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\analyse tests"
+path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\Clavel_paradigm\germfree\38_47_53_males\top1"
 path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\ma_unfamiliar"
 ho = False
 if ho:
     path=path_ho
 #path = r"C:\Users\Fabian\Code\Ambros_analysis\code_test"
 file_list = glob.glob(os.path.join(path, '*.h5'))
+file_list.sort()
+
 
 """
 Beschneiden der Filelist für die Testruns
 """
-#file_list = file_list[10:13]
+file_list = file_list[0:3]
 
-
+for file in file_list:
+    print(os.path.basename(file))
 
 # information über die Anzahl individuen extrahieren, um Variablen zu initialisieren
 first_df = pd.read_hdf(file_list[0])
 individuals = first_df.columns.levels[1]
-
 
 # dauer des Experiments wird berechnet, based on start und end video Zeitdaten
 exp_duration_frames, startzeit, endzeit, date = calculate_experiment_length(first_file=file_list[0], last_file=file_list[-1])
@@ -125,7 +127,7 @@ min_one_mouse_in_center = exp_duration_frames.copy()
 
 mice_distances = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
 distance_over_time = mice_distances.copy()
-immobile_over_ime = mice_distances.copy()
+immobile_over_time = mice_distances.copy()
 
 nose_x_values_over_time = exp_duration_frames.copy()
 nose_y_values_over_time = exp_duration_frames.copy()
@@ -147,7 +149,7 @@ social_inv = None
 
 filenames = []
 
-stitch_dataframes = False
+stitch_dataframes = True
 if stitch_dataframes:
     def stitch_dfs_realtime(dfs, start_frames, total_frames):
         """
@@ -238,7 +240,7 @@ if stitch_dataframes:
     file_list = [file_list[0]]
 # iteration über jede videofile
 for file in tqdm(file_list):
-
+    
     
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -274,7 +276,10 @@ for file in tqdm(file_list):
     overlays_dic = find_id_overlay(df, scorer, individuals, bodyparts)
     if overlays_dic:
         
+        # jedes overlay event wird einzeln behandelt
         for entry in overlays_dic:
+
+            # die individuals die overlayen werden genommen
             overlay_inds = []
             for ind in individuals:
                 if ind in entry:
@@ -301,7 +306,24 @@ for file in tqdm(file_list):
     # jeweilige mouse center berechnen (shape n_ind, n_frames)
     all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bodyparts = math.ceil(len(bodyparts) / 3))
 
-    # # # # # distance & speed analysis  # # # # # 
+    # # # # #  mouse present analyse  # # # # # 
+
+    for index, ind in enumerate(individuals):
+
+        # invidivuelle x-daten reichen
+        center_x_data = all_centroid_x[index]
+
+        # über finite koordinaten checken, ob die maus im modul ist
+        ind_is_present = np.zeros(len(center_x_data)).astype(int)
+        for idx, coord in enumerate(center_x_data):
+            if np.isfinite(coord):
+                ind_is_present[idx] = 1
+
+        # speichern der information im Kontext des gesamten Experiments
+        for i in range(len(ind_is_present)):
+            mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]    
+
+    # # # # #  distance & speed analysis  # # # # # 
 
     for index, ind in enumerate(individuals):
 
@@ -310,7 +332,7 @@ for file in tqdm(file_list):
                                                     )
         
 
-
+        # smoothing
         dist_values = moving_average(data=dist_values,
                                      window=10
                                      )    
@@ -323,18 +345,20 @@ for file in tqdm(file_list):
 
 
         is_immobile = np.where(dist_values > 4, 1, 0)
+        
         for i in range(len(is_immobile)):
             if not np.isnan(is_immobile[i]):
-                immobile_over_ime[index][i+(time_position_in_frames-1)] = is_immobile[i]
+                immobile_over_time[index][i+(time_position_in_frames-1)] = is_immobile[i]
         
 
         #print(f"\n Dist Traveled: {sum(dist_values)}")
-        print(f"\n Total immobile frames: {sum(is_immobile) / len(is_immobile)}")
-
+        #print(f"\n Total immobile frames: {sum(is_immobile) / len(is_immobile)}")
+        #print(len(is_immobile))
+        #print(len(immobile_over_time[index]))
         #plt.plot(all_centroid_x[index][0:10])
         #plt.show()
 
-        animated_plot = True
+        animated_plot = False
 
         if animated_plot:
             colors = ["purple", "green", "red"]
@@ -474,20 +498,7 @@ for file in tqdm(file_list):
         """
 
 
-    # mouse present analyse: für die maximale anzahl an mäusen angepasst (1 mouse in modul, 2 mice in module, 3 mice in module)
-    for index, ind in enumerate(individuals):
 
-        # nose data extrahieren für die präsenz analyse
-        nose_data = df.loc[:, (scorer, ind, ["nose"], "x")].to_numpy()
-
-        # über finite koordinaten checken, ob die maus im modul ist (bezieht interpolation mit ein)
-        ind_is_present = np.zeros(len(nose_data)).astype(int)
-        for idx, x_coord in enumerate(nose_data):
-            if np.isfinite(x_coord):
-                ind_is_present[idx] = 1
-        # speichern der information im Kontext des gesamten Experiments
-        for i in range(len(ind_is_present)):
-            mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]
 
 
 
@@ -519,22 +530,47 @@ min_one_mouse_in_module = mice_in_module.any(axis=0).astype(int)
 # berechnen, wie viele mäuse pro frame im Bild sind
 mice_per_frame = mice_in_module.sum(axis=0)
 # berechnen, wie viele mäuse pro frame immobile sind
-immobile_per_frame = immobile_over_ime.sum(axis=0)
+immobile_per_frame = immobile_over_time.sum(axis=0)
 # distanz, die pro frame zurückgelegt wird (addiert mehrere Mäuse)
 distance_per_frame = mice_distances.sum(axis=0)
 # kumulative distanz pro frame
 cumdist_per_frame = np.nancumsum(distance_per_frame)
 # full dist
 distance_in_px = cumdist_per_frame[-1]
+# berechnen, ob mindestens eine Maus im center ist
+min_one_mouse_in_center = mice_in_center.any(axis=0).astype(int)
+# berechnen, wieviele mäuse pro frame im Center sind
+mice_center_per_frame = mice_in_center.sum(axis=0)
+
+# normalisierte Werte auf Anwesenheit
+frames_with_mice = np.nansum(mice_per_frame)
+immobile_proportion = np.nansum(immobile_per_frame) / frames_with_mice
+in_center_proportion = np.nansum(mice_center_per_frame) / frames_with_mice
+distance_norm_px = distance_in_px / np.nansum(mice_per_frame)
+
+# social behavior werden auf frames mit mindestens 2 Mäusen normalisiert
+min_two_mice = (mice_per_frame > 1).astype(np.uint8)
+min_three_mice = (mice_per_frame > 2).astype(np.uint8)
+
 
 """
 plot_mice_presence_states(mice_in_module=mice_in_module)
 """
 
-# berechnen, ob mindestens eine Maus im center ist
-min_one_mouse_in_center = mice_in_center.any(axis=0).astype(int)
-# berechnen, wieviele mäuse pro frame im Center sind
-mice_center_per_frame = mice_in_center.sum(axis=0)
+print("\nExperiment overview")
+print(f"Experiment duration: {len(exp_duration_frames)}")
+print(f"Mice per frame / total frames: {np.nansum(mice_per_frame) / len(exp_duration_frames)}")
+print(f"Amount with at least 1 mouse: {np.nansum(min_one_mouse_in_module) / len(exp_duration_frames)}")
+print(f"Amount with at least 2 mice: {np.nansum(min_two_mice) / len(exp_duration_frames)}")
+print(f"Amount with 3 mice: {np.nansum(min_three_mice) / len(exp_duration_frames)}")
+print(f"Immobile Amount: {immobile_proportion}")
+print(f"Center Amount: {in_center_proportion}")
+print(f"Distance / individual presence time in px: {distance_norm_px}")
+print(f"Total Face Inv: {social_inv_details["totals"]["face"] / np.nansum(min_two_mice)}")
+print(f"Total Body Inv: {social_inv_details["totals"]["body"] / np.nansum(min_two_mice)}")
+print(f"Total Anogenital Inv: {social_inv_details["totals"]["anogenital"] / np.nansum(min_two_mice)}")
+
+
 
 #print("\n Metrics:")
 #print(np.nansum(mice_center_per_frame))
