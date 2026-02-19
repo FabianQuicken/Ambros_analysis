@@ -38,7 +38,7 @@ from utils import convert_videostart_to_experiment_length, calculate_experiment_
 from utils import is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
 from metadata import module_has_stimulus_ma
 from chatgpt_plots import plot_mice_presence_states, plot_mouse_trajectory
-from preprocessing import interpolate_with_max_gap, ma_likelihood_filter, find_id_overlay, filter_id_overlays
+from preprocessing import interpolate_with_max_gap, ma_likelihood_filter, find_id_overlay, filter_id_overlays, filter_prediction_fragments
 from social_behavior_analysis import social_investigation, detail_social_investigation
 from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio, get_all_traj, theta_analysis
 from plotting import polar_angle_histogram
@@ -88,7 +88,7 @@ arena_polygon = create_polygon(ARENA_COORDS)
 
 # files für ein modul werden eingelesen (von einem Experimenttag)
 #path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectory_immobile"
-path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\Clavel_paradigm\germfree\38_47_53_males\top1"
+path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\Clavel_paradigm\germfreeprop\females_52_56_62\top2"
 path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\ma_unfamiliar"
 ho = False
 if ho:
@@ -101,10 +101,8 @@ file_list.sort()
 """
 Beschneiden der Filelist für die Testruns
 """
-file_list = file_list[0:3]
+#file_list = file_list[59:60]
 
-for file in file_list:
-    print(os.path.basename(file))
 
 # information über die Anzahl individuen extrahieren, um Variablen zu initialisieren
 first_df = pd.read_hdf(file_list[0])
@@ -249,6 +247,7 @@ for file in tqdm(file_list):
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     
+    #print("\n Preprocessing started...")
     filenames.append(os.path.basename(file))
 
     # an welchem Zeitpunkt der Experimenttdauer befindet sich diese File
@@ -265,6 +264,12 @@ for file in tqdm(file_list):
     scorer = df.columns.levels[0][0]
     individuals = df.columns.levels[1]
     bodyparts = df.columns.levels[2]
+
+    # fragment size filter
+    df, n_removedframes = filter_prediction_fragments(df, scorer, individuals, bodyparts)
+
+    if n_removedframes > 0:
+        warnings.warn(f"\nFragment filter removed {n_removedframes} out of a total of {len(df)} frames. Checking predictions is recommended.")
 
     # likelihood filter, um sehr unwahrscheinliche predictions rauszunehmen
     df = ma_likelihood_filter(df, scorer, individuals, bodyparts, filter_value=0.3)
@@ -302,12 +307,12 @@ for file in tqdm(file_list):
     # # # # # # # # # # # # # Mouse Center + Damit zusammenhängende Analysen # # # # # # # # # # # # # # 
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
+    #print("\n Getting Mouse Center...")
     # jeweilige mouse center berechnen (shape n_ind, n_frames)
     all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bodyparts = math.ceil(len(bodyparts) / 3))
 
     # # # # #  mouse present analyse  # # # # # 
-
+    #print("\n Calculating time mice are present...")
     for index, ind in enumerate(individuals):
 
         # invidivuelle x-daten reichen
@@ -324,9 +329,9 @@ for file in tqdm(file_list):
             mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]    
 
     # # # # #  distance & speed analysis  # # # # # 
-
+    
     for index, ind in enumerate(individuals):
-
+        #print(f"\n Getting all distance, speed and mobility for {ind}...")
         dist_values = distance_travelled_arraybased(x_arr=all_centroid_x[index],
                                                     y_arr=all_centroid_y[index]
                                                     )
@@ -384,7 +389,7 @@ for file in tqdm(file_list):
     # # # # # arena center analyse # # # # # 
 
     for index, ind in enumerate(individuals):
-
+        #print(f"\n Calculating center time for {ind}...")
 
         centroid_x = all_centroid_x[index]
         centroid_y = all_centroid_y[index]
@@ -408,7 +413,7 @@ for file in tqdm(file_list):
     
 
     # # # # # trajectory analyse # # # # # 
-    
+    #print("\n Getting all trajectories...")
     # alle trajectories, auch von mäusen die bereits in der Kammer sind bei Videostart
     all_traj, traj_slices = get_all_traj(x_arrs = all_centroid_x, y_arrs=all_centroid_y, individuals=individuals)
     
@@ -455,7 +460,7 @@ for file in tqdm(file_list):
                                                 individuals,
                                                 ["hip_left", "hip_right", "dorsal_4"],
                                                 min_bodyparts=3)
-    
+    #print("\n Calculating thetas...")
     theta_list, theta_dic = theta_analysis(individuals=individuals,
                    front_x=front_center_x,
                    front_y=front_center_y,
@@ -502,12 +507,14 @@ for file in tqdm(file_list):
 
 
 
-
+    print("\n Investigating social investigation...")
+    print(os.path.basename(file))
+    
     # social investigation analyse
     social_inv = social_investigation(df, scorer, individuals, bodyparts)
 
     social_inv_details = detail_social_investigation(df, scorer, individuals, pixel_per_cm=PIXEL_PER_CM, max_dist_cm=2)
-    
+    print(social_inv_details["totals"]["face"])
     # checkt ob jeweils face, body oder anogenital investigation pro frame (keine doppelzählung, also zB anogenital_inv individual 1 -> individual 2 und invividual 2 -> individual 3 wird hier nicht beides gezählt)
     face_inv = social_inv_details["presence_per_frame"]["face"]
     body_inv = social_inv_details["presence_per_frame"]["body"]
@@ -537,6 +544,15 @@ distance_per_frame = mice_distances.sum(axis=0)
 cumdist_per_frame = np.nancumsum(distance_per_frame)
 # full dist
 distance_in_px = cumdist_per_frame[-1]
+
+print("\n Distances:")
+print(distance_in_px)
+print(np.nansum(distance_per_frame))
+di = 0 
+for array in mice_distances:
+    di += np.nansum(array)
+print(di)
+
 # berechnen, ob mindestens eine Maus im center ist
 min_one_mouse_in_center = mice_in_center.any(axis=0).astype(int)
 # berechnen, wieviele mäuse pro frame im Center sind
@@ -570,8 +586,126 @@ print(f"Total Face Inv: {social_inv_details["totals"]["face"] / np.nansum(min_tw
 print(f"Total Body Inv: {social_inv_details["totals"]["body"] / np.nansum(min_two_mice)}")
 print(f"Total Anogenital Inv: {social_inv_details["totals"]["anogenital"] / np.nansum(min_two_mice)}")
 
+def export_summary_metrics_to_excel(
+    path: str,
+    exp_duration_frames,
+    mice_per_frame,
+    min_one_mouse_in_module,
+    min_two_mice,
+    min_three_mice,
+    immobile_proportion,
+    in_center_proportion,
+    distance_norm_px,
+    social_inv_details,
+    visits,
+    filename: str = "Metriken.xlsx",
+    sheet_name: str = "Metriken",
+):
+    """
+    Exportiert Summary-Metriken in eine Excel-Datei.
 
+    Speichert eine Tabelle mit genau 1 Zeile (ein Experiment) und klar benannten Spalten.
 
+    Parameters
+    ----------
+    path : str
+        Zielordner.
+    exp_duration_frames : array-like
+        Frames (oder irgendein Array, dessen Länge die Experimentdauer in Frames repräsentiert).
+    mice_per_frame : array-like
+        Anzahl Mäuse pro Frame (kann NaNs enthalten).
+    min_one_mouse_in_module : array-like (0/1 oder bool)
+    min_two_mice : array-like (0/1 oder bool)
+    min_three_mice : array-like (0/1 oder bool)
+    immobile_proportion : float
+    in_center_proportion : float
+    distance_norm_px : array-like oder float
+        "Distance / individual presence time in px" (falls array, wird es als JSON-ähnlicher String gespeichert).
+    social_inv_details : dict
+        Erwartet Struktur: social_inv_details["totals"]["face"/"body"/"anogenital"].
+    filename : str
+        Excel-Dateiname.
+    sheet_name : str
+        Excel-Sheetname.
+
+    Returns
+    -------
+    str
+        Voller Speicherpfad zur Excel-Datei.
+    """
+    os.makedirs(path, exist_ok=True)
+    save_path = os.path.join(path, filename)
+
+    n_frames = int(len(exp_duration_frames)) if exp_duration_frames is not None else 0
+
+    def safe_div(num, den):
+        num = float(num) if np.isfinite(num) else np.nan
+        den = float(den) if np.isfinite(den) else np.nan
+        if den == 0 or not np.isfinite(den):
+            return np.nan
+        return num / den
+
+    mice_per_frame_mean = safe_div(np.nansum(mice_per_frame), n_frames) if n_frames else np.nan
+    p_min_one = safe_div(np.nansum(min_one_mouse_in_module), n_frames) if n_frames else np.nan
+    p_min_two = safe_div(np.nansum(min_two_mice), n_frames) if n_frames else np.nan
+    p_three = safe_div(np.nansum(min_three_mice), n_frames) if n_frames else np.nan
+
+    n_frames_min_two = float(np.nansum(min_two_mice))  # Nenner für social inv normalization
+
+    # Social investigations normalized by frames with >=2 mice (wie in deinem print)
+    face_norm = safe_div(social_inv_details["totals"]["face"], n_frames_min_two)
+    body_norm = safe_div(social_inv_details["totals"]["body"], n_frames_min_two)
+    anogen_norm = safe_div(social_inv_details["totals"]["anogenital"], n_frames_min_two)
+ 
+
+    # distance_norm_px kann float oder array sein → wir speichern beides sinnvoll
+    if isinstance(distance_norm_px, (list, tuple, np.ndarray)):
+        distance_norm_px_val = np.asarray(distance_norm_px)
+        # falls 1 Wert -> float, sonst als String
+        if distance_norm_px_val.size == 1:
+            distance_norm_px_out = float(distance_norm_px_val.ravel()[0])
+        else:
+            distance_norm_px_out = distance_norm_px_val.tolist()
+    else:
+        distance_norm_px_out = float(distance_norm_px) if np.isfinite(distance_norm_px) else np.nan
+
+    row = {
+        "experiment_duration_frames": n_frames,
+        "mice_per_frame_mean": mice_per_frame_mean,
+        "p_frames_min_1_mouse": p_min_one,
+        "p_frames_min_2_mice": p_min_two,
+        "p_frames_3_mice": p_three,
+        "immobile_proportion": float(immobile_proportion) if np.isfinite(immobile_proportion) else np.nan,
+        "in_center_proportion": float(in_center_proportion) if np.isfinite(in_center_proportion) else np.nan,
+        "distance_norm_px": distance_norm_px_out,
+        "social_face_per_min2_frame": face_norm,
+        "social_body_per_min2_frame": body_norm,
+        "social_anogenital_per_min2_frame": anogen_norm,
+        "n_frames_min_2_mice": n_frames_min_two,
+        "visits": visits
+    }
+
+    df = pd.DataFrame([row])
+
+    with pd.ExcelWriter(save_path, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+    return save_path
+
+save_path = export_summary_metrics_to_excel(
+    path=path,
+    exp_duration_frames=exp_duration_frames,
+    mice_per_frame=mice_per_frame,
+    min_one_mouse_in_module=min_one_mouse_in_module,
+    min_two_mice=min_two_mice,
+    min_three_mice=min_three_mice,
+    immobile_proportion=immobile_proportion,
+    in_center_proportion=in_center_proportion,
+    distance_norm_px=distance_norm_px,
+    social_inv_details=social_inv_details,
+    visits=sum_visits
+)
+print("Saved:", save_path)
 #print("\n Metrics:")
 #print(np.nansum(mice_center_per_frame))
 #print(np.nansum(mice_in_module))

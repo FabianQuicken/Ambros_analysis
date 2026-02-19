@@ -120,27 +120,23 @@ def detail_social_investigation(df, scorer, individuals, face_investigation = Fa
 
 
 
-def detail_social_investigation(df, scorer, individuals, pixel_per_cm, max_dist_cm=2.0):
+def detail_social_investigation(
+    df, scorer, individuals, pixel_per_cm,
+    max_dist_cm=2.0,
+    min_fragment_frames: int = 10,
+):
     """
     Aggregiert Social-Investigation pro Frame als ZÄHLUNGEN über alle Individuen:
     - Pro investigierender Maus und Frame wird maximal EINE Kategorie gezählt (Priorität: Face > Anogenital > Body).
     - Gegenseitige Interaktionen (i->p und p->i) zählen getrennt und können so pro Frame doppelt zählen.
-    
+
+    Zusätzlich (optional):
+    - Entfernt kurze Fragmente pro Kategorie: zusammenhängende Runs mit count>0,
+      die kürzer als `min_fragment_frames` sind, werden auf 0 gesetzt.
+
     Returns
     -------
-    {
-      "counts_per_frame": {
-          "face": np.ndarray[int] (n_frames,),
-          "anogenital": np.ndarray[int] (n_frames,),
-          "body": np.ndarray[int] (n_frames,)
-      },
-      "presence_per_frame": {
-          "face": np.ndarray[uint8] (n_frames,),        # 0/1
-          "anogenital": np.ndarray[uint8] (n_frames,),  # 0/1
-          "body": np.ndarray[uint8] (n_frames,)         # 0/1
-      },
-      "totals": {"face": int, "anogenital": int, "body": int}
-    }
+    {... wie vorher ...}
     """
     assert isinstance(scorer, str), "scorer muss ein String sein"
 
@@ -155,11 +151,11 @@ def detail_social_investigation(df, scorer, individuals, pixel_per_cm, max_dist_
     thr_px = pixel_per_cm * max_dist_cm
 
     # Investigator-Nasen laden
-    nose_x = np.empty((n_ind, n_frames), dtype=float) # erstellt arrays im passenden Format(einen Array in Frameanzahl länge pro Ind)
+    nose_x = np.empty((n_ind, n_frames), dtype=float)
     nose_y = np.empty((n_ind, n_frames), dtype=float)
     for i, ind in enumerate(individuals):
-        nose_x[i] = df.loc[:, (scorer, ind, "nose", "x")].to_numpy() # speichert nose-x-coords 
-        nose_y[i] = df.loc[:, (scorer, ind, "nose", "y")].to_numpy() # speichert nose-y-coords 
+        nose_x[i] = df.loc[:, (scorer, ind, "nose", "x")].to_numpy()
+        nose_y[i] = df.loc[:, (scorer, ind, "nose", "y")].to_numpy()
 
     # Ziel-Koordinaten für alle benötigten Bodyparts laden
     needed_bps = {bp for _, bps in categories for bp in bps}
@@ -180,32 +176,28 @@ def detail_social_investigation(df, scorer, individuals, pixel_per_cm, max_dist_
     body_count       = np.zeros(n_frames, dtype=int)
 
     # Hauptschleife: pro Frame und Investigator genau eine Kategorie (wenn vorhanden)
-    for c in range(n_frames): # einmal über jedes frame
-        for i, inv in enumerate(individuals): # einmal pro individual
-            x1, y1 = nose_x[i, c], nose_y[i, c] # nimmt nose coordinaten des aktuellen individual
+    for c in range(n_frames):
+        for i, inv in enumerate(individuals):
+            x1, y1 = nose_x[i, c], nose_y[i, c]
             if np.isnan(x1) or np.isnan(y1):
                 continue
 
-            # Kategorie-Priorität: Face -> Anogenital -> Body
-            assigned = False # flag, falls social investigation erkannt wird
+            assigned = False
             for cat_name, bps in categories:
                 if assigned:
                     break
-                # Über alle Zielmäuse
                 for p, tgt in enumerate(individuals):
                     if p == i:
-                        continue # target maus darf nicht investigator maus sein
-                    # kleinstes BP der Kategorie finden
-                    closest = np.inf # nähester wert zweier mäuse
+                        continue
+                    closest = np.inf
                     for bp in bps:
                         x2, y2 = coords[tgt][bp][0][c], coords[tgt][bp][1][c]
                         if np.isnan(x2) or np.isnan(y2):
                             continue
                         d = euklidean_distance(x1=x1, x2=x2, y1=y1, y2=y2)
                         if d < closest:
-                            closest = d # aktualisiert den nähesten wert
-                            if closest <= thr_px: # wenn kleiner als festgelegter threshold in pixeln
-                                # Treffer -> Kategorie zählen und Investigator für diesen Frame abschließen
+                            closest = d
+                            if closest <= thr_px:
                                 if cat_name == "face":
                                     face_count[c] += 1
                                 elif cat_name == "anogenital":
@@ -216,6 +208,34 @@ def detail_social_investigation(df, scorer, individuals, pixel_per_cm, max_dist_
                                 break
                     if assigned:
                         break
+
+    # --- Fragment-Filter pro Kategorie: entferne kurze Runs mit count>0 ---
+    def _remove_short_runs(count_arr: np.ndarray, min_len: int) -> np.ndarray:
+        if min_len is None or min_len <= 1:
+            return count_arr
+        mask = count_arr > 0
+        if not mask.any():
+            return count_arr
+
+        # Run-length encoding über True/False
+        d = np.diff(mask.astype(np.int8))
+        starts = np.where(d == 1)[0] + 1
+        ends   = np.where(d == -1)[0]  # inkl.
+
+        if mask[0]:
+            starts = np.r_[0, starts]
+        if mask[-1]:
+            ends = np.r_[ends, len(mask) - 1]
+
+        out = count_arr.copy()
+        for s, e in zip(starts, ends):
+            if (e - s + 1) < min_len:
+                out[s:e+1] = 0
+        return out
+
+    face_count       = _remove_short_runs(face_count, min_fragment_frames)
+    anogenital_count = _remove_short_runs(anogenital_count, min_fragment_frames)
+    body_count       = _remove_short_runs(body_count, min_fragment_frames)
 
     presence_face       = (face_count > 0).astype(np.uint8)
     presence_anogenital = (anogenital_count > 0).astype(np.uint8)

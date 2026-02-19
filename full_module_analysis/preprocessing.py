@@ -362,3 +362,121 @@ def transform_dlcdata(filepath, keypoints, new_indices):
     else:
         raise ValueError("Could not transform DLC Data. Check if DF_COLS fits your data structure.")
 
+
+def filter_prediction_fragments(
+    df: pd.DataFrame,
+    scorer: str,
+    individuals,
+    bodyparts,
+    *,
+    min_true_frames: int = 15,
+    min_segment_frames: int | None = None,
+    max_gap: int = 2,
+    min_valid_fraction: float = 0.7,
+    require_all_bodyparts: bool = False,
+    set_likelihood_nan: bool = True,
+) -> pd.DataFrame:
+    """
+    Remove short / fragmented prediction islands for each individual by setting x/y (and optionally likelihood) to NaN.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DeepLabCut-style MultiIndex columns: (scorer, individual, bodypart, coord) with coord in {"x","y","likelihood"}.
+    scorer : str
+        Scorer level key.
+    individuals : list-like
+        Individuals to process.
+    bodyparts : list-like
+        Bodyparts to consider for validity / NaN application.
+    min_true_frames : int
+        Minimum number of valid (True) frames inside a segment to keep it.
+        Segments with fewer valid frames are removed.
+    min_segment_frames : int | None
+        Minimum overall segment span length (end-start+1) to keep it.
+        If None, defaults to min_true_frames.
+    max_gap : int
+        Gaps (False runs) of length <= max_gap within a segment are bridged (treated as one fragment).
+    min_valid_fraction : float
+        Within a bridged segment, fraction of frames that must be valid to keep it.
+        Helps remove "stuttering" predictions (valid-invalid-valid-...).
+    require_all_bodyparts : bool
+        If True: a frame is valid only if ALL bodyparts have finite x and y.
+        If False: a frame is valid if ANY bodypart has finite x and y.
+    set_likelihood_nan : bool
+        If True, set likelihood to NaN for removed frames too (recommended).
+
+    Returns
+    -------
+    df : pd.DataFrame
+        Modified df with fragment frames set to NaN.
+    """
+    if min_segment_frames is None:
+        min_segment_frames = min_true_frames
+    if not (0.0 <= min_valid_fraction <= 1.0):
+        raise ValueError("min_valid_fraction must be between 0 and 1.")
+
+    n = len(df.index)
+    if n == 0:
+        return df
+
+    removed_frames = 0
+    for ind in individuals:
+        # Build per-bodypart validity (finite x and y)
+        bp_valid = []
+        for bp in bodyparts:
+            x = df.loc[:, (scorer, ind, bp, "x")].to_numpy()
+            y = df.loc[:, (scorer, ind, bp, "y")].to_numpy()
+            bp_valid.append(np.isfinite(x) & np.isfinite(y))
+
+        bp_valid = np.vstack(bp_valid)  # shape: (n_bodyparts, n_frames)
+
+        if require_all_bodyparts:
+            frame_valid = np.all(bp_valid, axis=0)
+        else:
+            frame_valid = np.any(bp_valid, axis=0)
+
+        true_idx = np.flatnonzero(frame_valid)
+        if true_idx.size == 0:
+            continue
+
+        # Group valid frames into segments, bridging gaps up to max_gap
+        segments = []
+        start = true_idx[0]
+        prev = true_idx[0]
+
+        for i in true_idx[1:]:
+            if (i - prev) <= (max_gap + 1):
+                prev = i
+            else:
+                segments.append((start, prev))
+                start = i
+                prev = i
+        segments.append((start, prev))
+
+        # Decide which segments to remove
+        remove_mask = np.zeros(n, dtype=bool)
+
+        for s, e in segments:
+            seg_len = (e - s + 1)
+            seg_true = frame_valid[s:e+1].sum()
+            valid_frac = seg_true / seg_len if seg_len > 0 else 0.0
+
+            too_short = (seg_true < min_true_frames) or (seg_len < min_segment_frames)
+            too_fragmented = (valid_frac < min_valid_fraction)
+
+            if too_short or too_fragmented:
+                remove_mask[s:e+1] = True
+
+        if not remove_mask.any():
+            continue
+        
+        removed_frames += sum(remove_mask)
+
+        # Apply NaNs for removed frames across all bodyparts of this individual
+        coords_to_nan = ["x", "y"] + (["likelihood"] if set_likelihood_nan else [])
+        for bp in bodyparts:
+            for coord in coords_to_nan:
+                df.loc[remove_mask, (scorer, ind, bp, coord)] = np.nan
+
+    return df, removed_frames
