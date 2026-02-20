@@ -43,6 +43,7 @@ from social_behavior_analysis import social_investigation, detail_social_investi
 from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio, get_all_traj, theta_analysis
 from plotting import polar_angle_histogram
 from animated_plots import animate_trace
+from video_gen import overlay_two_points_line_and_theta_segments, overlay_metric_at_centers
 
 # struktur zum speichern erstellen
 @dataclass
@@ -88,7 +89,7 @@ arena_polygon = create_polygon(ARENA_COORDS)
 
 # files für ein modul werden eingelesen (von einem Experimenttag)
 #path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectory_immobile"
-path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\Clavel_paradigm\germfreeprop\females_52_56_62\top2"
+path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\ma_home"
 path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\ma_unfamiliar"
 ho = False
 if ho:
@@ -101,7 +102,8 @@ file_list.sort()
 """
 Beschneiden der Filelist für die Testruns
 """
-#file_list = file_list[59:60]
+print(file_list)
+file_list = [file_list[2]]
 
 
 # information über die Anzahl individuen extrahieren, um Variablen zu initialisieren
@@ -329,7 +331,7 @@ for file in tqdm(file_list):
             mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]    
 
     # # # # #  distance & speed analysis  # # # # # 
-    
+    cumdists = []
     for index, ind in enumerate(individuals):
         #print(f"\n Getting all distance, speed and mobility for {ind}...")
         dist_values = distance_travelled_arraybased(x_arr=all_centroid_x[index],
@@ -386,6 +388,22 @@ for file in tqdm(file_list):
         for i in range(len(dist_values)):
             distance_over_time[index][i+(time_position_in_frames-1)] = cum_dist[i]
 
+        cumdists.append(cum_dist)
+
+    cumdistvid = True
+    if cumdistvid:
+        ind_idx = 0
+        xy = []
+        for x, y in zip(all_centroid_x[ind_idx], all_centroid_y[ind_idx]):
+            xy.append((x,y*-1))
+        overlay_metric_at_centers(in_video_path=r"C:\Users\quicken\Code\2025_11_13_11_47_13_mice_omm12prop_females_home_unfamiliar_top1_40439818.avi",
+                                          out_video_path=r"C:\Users\quicken\Code\cumdist.avi",
+                                          centers_xy=xy,
+                                          metric=cumdists[ind_idx],
+                                          unit="px",
+                                          label="Cumdist:",
+                                          draw_center_marker=False
+                                          )
     # # # # # arena center analyse # # # # # 
 
     for index, ind in enumerate(individuals):
@@ -467,6 +485,22 @@ for file in tqdm(file_list):
                    rear_x=rear_center_x,
                    rear_y=rear_center_y,
                    slices=traj_slices)
+    xy1 = []
+    xy2 = []
+
+
+    for i in range(len(front_center_x[2])):
+        xy1.append((front_center_x[2][i], front_center_y[2][i]*-1))
+        xy2.append((rear_center_x[2][i], rear_center_y[2][i]*-1))
+    theta_vid = False
+    if theta_vid:
+        overlay_two_points_line_and_theta_segments(in_video_path=r"C:\Users\quicken\Code\testfadeind2.avi",
+                                          out_video_path=r"C:\Users\quicken\Code\testfadeind3.avi",
+                                          xy1=xy1,
+                                          xy2=xy2,
+                                          theta_segments=theta_dic[individuals[2]],
+                                          trail_len=10
+                                          )
     
     polarplot = False
 

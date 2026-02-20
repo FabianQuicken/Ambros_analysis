@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import math
 import warnings
 
+print()
+
 def get_theta(a, b1, b2, signed_angle=True):
     """
     Computes the angle between two direction vectors defined by a common
@@ -582,6 +584,7 @@ def theta_analysis(individuals, front_x, front_y, rear_x, rear_y, slices, stepsi
     for idx, ind in enumerate(individuals):
 
         dic[ind] = []
+        thetas.append([])
 
         discarded_frames = 0
         length_all_traj = 0
@@ -609,17 +612,17 @@ def theta_analysis(individuals, front_x, front_y, rear_x, rear_y, slices, stepsi
                     continue
                 
                 t = get_theta(a = [rx, ry], b1 = [fx1, fy1], b2 = [fx2, fy2])
-                thetas.append(t)
+                thetas[idx].append(t)
                 dic[ind].append({"frame t0": current_frame, "frame t1": comparison_frame, "theta":t})
             
         if discarded_frames > 0:
             if int(discarded_frames/len(slices[ind])) > 100:
-                print(f"\nWarning: {discarded_frames} out of a total of {length_all_traj} frames have been discarded due to missing tracking during trajectory for {ind}."
+                print(f"\nWarning: For Theta analysis, {discarded_frames} out of a total of {length_all_traj} frames have been discarded due to missing tracking during trajectory for {ind}."
                     f"\nAn average of {int(discarded_frames/len(slices[ind]))} frames was discarded per visit."
                     "\nDepending on Trajectory length, thus might be an unusual high amount, \nchecking the tracking of the video is recommended.")
             
     #for ind in dic:
         #for d in dic[ind]:
             #print(d)
-    thetas = np.asarray(thetas)
+    #thetas = np.asarray(thetas)
     return thetas, dic
