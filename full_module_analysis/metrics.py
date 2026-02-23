@@ -297,10 +297,21 @@ def distance_travelled_arraybased(x_arr,y_arr):
     for i, (x, y) in enumerate(zip(x_arr,y_arr)):
         if prev_coords:
             
-            distance_values[i-1] = euklidean_distance(x1=x,
-                                                    y1=y,
-                                                    x2=prev_coords[0],
-                                                    y2=prev_coords[1])
+            dist = euklidean_distance(x1=x,
+                                    y1=y,
+                                    x2=prev_coords[0],
+                                    y2=prev_coords[1]
+                                    )
+            # falls dist values einen unlogischen Schwellenwert überschreiten, wird der letzte gültige Wert genommen
+            # falls es noch keine vorherigen Werte gibt, wird 0 eingesetzt
+            if i > 2 and dist > 200:
+                dist = distance_values[i-2]
+            elif dist > 200:
+                dist = 0
+            
+            distance_values[i-1] = dist
+            
+                
         prev_coords = (x,y)    
 
     return distance_values

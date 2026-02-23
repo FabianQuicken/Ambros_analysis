@@ -7,6 +7,16 @@ import math
 import warnings
 import scipy as sc
 
+def remove_distance_jitter(dist_values, thrsh = 4):
+    # dist values kuratieren um jitter rauszurechnen
+    curated_dist = np.zeros(len(dist_values))
+    for i, val in enumerate(dist_values):
+        if val > thrsh:
+            curated_dist[i] = val - thrsh
+        elif np.isnan(val):
+             curated_dist[i] = np.nan
+    return curated_dist
+
 def moving_average(data, window=15):
     """
     Centered moving average smoothing.

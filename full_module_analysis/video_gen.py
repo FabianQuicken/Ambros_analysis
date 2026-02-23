@@ -242,23 +242,31 @@ def overlay_metric_at_centers(
     unit: str = "",                     # e.g. "cm/s", "px", "%", "s"
     value_fmt: str = "{:.2f}",          # formatting for the metric number
     label: Optional[str] = None,        # e.g. "Speed" -> "Speed: 1.23 cm/s"
+
+    # NEW: per-frame mask to color text (1->green, 0->red). If None -> white.
+    color_mask: Optional[np.ndarray] = None,
+
     # drawing / text
     font_scale: float = 0.6,
     font_thickness: int = 2,
     text_dx: int = 8,                   # offset relative to center
     text_dy: int = -8,
-    text_color_bgr=(255, 255, 255),     # white
+    text_color_bgr=(255, 255, 255),     # default white (used if color_mask is None)
     outline_color_bgr=(0, 0, 0),        # black outline
     outline_extra: int = 2,
+
     # marker at center
     draw_center_marker: bool = True,
     marker_radius: int = 4,
     marker_color_bgr=(0, 255, 255),     # yellow-ish (BGR)
+
     # NaN handling
     skip_if_nan: bool = True,           # if center or metric NaN -> write raw frame
+
     # video
     codec: str = "mp4v",
     progress: bool = True,
+
     # optional trail / fade for last N frames (center marker only)
     trail_len: int = 0,
     trail_alpha_max: float = 0.55,
@@ -273,6 +281,11 @@ def overlay_metric_at_centers(
         Per-frame center pixel coordinates (x, y).
     metric : ndarray, shape (n_frames,)
         Per-frame metric values.
+    color_mask : ndarray or None, shape (n_frames,)
+        Optional per-frame mask (0/1). If provided:
+        - 1 -> metric text in green
+        - 0 -> metric text in red
+        If None, text is drawn in `text_color_bgr` (default white).
     unit : str
         Unit appended to the value (ASCII recommended for OpenCV fonts).
     value_fmt : str
@@ -302,6 +315,20 @@ def overlay_metric_at_centers(
     if trail_alpha_min > trail_alpha_max:
         raise ValueError("trail_alpha_min must be <= trail_alpha_max")
 
+    # --- NEW: validate / normalize color_mask ---
+    if color_mask is not None:
+        color_mask = np.asarray(color_mask)
+        if color_mask.ndim != 1:
+            raise ValueError(f"color_mask must be shape (n_frames,), got {color_mask.shape}")
+        # allow longer, we will clip with n_frames_used later; but require at least 1
+        if color_mask.shape[0] <= 0:
+            raise ValueError("color_mask is empty.")
+        # We'll interpret "1" as True, "0" as False. Any nonzero -> True.
+        # If you strictly want only {0,1}, uncomment below:
+        # uniq = np.unique(color_mask[~np.isnan(color_mask)] if np.issubdtype(color_mask.dtype, np.floating) else np.unique(color_mask))
+        # if not set(uniq.tolist()).issubset({0, 1}):
+        #     raise ValueError(f"color_mask must contain only 0/1, got values: {uniq}")
+
     cap = cv2.VideoCapture(in_video_path)
     if not cap.isOpened():
         raise FileNotFoundError(f"Could not open video: {in_video_path}")
@@ -312,6 +339,9 @@ def overlay_metric_at_centers(
     n_frames_video = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     n_frames_used = min(n_frames_video, centers_xy.shape[0], metric.shape[0])
+    if color_mask is not None:
+        n_frames_used = min(n_frames_used, color_mask.shape[0])
+
     if n_frames_used <= 0:
         cap.release()
         raise ValueError("No frames to process (check video and array lengths).")
@@ -330,6 +360,9 @@ def overlay_metric_at_centers(
 
     def _draw_center(img, x, y, radius, color):
         cv2.circle(img, (x, y), radius, color, -1)
+
+    GREEN_BGR = (0, 255, 0)
+    RED_BGR   = (0, 0, 255)
 
     for i in range(n_frames_used):
         ok, frame = cap.read()
@@ -375,18 +408,22 @@ def overlay_metric_at_centers(
         val = value_fmt.format(float(m))
         if unit:
             val = f"{val} {unit}"
-        if label:
-            text = f"{label}: {val}"
-        else:
-            text = val
+        text = f"{label}: {val}" if label else val
 
         tx = int(np.clip(x + text_dx, 0, w - 1))
         ty = int(np.clip(y + text_dy, 0, h - 1))
 
+        # --- NEW: choose text color per frame ---
+        if color_mask is None:
+            cur_text_color = text_color_bgr  # default behavior (white)
+        else:
+            # Any nonzero -> green, else red
+            cur_text_color = GREEN_BGR if bool(color_mask[i]) else RED_BGR
+
         # outline then text (readability)
         cv2.putText(frame, text, (tx, ty), font, font_scale, outline_color_bgr,
                     font_thickness + outline_extra, cv2.LINE_AA)
-        cv2.putText(frame, text, (tx, ty), font, font_scale, text_color_bgr,
+        cv2.putText(frame, text, (tx, ty), font, font_scale, cur_text_color,
                     font_thickness, cv2.LINE_AA)
 
         writer.write(frame)
@@ -394,15 +431,17 @@ def overlay_metric_at_centers(
         if progress and (i % 500 == 0):
             print(f"[overlay_metric] frame {i}/{n_frames_used}")
 
-    cap.release()
     writer.release()
+    cap.release()
 
     return {
-        "n_frames_in_video": n_frames_video,
-        "n_frames_used": n_frames_used,
+        "in_video_path": in_video_path,
         "out_video_path": out_video_path,
-        "unit": unit,
-        "label": label,
+        "fps": fps,
+        "width": w,
+        "height": h,
+        "n_frames_video": n_frames_video,
+        "n_frames_used": n_frames_used,
         "trail_len": trail_len,
-        "draw_center_marker": draw_center_marker,
+        "used_color_mask": color_mask is not None,
     }

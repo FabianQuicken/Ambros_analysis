@@ -33,7 +33,7 @@ import scipy as sc
 # interne imports
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS
 from metrics import distance_travelled_arraybased, speed_and_acceleration
-from utils import euklidean_distance, fill_missing_values, time_to_seconds, moving_average
+from utils import euklidean_distance, fill_missing_values, time_to_seconds, moving_average, remove_distance_jitter
 from utils import convert_videostart_to_experiment_length, calculate_experiment_length
 from utils import is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
 from metadata import module_has_stimulus_ma
@@ -332,6 +332,8 @@ for file in tqdm(file_list):
 
     # # # # #  distance & speed analysis  # # # # # 
     cumdists = []
+    dists = []
+    immobiles = []
     for index, ind in enumerate(individuals):
         #print(f"\n Getting all distance, speed and mobility for {ind}...")
         dist_values = distance_travelled_arraybased(x_arr=all_centroid_x[index],
@@ -344,6 +346,8 @@ for file in tqdm(file_list):
                                      window=10
                                      )    
 
+        # Werte unter dem Threshold werden auf 0 gesetzt und als "immobile" angesehen
+        dist_values = remove_distance_jitter(dist_values=dist_values, thrsh=4)
 
         speed_values, acceleration_values = speed_and_acceleration(x_arr=all_centroid_x[index],
                              y_arr=all_centroid_y[index],
@@ -351,8 +355,10 @@ for file in tqdm(file_list):
                              )
 
 
-        is_immobile = np.where(dist_values > 4, 1, 0)
+        is_immobile = np.where(dist_values == 0, 1, 0)
+
         
+
         for i in range(len(is_immobile)):
             if not np.isnan(is_immobile[i]):
                 immobile_over_time[index][i+(time_position_in_frames-1)] = is_immobile[i]
@@ -384,23 +390,29 @@ for file in tqdm(file_list):
             if not np.isnan(dist_values[i]):
                 mice_distances[index][i+(time_position_in_frames-1)] = dist_values[i]
 
+       
         cum_dist = np.nancumsum(dist_values)
         for i in range(len(dist_values)):
             distance_over_time[index][i+(time_position_in_frames-1)] = cum_dist[i]
-
+        
+        # für video generation
+        immobiles.append(is_immobile)
         cumdists.append(cum_dist)
+        dists.append(dist_values)
 
-    cumdistvid = True
+    cumdistvid = False
     if cumdistvid:
-        ind_idx = 0
+        ind_idx = 2
+        slice = (0, 4000)
         xy = []
         for x, y in zip(all_centroid_x[ind_idx], all_centroid_y[ind_idx]):
             xy.append((x,y*-1))
-        overlay_metric_at_centers(in_video_path=r"C:\Users\quicken\Code\2025_11_13_11_47_13_mice_omm12prop_females_home_unfamiliar_top1_40439818.avi",
-                                          out_video_path=r"C:\Users\quicken\Code\cumdist.avi",
+        overlay_metric_at_centers(in_video_path=r"C:\Users\quicken\Code\cumdist2.avi",
+                                          out_video_path=r"C:\Users\quicken\Code\cumdist3.avi",
                                           centers_xy=xy,
-                                          metric=cumdists[ind_idx],
+                                          metric=cumdists[ind_idx][slice[0]:slice[1]],
                                           unit="px",
+                                          color_mask = np.where(immobiles[ind_idx][slice[0]:slice[1]] > 0, 1, 0) ,
                                           label="Cumdist:",
                                           draw_center_marker=False
                                           )
@@ -411,8 +423,9 @@ for file in tqdm(file_list):
 
         centroid_x = all_centroid_x[index]
         centroid_y = all_centroid_y[index]
-
-
+        print("\nCenter Range:")
+        print(np.nanmin(centroid_x))
+        print(np.nanmax(centroid_x))
         # mouse in center analyse
         mouse_in_center = np.zeros(len(centroid_x))
         # arena polygon verkleinern, damit es zum center polygon wird
@@ -567,25 +580,23 @@ for file in tqdm(file_list):
 
 
 # berechnen, ob mindestens eine Maus präsent ist 
-min_one_mouse_in_module = mice_in_module.any(axis=0).astype(int)
+min_one_mouse_in_module = np.any(mice_in_module, axis=0).astype(int)
 # berechnen, wie viele mäuse pro frame im Bild sind
-mice_per_frame = mice_in_module.sum(axis=0)
+mice_per_frame = np.nansum(mice_in_module, axis=0)
 # berechnen, wie viele mäuse pro frame immobile sind
-immobile_per_frame = immobile_over_time.sum(axis=0)
+immobile_per_frame = np.nansum(immobile_over_time, axis=0)
 # distanz, die pro frame zurückgelegt wird (addiert mehrere Mäuse)
-distance_per_frame = mice_distances.sum(axis=0)
+distance_per_frame = np.nansum(mice_distances, axis=0)
 # kumulative distanz pro frame
 cumdist_per_frame = np.nancumsum(distance_per_frame)
 # full dist
 distance_in_px = cumdist_per_frame[-1]
 
-print("\n Distances:")
-print(distance_in_px)
-print(np.nansum(distance_per_frame))
 di = 0 
 for array in mice_distances:
     di += np.nansum(array)
 print(di)
+
 
 # berechnen, ob mindestens eine Maus im center ist
 min_one_mouse_in_center = mice_in_center.any(axis=0).astype(int)
