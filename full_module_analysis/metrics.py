@@ -6,7 +6,26 @@ from utils import euklidean_distance, fill_missing_values, shrink_rectangle, mov
 from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2, FPS
 import matplotlib.pyplot as plt
 
-def speed_and_acceleration(x_arr, y_arr, fps=FPS, px_per_cm=PIXEL_PER_CM, smoothing=True):
+
+def acceleration_events(a, acc_thr = 5):
+    count = 0
+    acc_events = np.where(a > acc_thr, 1, 0)
+    diffs = np.diff(acc_events)
+    for value in diffs:
+        if  value == 1:
+            count += 1
+    return count
+
+def acceleration(dist_values, fps=FPS, px_per_cm=PIXEL_PER_CM):
+
+    v = dist_values # speed px pro frame
+    a = np.diff(v) # acceleration pro frame
+
+    a_cms2 = a / PIXEL_PER_CM * FPS # umrechnung in cm/s2
+    return a, a_cms2
+
+
+def speed_and_acceleration_old(x_arr, y_arr, fps=FPS, px_per_cm=PIXEL_PER_CM, smoothing=True):
 
 
     x = np.asarray(x_arr, dtype=float)

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import cv2
 import numpy as np
@@ -445,3 +446,295 @@ def overlay_metric_at_centers(
         "trail_len": trail_len,
         "used_color_mask": color_mask is not None,
     }
+
+
+
+
+import cv2
+import numpy as np
+from typing import Optional, Tuple, Union
+
+
+def overlay_rolling_plot_at_centers(
+    in_video_path: str,
+    out_video_path: str,
+    centers_xy: np.ndarray,
+    metric: np.ndarray,
+    *,
+    fps: float,
+    window_s: float = 2.0,                      # rolling window length in seconds
+    plot_size: Tuple[int, int] = (250, 180),     # (w, h) in pixels
+    plot_dx: int = 12,                          # plot offset relative to center
+    plot_dy: int = -12,
+    line_color_bgr: Tuple[int, int, int] = (255, 255, 255),
+    line_thickness: int = 5,
+    alpha: float = 1.0,                         # 1.0 = draw directly (fully opaque line)
+    symmetric_zero: bool = True,                # best for acceleration
+    scale_mode: str = "window",                 # "window" or "global"
+    global_abs_max: Optional[float] = None,     # used if scale_mode == "global"
+    min_abs_max: float = 1e-6,                  # avoid division by zero
+    draw_zero_line: bool = False,               # optional reference
+    zero_line_thickness: int = 1,
+    zero_line_alpha: float = 0.35,
+    nan_policy: str = "break",                  # "break" or "skip"
+    codec: str = "mp4v",
+) -> None:
+    """
+    Overlays a rolling-window line plot of a per-frame metric near each individual's center coordinate.
+
+    Parameters
+    ----------
+    in_video_path, out_video_path : str
+        Input/output video paths.
+    centers_xy : ndarray
+        Mouse centers per frame.
+        Supported shapes:
+        - (n_frames, 2) for a single individual
+        - (n_ind, n_frames, 2) for multiple individuals
+    metric : ndarray
+        Metric per frame.
+        Supported shapes:
+        - (n_frames,) for a single individual
+        - (n_ind, n_frames) for multiple individuals
+    fps : float
+        Frames per second of the video.
+    window_s : float
+        Rolling window duration in seconds.
+    plot_size : (int, int)
+        Plot width/height in pixels.
+    plot_dx, plot_dy : int
+        Offset of the plot's top-left corner relative to the center (cx, cy).
+    line_color_bgr : tuple
+        Line color in BGR (OpenCV default). White = (255,255,255).
+    line_thickness : int
+        Thickness of plot line.
+    alpha : float
+        Opacity for line drawing. If <1.0, blends an overlay; if 1.0 draws directly.
+    symmetric_zero : bool
+        If True, y scaling is symmetric around 0 and the 0-line is at mid-height.
+        Recommended for acceleration (positive/negative changes).
+    scale_mode : str
+        "window" scales by the window's max abs value; "global" uses global_abs_max.
+    global_abs_max : float or None
+        Used if scale_mode == "global". If None and scale_mode is "global",
+        falls back to abs max of entire metric array (per individual).
+    draw_zero_line : bool
+        If True, draws a faint horizontal 0-line inside the plot box.
+    nan_policy : str
+        "break" splits the polyline at NaNs; "skip" connects across (usually not recommended).
+    codec : str
+        FourCC codec (e.g. "mp4v", "avc1", "XVID").
+
+    Notes
+    -----
+    - Transparent background: we do NOT draw a filled rectangle; only the line (and optional 0-line).
+    - For performance, the plot is drawn with OpenCV primitives (no matplotlib).
+    """
+
+    # ----------------------------
+    # Normalize inputs to (n_ind, n_frames, ...)
+    # ----------------------------
+    centers_xy = np.asarray(centers_xy)
+    metric = np.asarray(metric, dtype=float)
+
+    if centers_xy.ndim == 2 and centers_xy.shape[1] == 2:
+        centers_xy = centers_xy[None, ...]  # (1, n_frames, 2)
+    if metric.ndim == 1:
+        metric = metric[None, ...]          # (1, n_frames)
+
+    if centers_xy.ndim != 3 or centers_xy.shape[-1] != 2:
+        raise ValueError("centers_xy must have shape (n_frames,2) or (n_ind,n_frames,2).")
+    if metric.ndim != 2:
+        raise ValueError("metric must have shape (n_frames,) or (n_ind,n_frames).")
+
+    n_ind, n_frames_c, _ = centers_xy.shape
+    n_ind_m, n_frames_m = metric.shape
+    if n_ind_m != n_ind:
+        raise ValueError(f"metric n_ind ({n_ind_m}) != centers n_ind ({n_ind}).")
+    if n_frames_m != n_frames_c:
+        raise ValueError(f"metric n_frames ({n_frames_m}) != centers n_frames ({n_frames_c}).")
+
+    window_len = max(2, int(round(window_s * fps)))
+
+    # Precompute per-individual global scaling if needed
+    if scale_mode not in ("window", "global"):
+        raise ValueError("scale_mode must be 'window' or 'global'.")
+
+    if scale_mode == "global":
+        if global_abs_max is not None:
+            global_abs = np.full((n_ind,), float(global_abs_max), dtype=float)
+        else:
+            global_abs = np.nanmax(np.abs(metric), axis=1)
+            global_abs = np.where(np.isfinite(global_abs), global_abs, 1.0)
+
+    # ----------------------------
+    # Video I/O
+    # ----------------------------
+    cap = cv2.VideoCapture(in_video_path)
+    if not cap.isOpened():
+        raise IOError(f"Could not open video: {in_video_path}")
+
+    in_fps = cap.get(cv2.CAP_PROP_FPS)
+    if in_fps and fps and abs(in_fps - fps) > 1e-3:
+        # not fatal, but often indicates mismatch in caller assumptions
+        pass
+
+    W = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    H = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    fourcc = cv2.VideoWriter_fourcc(*codec)
+    writer = cv2.VideoWriter(out_video_path, fourcc, float(fps), (W, H))
+    if not writer.isOpened():
+        cap.release()
+        raise IOError(f"Could not open VideoWriter: {out_video_path}")
+
+    plot_w, plot_h = map(int, plot_size)
+
+    def _blend_line_overlay(frame: np.ndarray, overlay: np.ndarray, a: float) -> np.ndarray:
+        # Blend only where overlay has non-zero pixels (to keep background untouched).
+        mask = np.any(overlay != 0, axis=2)
+        if not np.any(mask):
+            return frame
+        out = frame.copy()
+        out[mask] = (frame[mask].astype(np.float32) * (1.0 - a) + overlay[mask].astype(np.float32) * a).astype(np.uint8)
+        return out
+
+    def _draw_polyline_in_box(
+        base_frame: np.ndarray,
+        box_x: int,
+        box_y: int,
+        vals: np.ndarray,
+        *,
+        abs_max: float,
+        color: Tuple[int, int, int],
+        thickness: int,
+        do_zero_line: bool,
+        sym_zero: bool,
+    ) -> np.ndarray:
+        """
+        Draws the rolling plot into base_frame in-place (or via overlay blending if alpha<1).
+        """
+        # Clip box to frame bounds
+        x1 = max(0, box_x)
+        y1 = max(0, box_y)
+        x2 = min(W, box_x + plot_w)
+        y2 = min(H, box_y + plot_h)
+        if x2 - x1 < 4 or y2 - y1 < 4:
+            return base_frame
+
+        # Box-local dimensions (in case of clipping)
+        bw = x2 - x1
+        bh = y2 - y1
+
+        # Optional overlay for alpha blending
+        if alpha < 1.0:
+            overlay = np.zeros_like(base_frame)
+            canvas = overlay
+        else:
+            canvas = base_frame
+
+        # Optional 0-line (faint)
+        if do_zero_line:
+            y_zero = y1 + (bh // 2) if sym_zero else (y2 - 1)
+            if alpha < 1.0:
+                z_col = tuple(int(c * zero_line_alpha) for c in color)
+                cv2.line(canvas, (x1, y_zero), (x2 - 1, y_zero), z_col, zero_line_thickness, cv2.LINE_AA)
+            else:
+                # simulate faintness by drawing a thinner line; still visible on dark backgrounds
+                cv2.line(canvas, (x1, y_zero), (x2 - 1, y_zero), color, 1, cv2.LINE_AA)
+
+        # Prepare points
+        n = len(vals)
+        if n < 2:
+            return base_frame
+
+        # x spans the box width
+        xs = np.linspace(0, bw - 1, n)
+
+        # y mapping
+        abs_max = max(float(abs_max), float(min_abs_max))
+        if sym_zero:
+            # 0 at mid-height, +abs_max at top, -abs_max at bottom
+            ys = (bh - 1) / 2.0 - (vals / abs_max) * ((bh - 1) / 2.0)
+        else:
+            # Normalize to [0..1] within [-abs_max..abs_max] anyway
+            ys = (bh - 1) - ((vals + abs_max) / (2.0 * abs_max)) * (bh - 1)
+
+        # Build segments (handle NaNs)
+        pts = []
+        segments = []
+
+        for x, y, v in zip(xs, ys, vals):
+            if not np.isfinite(v) or not np.isfinite(y):
+                if nan_policy == "break" and len(pts) >= 2:
+                    segments.append(np.array(pts, dtype=np.int32))
+                pts = []
+                continue
+
+            xi = int(round(x1 + x))
+            yi = int(round(y1 + np.clip(y, 0, bh - 1)))
+            pts.append([xi, yi])
+
+        if len(pts) >= 2:
+            segments.append(np.array(pts, dtype=np.int32))
+
+        # Draw segments
+        for seg in segments:
+            cv2.polylines(canvas, [seg], isClosed=False, color=color, thickness=thickness, lineType=cv2.LINE_AA)
+
+        # Blend back if needed
+        if alpha < 1.0:
+            return _blend_line_overlay(base_frame, overlay, alpha)
+        return base_frame
+
+    frame_idx = 0
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+
+        if frame_idx >= n_frames_c:
+            # video longer than provided arrays
+            writer.write(frame)
+            frame_idx += 1
+            continue
+
+        # Draw for each individual
+        for ind in range(n_ind):
+            cx, cy = centers_xy[ind, frame_idx]
+            if not (np.isfinite(cx) and np.isfinite(cy)):
+                continue
+
+            # Rolling window slice
+            start = max(0, frame_idx - window_len + 1)
+            vals = metric[ind, start:frame_idx + 1]
+
+            # Scaling
+            if scale_mode == "window":
+                abs_max = np.nanmax(np.abs(vals))
+                if not np.isfinite(abs_max):
+                    continue
+            else:
+                abs_max = global_abs[ind]
+
+            # Plot box anchored near center
+            box_x = int(round(cx + plot_dx))
+            box_y = int(round(cy + plot_dy - plot_h))  # default above center
+
+            frame = _draw_polyline_in_box(
+                frame,
+                box_x,
+                box_y,
+                vals,
+                abs_max=abs_max,
+                color=line_color_bgr,
+                thickness=line_thickness,
+                do_zero_line=draw_zero_line,
+                sym_zero=symmetric_zero,
+            )
+
+        writer.write(frame)
+        frame_idx += 1
+
+    cap.release()
+    writer.release()

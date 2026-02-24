@@ -32,7 +32,7 @@ import scipy as sc
 
 # interne imports
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS
-from metrics import distance_travelled_arraybased, speed_and_acceleration
+from metrics import distance_travelled_arraybased, acceleration, acceleration_events
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, moving_average, remove_distance_jitter
 from utils import convert_videostart_to_experiment_length, calculate_experiment_length
 from utils import is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
@@ -43,7 +43,7 @@ from social_behavior_analysis import social_investigation, detail_social_investi
 from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio, get_all_traj, theta_analysis
 from plotting import polar_angle_histogram
 from animated_plots import animate_trace
-from video_gen import overlay_two_points_line_and_theta_segments, overlay_metric_at_centers
+from video_gen import overlay_two_points_line_and_theta_segments, overlay_metric_at_centers, overlay_rolling_plot_at_centers
 
 # struktur zum speichern erstellen
 @dataclass
@@ -133,6 +133,7 @@ nose_x_values_over_time = exp_duration_frames.copy()
 nose_y_values_over_time = exp_duration_frames.copy()
 
 # Weitere Variablen
+acc_events_count = 0
 distance_in_px = 0
 sum_min_one_mouse_center = 0
 
@@ -334,6 +335,7 @@ for file in tqdm(file_list):
     cumdists = []
     dists = []
     immobiles = []
+    accelerations = []
     for index, ind in enumerate(individuals):
         #print(f"\n Getting all distance, speed and mobility for {ind}...")
         dist_values = distance_travelled_arraybased(x_arr=all_centroid_x[index],
@@ -349,10 +351,7 @@ for file in tqdm(file_list):
         # Werte unter dem Threshold werden auf 0 gesetzt und als "immobile" angesehen
         dist_values = remove_distance_jitter(dist_values=dist_values, thrsh=4)
 
-        speed_values, acceleration_values = speed_and_acceleration(x_arr=all_centroid_x[index],
-                             y_arr=all_centroid_y[index],
-                             smoothing = True
-                             )
+        a_px_frame, a_cm_s = acceleration(dist_values)
 
 
         is_immobile = np.where(dist_values == 0, 1, 0)
@@ -377,7 +376,7 @@ for file in tqdm(file_list):
             colors = ["purple", "green", "red"]
             color = colors[index]
 
-            animate_trace(speed_values[0:1800],
+            animate_trace(dist_values[0:1800],
                 fps=30,
                 window_seconds=5,
                 color=color,
@@ -399,23 +398,49 @@ for file in tqdm(file_list):
         immobiles.append(is_immobile)
         cumdists.append(cum_dist)
         dists.append(dist_values)
+        accelerations.append(a_px_frame)
 
-    cumdistvid = False
-    if cumdistvid:
-        ind_idx = 2
+        print(np.where(a_px_frame > 5))
+        for idx in np.where(a_px_frame > 5)[0]:
+            print(dist_values[idx-1:idx+1])
+
+        acc_events_count += acceleration_events(a=a_px_frame)
+
+    acc = False
+    if acc:
+        ind_idx = 0
         slice = (0, 4000)
         xy = []
         for x, y in zip(all_centroid_x[ind_idx], all_centroid_y[ind_idx]):
             xy.append((x,y*-1))
-        overlay_metric_at_centers(in_video_path=r"C:\Users\quicken\Code\cumdist2.avi",
-                                          out_video_path=r"C:\Users\quicken\Code\cumdist3.avi",
+        overlay_metric_at_centers(in_video_path=r"C:\Users\quicken\Code\acc1.avi",
+                                          out_video_path=r"C:\Users\quicken\Code\acc2.avi",
                                           centers_xy=xy,
-                                          metric=cumdists[ind_idx][slice[0]:slice[1]],
-                                          unit="px",
-                                          color_mask = np.where(immobiles[ind_idx][slice[0]:slice[1]] > 0, 1, 0) ,
-                                          label="Cumdist:",
-                                          draw_center_marker=False
+                                          metric=accelerations[ind_idx][slice[0]:slice[1]],
+                                          unit="px/s^2",
+                                          color_mask = np.where(accelerations[ind_idx][slice[0]:slice[1]] > 3, 1, 0) ,
+                                          label="Acceleration:",
+                                          draw_center_marker=False,
+                                          font_scale=0.9
                                           )
+
+    rolling_plot = False
+    if rolling_plot:
+        ind_idx = 2
+        slice = (0,8900)
+        xy = []
+        for x, y in zip(all_centroid_x[ind_idx], all_centroid_y[ind_idx]):
+            xy.append((x,y*-1))
+        overlay_rolling_plot_at_centers(
+            in_video_path=r"C:\Users\quicken\Code\rollingplottest2.mp4",
+            out_video_path=r"C:\Users\quicken\Code\rollingplottest3.mp4",
+            centers_xy=xy[slice[0]:slice[1]],
+            metric=accelerations[ind_idx][slice[0]:slice[1]],
+            fps = 30,
+            scale_mode="global",
+            line_color_bgr=(0, 0, 255)
+
+        )
     # # # # # arena center analyse # # # # # 
 
     for index, ind in enumerate(individuals):
