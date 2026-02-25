@@ -14,7 +14,17 @@ def acceleration_events(a, acc_thr = 5):
     for value in diffs:
         if  value == 1:
             count += 1
-    return count
+    
+    # metrik anlegen für videoplot
+    count_array = np.zeros(len(a))
+    c_mask = count_array.copy()
+    for value in np.where(diffs == 1)[0]:
+        count_array[value:] += 1
+        c_mask[value:value+15] += 1 
+    
+    
+
+    return count, (count_array, c_mask)
 
 def acceleration(dist_values, fps=FPS, px_per_cm=PIXEL_PER_CM):
 

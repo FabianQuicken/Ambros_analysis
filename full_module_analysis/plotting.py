@@ -238,47 +238,107 @@ def cumsum_plot(data_list=list, labels=list, colors=list, plotname=str, x_label=
     plt.show()
 
 
-def heatmap_plot(x_values = np.array, y_values = np.array, plotname = str, save_as = str, num_bins = 35, cmap = 'hot', plot_time_frame_hours = (None, None)):
+def heatmap_plot(
+    x_values: np.ndarray,
+    y_values: np.ndarray,
+    plotname: str,
+    save_as: str = None,
+    num_bins: int = 35,
+    cmap: str = "hot",
+    plot_time_frame_hours: tuple = (None, None),
+    fps: int = 30
+):
     """
-    This function plots a heatmap of x and y coordinates, e.g. of the snout. Pass the coordinates of a complete experiment, and they get filtered for all
-    values that are not "0". Plotname and savepath need to be provided. Binsize is 50 per default. Colormap is "hot" per default.
+    Plot a 2D heatmap of x/y coordinates with robust NaN handling.
+
+    Parameters
+    ----------
+    x_values, y_values : np.ndarray
+        Coordinate arrays of equal length.
+    plotname : str
+        Title of the plot.
+    save_as : str, optional
+        If given, saves the figure as SVG.
+    num_bins : int
+        Number of bins in x-direction.
+    cmap : str
+        Matplotlib colormap.
+    plot_time_frame_hours : tuple(float, float)
+        Optional (start_hour, end_hour).
+    fps : int
+        Frames per second (used for timeframe slicing).
     """
 
-    if plot_time_frame_hours[1]:
-        plot_time_frame_frames = (round(plot_time_frame_hours[0]*108000), round(plot_time_frame_hours[1]*108000))
-        x_values = x_values[plot_time_frame_frames[0]:plot_time_frame_frames[1]]
-        y_values = y_values[plot_time_frame_frames[0]:plot_time_frame_frames[1]]
+    x_values = np.asarray(x_values, dtype=float)
+    y_values = np.asarray(y_values, dtype=float)
 
-    #Filter out (x, y) pairs where either is 0
-    mask = (x_values != 0) & (y_values != 0)
+    if x_values.shape != y_values.shape:
+        raise ValueError("x_values and y_values must have same shape.")
+
+    # --- optional time slicing ---
+    if plot_time_frame_hours[0] is not None and plot_time_frame_hours[1] is not None:
+        frames_per_hour = fps * 3600
+        start = int(round(plot_time_frame_hours[0] * frames_per_hour))
+        stop  = int(round(plot_time_frame_hours[1] * frames_per_hour))
+        x_values = x_values[start:stop]
+        y_values = y_values[start:stop]
+
+    # --- robust mask ---
+    # remove:
+    #  - NaNs
+    #  - zeros
+    mask = (
+        np.isfinite(x_values) &
+        np.isfinite(y_values) &
+        (x_values != 0) &
+        (y_values != 0)
+    )
+
     heatmap_x = x_values[mask]
     heatmap_y = y_values[mask]
 
+    if heatmap_x.size == 0:
+        print("No valid coordinates available for heatmap.")
+        return
 
-    # get max x value and max y value to scale the heatmap
-    x_max = max(heatmap_x)
-    y_max = min(heatmap_y)
+    # --- axis scaling ---
+    x_max = np.nanmax(heatmap_x)
+    y_min = np.nanmin(heatmap_y)  # note: DLC y often inverted
 
-    y_max = round(y_max *-1)
+    y_extent = abs(y_min)
 
-    # calculate number of y-bins based on ratio between x and y axis
-    y_bins = round((y_max / x_max) * num_bins)
+    # avoid division by zero
+    if x_max == 0:
+        print("Invalid x_max (0).")
+        return
+
+    y_bins = max(1, round((y_extent / x_max) * num_bins))
     bins = (num_bins, y_bins)
 
+    # --- histogram ---
+    heatmap, xedges, yedges = np.histogram2d(
+        heatmap_x,
+        heatmap_y,
+        bins=bins
+    )
 
-    # create a 2D histogram
-    heatmap, xedges, yedges = np.histogram2d(heatmap_x, heatmap_y, bins=bins)
+    # --- plot ---
+    plt.figure(figsize=(8, 6))
 
-    plt.figure(figsize=(8,6))
-    #sns.heatmap(heatmap.T, cmap=cmap, square=True, cbar=True, xticklabels=True, yticklabels=True)
-    
-    plt.imshow(heatmap.T, origin='lower', cmap=cmap,
-           extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
-           aspect=1)  # Set aspect ratio 
-    
-    plt.colorbar(label='Frames')
+    plt.imshow(
+        heatmap.T,
+        origin="lower",
+        cmap=cmap,
+        extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
+        aspect=1
+    )
+
+    plt.colorbar(label="Frames")
     plt.title(plotname)
-    plt.savefig(save_as, format='svg')
+
+    if save_as:
+        plt.savefig(save_as, format="svg", bbox_inches="tight")
+
     plt.show()
 
 

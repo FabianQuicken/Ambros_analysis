@@ -31,7 +31,7 @@ import warnings
 import scipy as sc
 
 # interne imports
-from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS
+from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS, IMMOBILE_THRSH
 from metrics import distance_travelled_arraybased, acceleration, acceleration_events
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, moving_average, remove_distance_jitter
 from utils import convert_videostart_to_experiment_length, calculate_experiment_length
@@ -44,8 +44,10 @@ from trajectory_metrics import entry_exit_trajectories, arc_chord_ratio, get_all
 from plotting import polar_angle_histogram
 from animated_plots import animate_trace
 from video_gen import overlay_two_points_line_and_theta_segments, overlay_metric_at_centers, overlay_rolling_plot_at_centers
-
+from grooming import grooming_energy
+from plotting import heatmap_plot
 # struktur zum speichern erstellen
+
 @dataclass
 class ModuleVariables:
     # arrays
@@ -89,7 +91,8 @@ arena_polygon = create_polygon(ARENA_COORDS)
 
 # files für ein modul werden eingelesen (von einem Experimenttag)
 #path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectory_immobile"
-path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\ma_home"
+habituation = True
+path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\Clavel_paradigm\germfree\38_47_53_males\top1"
 path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\ma_unfamiliar"
 ho = False
 if ho:
@@ -102,8 +105,8 @@ file_list.sort()
 """
 Beschneiden der Filelist für die Testruns
 """
-print(file_list)
-file_list = [file_list[2]]
+#print(file_list)
+#file_list = [file_list[2]]
 
 
 # information über die Anzahl individuen extrahieren, um Variablen zu initialisieren
@@ -112,7 +115,9 @@ individuals = first_df.columns.levels[1]
 
 # dauer des Experiments wird berechnet, based on start und end video Zeitdaten
 exp_duration_frames, startzeit, endzeit, date = calculate_experiment_length(first_file=file_list[0], last_file=file_list[-1])
-
+total_exp_frames = exp_duration_frames
+if habituation:
+    exp_duration_frames = exp_duration_frames[0:min([54000, len(exp_duration_frames)])]
 
 # auslesen, ob das Modul einen Stimulus beinhaltet
 is_stimulus_side, mouse_cohort, modulnumber = module_has_stimulus_ma(file_list[0])
@@ -209,7 +214,7 @@ if stitch_dataframes:
         return pd.concat(stitched).sort_index()
 
     dfs = [pd.read_hdf(file) for file in file_list]
-    t_frames = len(exp_duration_frames)
+    t_frames = len(total_exp_frames)
     s_frames = [convert_videostart_to_experiment_length(first_file=file_list[0], filename=file) * FPS for file in file_list]
     master_df = stitch_dfs_realtime(dfs,
                              s_frames,
@@ -259,6 +264,8 @@ for file in tqdm(file_list):
     # einlesen und copy anlegen
     if stitch_dataframes:
         df = master_df.copy()
+        if habituation:
+            df = df[0:54000]
     else:
         read_in_df = pd.read_hdf(file)
         df = read_in_df.copy()
@@ -302,6 +309,9 @@ for file in tqdm(file_list):
     # y invertieren, da DLC Bildkoordinaten nutzt (y=0 ist oberer Bildrand)
     df.loc[:, (scorer, individuals, bodyparts, ["y"])] *= -1
 
+    
+    
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
 
@@ -310,12 +320,54 @@ for file in tqdm(file_list):
     # # # # # # # # # # # # # Mouse Center + Damit zusammenhängende Analysen # # # # # # # # # # # # # # 
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    #print("\n Getting Mouse Center...")
+    print("\n Getting Mouse Center...")
     # jeweilige mouse center berechnen (shape n_ind, n_frames)
     all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bodyparts = math.ceil(len(bodyparts) / 3))
 
+
+    head_energy = []
+    trunk_energy = []
+    head_xs = []
+    head_ys = []
+    trunk_xs = []
+    trunk_ys = []
+
+    for i, ind in enumerate(individuals):
+        head_coords = ['eye_left', 'eye_right', 'nose']
+        trunk_coords = ['tail_base', 'dorsal_4']
+        center_coords = ["dorsal_1", "dorsal_2", "dorsal_3", "lateral_left", "lateral_right"]
+        head, trunk, head_x, head_y, trunk_x, trunk_y = grooming_energy(df = df,
+                    scorer = scorer,
+                    individual = ind,
+                    head_coords=head_coords,
+                    trunk_coords=trunk_coords
+                    )
+        head_energy.append(head)
+        trunk_energy.append(trunk)
+        head_xs.append(head_x)
+        head_ys.append(head_y)
+        trunk_xs.append(trunk_x)
+        trunk_ys.append(trunk_y)
+        
+    plot_energy = False
+    if plot_energy:
+        ind_idx = 2
+        slice = (0, 8900)
+        xy = []
+        for x, y in zip(trunk_xs[ind_idx], trunk_ys[ind_idx]):
+            xy.append((x,y*-1))
+        overlay_metric_at_centers(in_video_path=r"C:\Users\quicken\Code\energyhead.mp4",
+                                out_video_path=r"C:\Users\quicken\Code\energytrunk.mp4",
+                                centers_xy=xy,
+                                          metric=trunk_energy[ind_idx][slice[0]:slice[1]],
+                                          unit="",
+                                          label="Energy",
+                                          draw_center_marker=True,
+                                          font_scale=0.9
+                                          )
+
     # # # # #  mouse present analyse  # # # # # 
-    #print("\n Calculating time mice are present...")
+    print("\n Calculating time mice are present...")
     for index, ind in enumerate(individuals):
 
         # invidivuelle x-daten reichen
@@ -336,8 +388,9 @@ for file in tqdm(file_list):
     dists = []
     immobiles = []
     accelerations = []
+    accelerations_count_arrays = []
     for index, ind in enumerate(individuals):
-        #print(f"\n Getting all distance, speed and mobility for {ind}...")
+        print(f"\n Getting all distance, speed and mobility for {ind}...")
         dist_values = distance_travelled_arraybased(x_arr=all_centroid_x[index],
                                                     y_arr=all_centroid_y[index]
                                                     )
@@ -349,7 +402,7 @@ for file in tqdm(file_list):
                                      )    
 
         # Werte unter dem Threshold werden auf 0 gesetzt und als "immobile" angesehen
-        dist_values = remove_distance_jitter(dist_values=dist_values, thrsh=4)
+        dist_values = remove_distance_jitter(dist_values=dist_values, thrsh=IMMOBILE_THRSH)
 
         a_px_frame, a_cm_s = acceleration(dist_values)
 
@@ -400,28 +453,27 @@ for file in tqdm(file_list):
         dists.append(dist_values)
         accelerations.append(a_px_frame)
 
-        print(np.where(a_px_frame > 5))
-        for idx in np.where(a_px_frame > 5)[0]:
-            print(dist_values[idx-1:idx+1])
+        ac, ac_array = acceleration_events(a=a_px_frame)
+        accelerations_count_arrays.append(ac_array)
 
-        acc_events_count += acceleration_events(a=a_px_frame)
+        acc_events_count += ac
 
     acc = False
     if acc:
-        ind_idx = 0
-        slice = (0, 4000)
+        ind_idx = 1
+        slice = (0, 8900)
         xy = []
         for x, y in zip(all_centroid_x[ind_idx], all_centroid_y[ind_idx]):
             xy.append((x,y*-1))
-        overlay_metric_at_centers(in_video_path=r"C:\Users\quicken\Code\acc1.avi",
-                                          out_video_path=r"C:\Users\quicken\Code\acc2.avi",
+        overlay_metric_at_centers(in_video_path=r"C:\Users\quicken\Code\rollingplottest3.mp4",
+                                          out_video_path=r"C:\Users\quicken\Code\acc_count2.mp4",
                                           centers_xy=xy,
-                                          metric=accelerations[ind_idx][slice[0]:slice[1]],
-                                          unit="px/s^2",
-                                          color_mask = np.where(accelerations[ind_idx][slice[0]:slice[1]] > 3, 1, 0) ,
-                                          label="Acceleration:",
+                                          metric=accelerations_count_arrays[ind_idx][0][slice[0]:slice[1]],
+                                          unit="",
+                                          label="Events",
                                           draw_center_marker=False,
-                                          font_scale=0.9
+                                          font_scale=0.9,
+                                          color_mask=accelerations_count_arrays[ind_idx][1][slice[0]:slice[1]]
                                           )
 
     rolling_plot = False
@@ -448,9 +500,7 @@ for file in tqdm(file_list):
 
         centroid_x = all_centroid_x[index]
         centroid_y = all_centroid_y[index]
-        print("\nCenter Range:")
-        print(np.nanmin(centroid_x))
-        print(np.nanmax(centroid_x))
+
         # mouse in center analyse
         mouse_in_center = np.zeros(len(centroid_x))
         # arena polygon verkleinern, damit es zum center polygon wird
@@ -577,7 +627,7 @@ for file in tqdm(file_list):
 
 
 
-
+    
 
     print("\n Investigating social investigation...")
     print(os.path.basename(file))
@@ -596,6 +646,14 @@ for file in tqdm(file_list):
     sum_face_inv = social_inv_details["totals"]["face"]
     sum_body_inv = social_inv_details["totals"]["body"]
     sum_anogenital_inv = social_inv_details["totals"]["anogenital"]
+    
+
+    # # # plots # # # 
+    if stitch_dataframes:
+        heatmap_x = np.concatenate([arr for arr in all_centroid_x])
+        heatmap_y = np.concatenate([arr for arr in all_centroid_y])
+        print((np.shape(heatmap_x)))
+        heatmap_plot(x_values=heatmap_x, y_values=heatmap_y, plotname="heatmaptest")
 
 
     
@@ -789,9 +847,9 @@ if create_labelled_video:
     from create_labelled_video import create_labelled_video
     create_labelled_video(video_path=r'C:\Users\Fabian\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_40439818DLC_HrnetW32_multi_animal_pretrainedOct24shuffle1_detector_best-270_snapshot_best-120_el_id_p0_labeled.mp4',
                       output_path=r'C:\Users\Fabian\Code\2025_10_08_13_07_18_mice_c1_exp1_male_none_top1_labelled.mp4',
-                      metric1=test["presence_per_frame"]["body"],
+                      metric1=social_inv_details["presence_per_frame"]["body"],
                       text1="Body Investigation",
-                      metric2=test["presence_per_frame"]["anogenital"],
+                      metric2=social_inv_details["presence_per_frame"]["anogenital"],
                       text2="Anogenital Investigation")
 
 create_labelled_video_modular = False
