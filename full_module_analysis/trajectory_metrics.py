@@ -425,6 +425,7 @@ def get_all_traj(x_arrs, y_arrs, individuals, len_thr=FPS):
 
     all_traj = []
     traj_slices = {}
+    start_len_traj = []
 
     for idx, ind in enumerate(individuals):
         x = x_arrs[idx]
@@ -475,10 +476,13 @@ def get_all_traj(x_arrs, y_arrs, individuals, len_thr=FPS):
         # slice indices speichern
         traj_slices[ind] = paired
         for a, d in paired:
-            all_traj.append((x[a:d+1], y[a:d+1]))
+            t = (x[a:d+1], y[a:d+1])
+            t_len = len(t[0])
+            all_traj.append(t)
+            start_len_traj.append((a, t_len))
             #plot_trajectory_segment(x=x, y=y, e=a, ex=d)
 
-    return all_traj, traj_slices
+    return all_traj, traj_slices, start_len_traj
 
 def entry_exit_trajectories(x_arrs, y_arrs, traj_slices, individuals, entry_polygon, plot=False):
 
