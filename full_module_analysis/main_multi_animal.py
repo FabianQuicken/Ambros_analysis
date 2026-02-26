@@ -139,6 +139,7 @@ def multi_animal_main(path):
     nose_y_values_over_time = exp_duration_frames.copy()
 
     # Weitere Variablen
+    all_accelerations = []
     acc_events_count = 0
     distance_in_px = 0
     sum_min_one_mouse_center = 0
@@ -619,7 +620,7 @@ def multi_animal_main(path):
             cumdists.append(cum_dist)
             dists.append(dist_values)
             accelerations.append(a_px_frame)
-
+            all_accelerations += list(a_cm_s)
             ac, ac_array = acceleration_events(a=a_px_frame)
             accelerations_count_arrays.append(ac_array)
 
@@ -740,7 +741,7 @@ def multi_animal_main(path):
                     rear_x=rear_center_x,
                     rear_y=rear_center_y,
                     slices=traj_slices)
-        thetas.append(theta_list)
+        thetas += theta_list
         xy1 = []
         xy2 = []
 
@@ -1042,7 +1043,8 @@ def multi_animal_main(path):
             "mice_distances": mice_distances,
             "cumdist": cumdist_per_frame,
             "thetas": thetas,
-            "visits": start_len_visits
+            "visits": start_len_visits,
+            "accelerations": all_accelerations
     }
 
 # center crossings über alle Mäuse zählen
