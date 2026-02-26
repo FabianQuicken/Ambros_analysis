@@ -133,7 +133,7 @@ def lineplot(data, colors, labels, x_label = "Time[s]", y_label = "Distance [cm]
 
     time_sec = np.arange(min_len) / FPS
 
-    plt.figure(figsize=(8, 4))
+    plt.figure(figsize=(16, 8))
 
     used_labels = set()
 
@@ -175,7 +175,7 @@ def scatterplot(
     if len(data) != len(colors) or len(data) != len(labels):
         raise ValueError("data, colors, labels must have same length")
 
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize=(16, 10))
     used_labels = set()
 
     group_stats = []
