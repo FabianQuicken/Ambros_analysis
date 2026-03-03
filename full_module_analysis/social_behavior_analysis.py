@@ -171,9 +171,9 @@ def detail_social_investigation(
             coords[ind][bp] = (x_arr, y_arr)
 
     # Zähler pro Frame
-    face_count       = np.zeros(n_frames, dtype=int)
-    anogenital_count = np.zeros(n_frames, dtype=int)
-    body_count       = np.zeros(n_frames, dtype=int)
+    face_count       = np.zeros((n_ind, n_frames), dtype=int)
+    anogenital_count = np.zeros((n_ind, n_frames), dtype=int)
+    body_count       = np.zeros((n_ind, n_frames), dtype=int)
 
     # Hauptschleife: pro Frame und Investigator genau eine Kategorie (wenn vorhanden)
     for c in range(n_frames):
@@ -199,15 +199,16 @@ def detail_social_investigation(
                             closest = d
                             if closest <= thr_px:
                                 if cat_name == "face":
-                                    face_count[c] += 1
+                                    face_count[i][c] += 1
                                 elif cat_name == "anogenital":
-                                    anogenital_count[c] += 1
+                                    anogenital_count[i][c] += 1
                                 else:
-                                    body_count[c] += 1
+                                    body_count[i][c] += 1
                                 assigned = True
                                 break
                     if assigned:
                         break
+    
 
     # --- Fragment-Filter pro Kategorie: entferne kurze Runs mit count>0 ---
     def _remove_short_runs(count_arr: np.ndarray, min_len: int) -> np.ndarray:
@@ -233,19 +234,55 @@ def detail_social_investigation(
                 out[s:e+1] = 0
         return out
 
-    face_count       = _remove_short_runs(face_count, min_fragment_frames)
-    anogenital_count = _remove_short_runs(anogenital_count, min_fragment_frames)
-    body_count       = _remove_short_runs(body_count, min_fragment_frames)
+    for i in range(len(individuals)):
+        face_count[i] = _remove_short_runs(face_count[i], min_fragment_frames)
+        body_count[i] = _remove_short_runs(body_count[i], min_fragment_frames)
+        anogenital_count[i] = _remove_short_runs(anogenital_count[i], min_fragment_frames)
 
-    presence_face       = (face_count > 0).astype(np.uint8)
-    presence_anogenital = (anogenital_count > 0).astype(np.uint8)
-    presence_body       = (body_count > 0).astype(np.uint8)
+    face_count_per_frame = np.nansum(face_count, axis=0)
+    body_count_per_frame = np.nansum(body_count, axis=0)
+    anogenital_count_per_frame = np.nansum(anogenital_count, axis=0)
+
+    presence_face       = (face_count_per_frame > 0).astype(np.uint8)
+    presence_anogenital = (anogenital_count_per_frame > 0).astype(np.uint8)
+    presence_body       = (body_count_per_frame > 0).astype(np.uint8)
+
+    face_start_end = [[] for _ in individuals]
+    anogenital_start_end = [[] for _ in individuals]
+    body_start_end = [[] for _ in individuals]
+
+    def _get_indices(arr):
+        arr = (arr > 0).astype(np.int8)
+        out_list = []
+
+        diff = np.diff(arr)
+
+        starts = np.where(diff == 1)[0] + 1
+        ends   = np.where(diff == -1)[0]
+
+        # Falls Event direkt bei Frame 0 startet
+        if arr[0] == 1:
+            starts = np.r_[0, starts]
+
+        # Falls Event am letzten Frame endet
+        if arr[-1] == 1:
+            ends = np.r_[ends, len(arr) - 1]
+
+        for s, e in zip(starts, ends):
+            out_list.append((int(s), int(e)))
+
+        return out_list
+    
+    for i in range(len(individuals)):
+        face_start_end[i] = _get_indices(face_count[i])
+        anogenital_start_end[i] = _get_indices(anogenital_count[i])
+        body_start_end[i] = _get_indices(body_count[i])
 
     return {
         "counts_per_frame": {
-            "face": face_count,
-            "anogenital": anogenital_count,
-            "body": body_count
+            "face": face_count_per_frame,
+            "anogenital": anogenital_count_per_frame,
+            "body": body_count_per_frame
         },
         "presence_per_frame": {
             "face": presence_face,
@@ -253,8 +290,18 @@ def detail_social_investigation(
             "body": presence_body
         },
         "totals": {
-            "face": int(face_count.sum()),
-            "anogenital": int(anogenital_count.sum()),
-            "body": int(body_count.sum())
+            "face": int(face_count_per_frame.sum()),
+            "anogenital": int(anogenital_count_per_frame.sum()),
+            "body": int(body_count_per_frame.sum())
+        },
+        "individual_inv": {
+            "face": face_count,
+            "body": body_count,
+            "anogenital": anogenital_count
+        },
+        "start_end_indices": {
+            "face": face_start_end,
+            "body": body_start_end,
+            "anogenital": anogenital_start_end
         }
     }

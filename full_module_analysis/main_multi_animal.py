@@ -92,13 +92,14 @@ arena_polygon = create_polygon(ARENA_COORDS)
 # files für ein modul werden eingelesen (von einem Experimenttag)
 #path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectory_immobile"
 habituation = False
+social_inv = False
 path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\Clavel_paradigm\germfree\38_47_53_males\top1"
 path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\ma_unfamiliar"
 ho = False
 if ho:
     path=path_ho
 #path = r"C:\Users\Fabian\Code\Ambros_analysis\code_test"
-def multi_animal_main(path):
+def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=False, stitch_dataframes=True):
     file_list = glob.glob(os.path.join(path, '*.h5'))
     file_list.sort()
 
@@ -125,18 +126,7 @@ def multi_animal_main(path):
 
 
     # leere variablen und variablen die mit der Experimentlänge zu tun haben (und während der analyse stück für stück befüllt werden) einführen lel
-    mice_in_module = np.zeros((len(individuals), len(exp_duration_frames)), dtype=int)
-    min_one_mouse_in_module = exp_duration_frames.copy()
-
-    mice_in_center = np.zeros((len(individuals), len(exp_duration_frames)), dtype=int)
-    min_one_mouse_in_center = exp_duration_frames.copy()
-
-    mice_distances = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
-    distance_over_time = mice_distances.copy()
-    immobile_over_time = mice_distances.copy()
-
-    nose_x_values_over_time = exp_duration_frames.copy()
-    nose_y_values_over_time = exp_duration_frames.copy()
+    
 
     # Weitere Variablen
     all_accelerations = []
@@ -155,12 +145,42 @@ def multi_animal_main(path):
     # speichert alle arc/chord ratios einzelner trajectories
     all_arc_chord = []
 
-    social_inv = None
+    # # # Zusammenfassende Metriken: shape (n_ind, n_frames) # # #
+    mice_in_module = np.zeros((len(individuals), len(exp_duration_frames)), dtype=int)
+    mice_in_center = np.zeros((len(individuals), len(exp_duration_frames)), dtype=int)
+    immobile_over_time = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=int)
+    mice_distances = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    cumdist_over_time = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_accelerations = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_center_x = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_center_y = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    face_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    body_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    anogenital_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+
+    # # # Zusammenfassende Metriken: shape (n_frames), mit zeros gefüllter array # # # 
+    min_one_mouse_in_module = exp_duration_frames.copy()
+    min_one_mouse_in_center = exp_duration_frames.copy()
+
+    # # # Zusammenfassende Metriken: shape (n_ind, n_values) # # #
+    thetas = [[] for _ in range(len(individuals))]
+    trajectories = [[] for _ in range(len(individuals))]
+    all_arc_chord = [[] for _ in range(len(individuals))]
+
+    # # # Zusammenhängende Metriken: Start & End Indices von Events {ind: [(start, end), (start, end), ...]}
+    start_end_visits = {ind: [] for ind in individuals}
+    start_end_immobile = {ind: [] for ind in individuals}
+    start_end_center = {ind: [] for ind in individuals}
+    start_end_acc = {ind: [] for ind in individuals}
+    start_end_faceing = {ind: [] for ind in individuals}
+    start_end_bodyinv = {ind: [] for ind in individuals}
+    start_end_anogenitalinv = {ind: [] for ind in individuals}
+    
+
 
 
     filenames = []
 
-    stitch_dataframes = True
     if stitch_dataframes:
         def stitch_dfs_realtime(dfs, start_frames, total_frames):
             """
@@ -539,6 +559,7 @@ def multi_animal_main(path):
 
             # invidivuelle x-daten reichen
             center_x_data = all_centroid_x[index]
+            center_y_data = all_centroid_y[index]
 
             # über finite koordinaten checken, ob die maus im modul ist
             ind_is_present = np.zeros(len(center_x_data)).astype(int)
@@ -548,7 +569,10 @@ def multi_animal_main(path):
 
             # speichern der information im Kontext des gesamten Experiments
             for i in range(len(ind_is_present)):
-                mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]    
+                mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]
+                mice_center_x[index][i+(time_position_in_frames-1)] = center_x_data[i]
+                mice_center_y[index][i+(time_position_in_frames-1)] = center_y_data[i]
+
 
         # # # # #  distance & speed analysis  # # # # # 
         cumdists = []
@@ -573,6 +597,9 @@ def multi_animal_main(path):
             dist_values = remove_distance_jitter(dist_values=dist_values, thrsh=IMMOBILE_THRSH)
 
             a_px_frame, a_cm_s = acceleration(dist_values)
+            for i in range (len(a_cm_s)):
+                if not np.isnan(a_cm_s[i]):
+                    mice_accelerations[index][i+(time_position_in_frames-1)] = a_cm_s[i]
 
 
             is_immobile = np.where(dist_values == 0, 1, 0)
@@ -613,7 +640,7 @@ def multi_animal_main(path):
         
             cum_dist = np.nancumsum(dist_values)
             for i in range(len(dist_values)):
-                distance_over_time[index][i+(time_position_in_frames-1)] = cum_dist[i]
+                cumdist_over_time[index][i+(time_position_in_frames-1)] = cum_dist[i]
             
             # für video generation
             immobiles.append(is_immobile)
@@ -625,6 +652,11 @@ def multi_animal_main(path):
             accelerations_count_arrays.append(ac_array)
 
             acc_events_count += ac
+
+            if stitch_dataframes:
+                pass
+                
+
 
         acc = False
         if acc:
@@ -803,7 +835,6 @@ def multi_animal_main(path):
         
         # social investigation analyse
         #social_inv = social_investigation(df, scorer, individuals, bodyparts)
-        social_inv = False
         if social_inv:
             social_inv_details = detail_social_investigation(df, scorer, individuals, pixel_per_cm=PIXEL_PER_CM, max_dist_cm=2)
             # checkt ob jeweils face, body oder anogenital investigation pro frame (keine doppelzählung, also zB anogenital_inv individual 1 -> individual 2 und invividual 2 -> individual 3 wird hier nicht beides gezählt)
@@ -815,13 +846,26 @@ def multi_animal_main(path):
             sum_face_inv = social_inv_details["totals"]["face"]
             sum_body_inv = social_inv_details["totals"]["body"]
             sum_anogenital_inv = social_inv_details["totals"]["anogenital"]
+
+            # eventindices sammeln
+            if stitch_dataframes:
+                for i, ind in enumerate(individuals):
+                    start_end_faceing[ind] = social_inv_details["start_end_indices"]["face"][i]
+                    start_end_bodyinv[ind] = social_inv_details["start_end_indices"]["body"][i]
+                    start_end_anogenitalinv[ind] = social_inv_details["start_end_indices"]["anogenital"][i]
             
 
         # # # plots # # # 
-        if stitch_dataframes:
+        if stitch_dataframes and plot_heatmap:
             heatmap_x = np.concatenate([arr for arr in all_centroid_x])
             heatmap_y = np.concatenate([arr for arr in all_centroid_y])
-            #heatmap_plot(x_values=heatmap_x, y_values=heatmap_y, plotname="heatmaptest")
+            if habituation:
+                savename = path + r"\heatmap_hab.svg"
+            elif "top1" in path:
+                savename = path + r"\heatmap_top1_exp.svg"
+            else:
+                savename = path + r"\heatmap_top2_exp.svg"
+            heatmap_plot(x_values=heatmap_x, y_values=heatmap_y, plotname="heatmaptest", save_as=savename)
 
 
         
@@ -948,7 +992,7 @@ def multi_animal_main(path):
 
         n_frames_min_two = float(np.nansum(min_two_mice))  # Nenner für social inv normalization
 
-        # Social investigations normalized by frames with >=2 mice (wie in deinem print)
+        # Social investigations normalized by frames with >=2 mice 
         face_norm = safe_div(social_inv_details["totals"]["face"], n_frames_min_two)
         body_norm = safe_div(social_inv_details["totals"]["body"], n_frames_min_two)
         anogen_norm = safe_div(social_inv_details["totals"]["anogenital"], n_frames_min_two)
