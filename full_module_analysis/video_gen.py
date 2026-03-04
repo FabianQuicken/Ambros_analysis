@@ -234,7 +234,7 @@ import cv2
 import numpy as np
 from typing import Optional
 
-def overlay_metric_at_centers(
+def overlay_metric_at_centers_old(
     in_video_path: str,
     out_video_path: str,
     centers_xy: np.ndarray,
@@ -738,3 +738,449 @@ def overlay_rolling_plot_at_centers(
 
     cap.release()
     writer.release()
+
+import os
+import cv2
+import numpy as np
+from typing import Optional, Sequence, Union, List, Tuple
+
+def overlay_metric_at_centers(
+    in_video_path: str,
+    out_video_path: str,
+    centers_xy: np.ndarray,
+    metric: Union[np.ndarray, Sequence[np.ndarray]],
+    *,
+    unit: Union[str, Sequence[str]] = "",
+    value_fmt: Union[str, Sequence[str]] = "{:.2f}",
+    label: Union[Optional[str], Sequence[Optional[str]]] = None,
+
+    # NEW: per-metric masks: (n_frames,) OR (n_frames, n_metrics) OR list of (n_frames,)
+    color_mask: Optional[Union[np.ndarray, Sequence[np.ndarray]]] = None,
+
+    # drawing / text
+    font_scale: float = 0.6,
+    font_thickness: int = 2,
+    text_dx: int = 8,
+    text_dy: int = -8,
+    line_spacing: int = 2,              # extra pixels between stacked metric lines
+    text_color_bgr=(255, 255, 255),
+    outline_color_bgr=(0, 0, 0),
+    outline_extra: int = 2,
+
+    # marker at center
+    draw_center_marker: bool = True,
+    marker_radius: int = 4,
+    marker_color_bgr=(0, 255, 255),
+
+    # NaN handling
+    skip_if_nan: bool = True,           # if center NaN -> write raw frame
+    skip_metric_if_nan: bool = True,    # if a specific metric NaN -> skip that line only
+
+    # video
+    codec: str = "mp4v",
+    progress: bool = True,
+
+    # optional trail / fade for last N frames (center marker only)
+    trail_len: int = 0,
+    trail_alpha_max: float = 0.55,
+    trail_alpha_min: float = 0.05,
+
+    # rectangle overlay (as polygon)
+    draw_rect: bool = False,
+    rect_xy: Optional[np.ndarray] = None,      # shape (4,2) or (n_frames,4,2)
+    rect_fill_alpha: float = 0.20,             # transparency of fill
+    rect_fill_bgr: tuple = (0, 255, 0),        # fill color (green)
+    rect_outline_bgr: tuple = (0, 255, 0),     # outline color (green)
+    rect_outline_thickness: int = 2,
+
+    # circle overlay
+    draw_circle: bool = False,
+    circle_xy: Optional[np.ndarray] = None,   # shape (n_frames,2) or (2,) for constant
+    circle_radius: int = 30,                  # pixels
+    circle_fill_alpha: float = 0.20,          # transparency
+    circle_fill_bgr: tuple = (0, 255, 0),     # fill color
+    circle_outline_bgr: tuple = (0, 255, 0),  # outline color
+    circle_outline_thickness: int = 2,
+    ):
+    """
+    Render a video where per frame one or multiple metric values are written near the mouse center.
+    Multiple metrics are stacked vertically (under each other).
+
+    Parameters
+    ----------
+    centers_xy : ndarray, shape (n_frames, 2)
+        Per-frame center pixel coordinates (x, y).
+
+    metric :
+        - ndarray (n_frames,) OR
+        - ndarray (n_frames, n_metrics) OR
+        - list/tuple of 1D ndarrays (each shape (n_frames,))
+
+    unit, value_fmt, label :
+        Either a single value (applied to all metrics) or a sequence with length n_metrics.
+
+    color_mask :
+        None, or:
+        - ndarray (n_frames,) applied to all metrics
+        - ndarray (n_frames, n_metrics)
+        - list/tuple of 1D masks (each shape (n_frames,))
+
+    skip_if_nan :
+        If True, frames with non-finite center are passed through unchanged.
+    skip_metric_if_nan :
+        If True, individual metric lines with NaN/inf are skipped (others can still render).
+
+    Returns
+    -------
+    dict with metadata.
+    """
+    centers_xy = np.asarray(centers_xy)
+
+    if centers_xy.ndim != 2 or centers_xy.shape[1] != 2:
+        raise ValueError(f"centers_xy must be shape (n_frames, 2), got {centers_xy.shape}")
+    if trail_len < 0:
+        raise ValueError("trail_len must be >= 0")
+    if not (0.0 <= trail_alpha_min <= 1.0 and 0.0 <= trail_alpha_max <= 1.0):
+        raise ValueError("trail_alpha_min/max must be in [0, 1]")
+    if trail_alpha_min > trail_alpha_max:
+        raise ValueError("trail_alpha_min must be <= trail_alpha_max")
+
+    # ----------------------------
+    # Normalize metrics to (n_frames, n_metrics)
+    # ----------------------------
+    def _to_2d_metrics(m) -> np.ndarray:
+        if isinstance(m, (list, tuple)):
+            arrs = [np.asarray(a) for a in m]
+            if len(arrs) == 0:
+                raise ValueError("metric list is empty.")
+            for a in arrs:
+                if a.ndim != 1:
+                    raise ValueError(f"Each metric in list must be 1D (n_frames,), got {a.shape}")
+            # stack as columns
+            return np.vstack([a.reshape(-1, 1) for a in arrs]).reshape(len(arrs), -1, 1).transpose(1, 0, 2).reshape(-1, len(arrs))
+        else:
+            a = np.asarray(m)
+            if a.ndim == 1:
+                return a.reshape(-1, 1)
+            if a.ndim == 2:
+                return a
+            raise ValueError(f"metric must be 1D, 2D, or list of 1D arrays. Got shape {a.shape}")
+
+    metrics_2d = _to_2d_metrics(metric)
+    if metrics_2d.shape[0] <= 0:
+        raise ValueError("metric is empty.")
+    n_metrics = metrics_2d.shape[1]
+
+    def _broadcast_param(p, name: str) -> List:
+        # p can be scalar or sequence length n_metrics
+        if isinstance(p, (list, tuple)):
+            if len(p) != n_metrics:
+                raise ValueError(f"{name} must have length n_metrics={n_metrics}, got {len(p)}")
+            return list(p)
+        else:
+            return [p for _ in range(n_metrics)]
+
+    units = _broadcast_param(unit, "unit")
+    fmts  = _broadcast_param(value_fmt, "value_fmt")
+    labels = _broadcast_param(label, "label")
+
+    # ----------------------------
+    # Normalize color masks to list of (n_frames,) or None per metric
+    # ----------------------------
+    masks_per_metric: Optional[List[Optional[np.ndarray]]] = None
+    if color_mask is None:
+        masks_per_metric = None
+    else:
+        if isinstance(color_mask, (list, tuple)):
+            if len(color_mask) != n_metrics:
+                raise ValueError(f"color_mask list must have length n_metrics={n_metrics}, got {len(color_mask)}")
+            masks_per_metric = []
+            for cm in color_mask:
+                cm = np.asarray(cm)
+                if cm.ndim != 1:
+                    raise ValueError(f"Each color_mask must be 1D (n_frames,), got {cm.shape}")
+                masks_per_metric.append(cm)
+        else:
+            cm = np.asarray(color_mask)
+            if cm.ndim == 1:
+                # one mask for all metrics
+                masks_per_metric = [cm for _ in range(n_metrics)]
+            elif cm.ndim == 2:
+                if cm.shape[1] != n_metrics:
+                    raise ValueError(f"2D color_mask must be shape (n_frames, n_metrics={n_metrics}), got {cm.shape}")
+                masks_per_metric = [cm[:, j] for j in range(n_metrics)]
+            else:
+                raise ValueError(f"color_mask must be 1D, 2D, or list of 1D arrays. Got {cm.shape}")
+
+        for j, cmj in enumerate(masks_per_metric):
+            if cmj.shape[0] <= 0:
+                raise ValueError(f"color_mask[{j}] is empty.")
+            
+    # ----------------------------
+    # Normalize rectangle
+    # ----------------------------            
+    if rect_xy is not None:
+        rect_xy = np.asarray(rect_xy, dtype=float)
+
+        if rect_xy.ndim == 2:
+            # (4,2) -> constant rectangle for all frames
+            if rect_xy.shape != (4, 2):
+                raise ValueError(f"rect_xy must be (4,2) or (n_frames,4,2), got {rect_xy.shape}")
+        elif rect_xy.ndim == 3:
+            # (n_frames,4,2) -> per-frame rectangle
+            if rect_xy.shape[1:] != (4, 2):
+                raise ValueError(f"rect_xy must be (4,2) or (n_frames,4,2), got {rect_xy.shape}")
+        else:
+            raise ValueError(f"rect_xy must be (4,2) or (n_frames,4,2), got {rect_xy.shape}")
+
+        if not (0.0 <= rect_fill_alpha <= 1.0):
+            raise ValueError("rect_fill_alpha must be in [0,1]")
+        
+    # ----------------------------
+    # Normalize circle
+    # ----------------------------
+    if circle_xy is not None:
+        circle_xy = np.asarray(circle_xy, dtype=float)
+
+        if circle_xy.ndim == 1:
+            # constant center (2,)
+            if circle_xy.shape != (2,):
+                raise ValueError(f"circle_xy must be (2,) or (n_frames,2), got {circle_xy.shape}")
+        elif circle_xy.ndim == 2:
+            # per-frame centers (n_frames,2)
+            if circle_xy.shape[1] != 2:
+                raise ValueError(f"circle_xy must be (2,) or (n_frames,2), got {circle_xy.shape}")
+        else:
+            raise ValueError(f"circle_xy must be (2,) or (n_frames,2), got {circle_xy.shape}")
+
+        if circle_radius <= 0:
+            raise ValueError("circle_radius must be > 0")
+        if not (0.0 <= circle_fill_alpha <= 1.0):
+            raise ValueError("circle_fill_alpha must be in [0,1]")
+
+    # ----------------------------
+    # Video IO
+    # ----------------------------
+    cap = cv2.VideoCapture(in_video_path)
+    if not cap.isOpened():
+        raise FileNotFoundError(f"Could not open video: {in_video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    w   = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h   = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    n_frames_video = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    n_frames_used = min(n_frames_video, centers_xy.shape[0], metrics_2d.shape[0])
+    if masks_per_metric is not None:
+        for cmj in masks_per_metric:
+            n_frames_used = min(n_frames_used, cmj.shape[0])
+    if rect_xy is not None and rect_xy.ndim == 3:
+        n_frames_used = min(n_frames_used, rect_xy.shape[0])
+    if circle_xy is not None and circle_xy.ndim == 2:
+        n_frames_used = min(n_frames_used, circle_xy.shape[0])
+
+    if n_frames_used <= 0:
+        cap.release()
+        raise ValueError("No frames to process (check video and array lengths).")
+
+    os.makedirs(os.path.dirname(out_video_path) or ".", exist_ok=True)
+    fourcc = cv2.VideoWriter_fourcc(*codec)
+    writer = cv2.VideoWriter(out_video_path, fourcc, fps, (w, h), True)
+    if not writer.isOpened():
+        cap.release()
+        raise RuntimeError(f"Could not open VideoWriter for: {out_video_path}")
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    def _draw_transparent_polygon(frame, pts_xy, fill_bgr, alpha, outline_bgr, thickness):
+        """
+        pts_xy: array-like shape (4,2) (or any Nx2 polygon)
+        """
+        pts = np.asarray(pts_xy, dtype=float)
+
+        # Skip if any point is non-finite
+        if not np.isfinite(pts).all():
+            return frame
+
+        # OpenCV wants int32 in shape (N,1,2)
+        pts_i = np.round(pts).astype(np.int32).reshape(-1, 1, 2)
+
+        # Fill on an overlay, then alpha blend
+        if alpha > 0:
+            overlay = frame.copy()
+            cv2.fillPoly(overlay, [pts_i], fill_bgr)
+            frame = cv2.addWeighted(overlay, float(alpha), frame, 1.0 - float(alpha), 0.0)
+
+        # Outline on top (not blended)
+        if thickness > 0:
+            cv2.polylines(frame, [pts_i], isClosed=True, color=outline_bgr, thickness=thickness, lineType=cv2.LINE_AA)
+
+        return frame
+    
+    def _draw_transparent_circle(frame, center_xy, radius, fill_bgr, alpha, outline_bgr, thickness):
+        """
+        center_xy: array-like shape (2,)
+        Draws filled circle on overlay and alpha blends. Outline is drawn on top.
+        """
+        c = np.asarray(center_xy, dtype=float)
+        if c.shape != (2,) or (not np.isfinite(c).all()):
+            return frame
+
+        cx = int(round(float(c[0])))
+        cy = int(round(float(c[1])))
+
+        # Optional: clip center into frame to avoid OpenCV edge weirdness
+        # (Circle may still extend beyond borders, which is fine.)
+        cx = int(np.clip(cx, 0, frame.shape[1] - 1))
+        cy = int(np.clip(cy, 0, frame.shape[0] - 1))
+
+        if alpha > 0:
+            overlay = frame.copy()
+            cv2.circle(overlay, (cx, cy), int(radius), fill_bgr, thickness=-1, lineType=cv2.LINE_AA)
+            frame = cv2.addWeighted(overlay, float(alpha), frame, 1.0 - float(alpha), 0.0)
+
+        if thickness > 0:
+            cv2.circle(frame, (cx, cy), int(radius), outline_bgr, thickness=int(thickness), lineType=cv2.LINE_AA)
+
+        return frame
+
+    def _finite_xy(xy):
+        return np.isfinite(xy[0]) and np.isfinite(xy[1])
+
+    def _draw_center(img, x, y, radius, color):
+        cv2.circle(img, (x, y), radius, color, -1)
+
+    GREEN_BGR = (0, 255, 0)
+    RED_BGR   = (0, 0, 255)
+
+    # Estimate a robust line height (depends on font/scale/thickness)
+    # We'll compute per line anyway, but this gives stable stacking.
+    _, base = cv2.getTextSize("Ag", font, font_scale, font_thickness)
+    line_h = cv2.getTextSize("Ag", font, font_scale, font_thickness)[0][1] + base + line_spacing
+
+    for i in range(n_frames_used):
+        ok, frame = cap.read()
+        if not ok:
+            break
+        # --- rectangle overlay ---
+        if draw_rect and rect_xy is not None:
+            if rect_xy.ndim == 2:
+                pts = rect_xy          # constant 4x2
+            else:
+                pts = rect_xy[i]       # per-frame 4x2
+
+        # --- circle overlay ---
+        if draw_circle and circle_xy is not None:
+            if circle_xy.ndim == 1:
+                cxy = circle_xy        # constant (2,)
+            else:
+                cxy = circle_xy[i]     # per-frame (2,)
+
+            frame = _draw_transparent_circle(
+                frame,
+                center_xy=cxy,
+                radius=circle_radius,
+                fill_bgr=circle_fill_bgr,
+                alpha=circle_fill_alpha,
+                outline_bgr=circle_outline_bgr,
+                thickness=circle_outline_thickness,
+            )
+
+            frame = _draw_transparent_polygon(
+                frame,
+                pts_xy=pts,
+                fill_bgr=rect_fill_bgr,
+                alpha=rect_fill_alpha,
+                outline_bgr=rect_outline_bgr,
+                thickness=rect_outline_thickness,
+            )
+        # --- optional trail of center markers (past frames only) ---
+        if trail_len > 0 and i > 0 and draw_center_marker:
+            overlay = np.zeros_like(frame, dtype=np.uint8)
+            start = max(0, i - trail_len)
+            idxs = list(range(start, i))
+            n = len(idxs)
+
+            for k, j in enumerate(idxs):
+                c = centers_xy[j]
+                if skip_if_nan and (not _finite_xy(c)):
+                    continue
+
+                t = 0.0 if n == 1 else (k / (n - 1))  # oldest->newest
+                a = trail_alpha_min + t * (trail_alpha_max - trail_alpha_min)
+
+                tmp = np.zeros_like(frame, dtype=np.uint8)
+                xj, yj = int(round(float(c[0]))), int(round(float(c[1])))
+                _draw_center(tmp, xj, yj, marker_radius, marker_color_bgr)
+                overlay = cv2.addWeighted(overlay, 1.0, tmp, float(a), 0.0)
+
+            frame = cv2.addWeighted(frame, 1.0, overlay, 1.0, 0.0)
+
+        # --- current center + stacked metric text ---
+        c = centers_xy[i]
+        if skip_if_nan and (not _finite_xy(c)):
+            writer.write(frame)
+            continue
+
+        x, y = int(round(float(c[0]))), int(round(float(c[1])))
+
+        if draw_center_marker:
+            _draw_center(frame, x, y, marker_radius, marker_color_bgr)
+
+        tx0 = int(np.clip(x + text_dx, 0, w - 1))
+        ty0 = int(np.clip(y + text_dy, 0, h - 1))
+
+        # Draw each metric on its own line
+        any_drawn = False
+        for j in range(n_metrics):
+            m = metrics_2d[i, j]
+
+            if skip_metric_if_nan and (not np.isfinite(m)):
+                continue
+
+            # Format text
+            val = fmts[j].format(float(m)) if np.isfinite(m) else "nan"
+            if units[j]:
+                val = f"{val} {units[j]}"
+            text = f"{labels[j]}: {val}" if labels[j] else val
+
+            # Line position (stacked)
+            ty = ty0 + j * line_h
+            # If we'd go off-screen at bottom, we clamp; still keeps relative order.
+            ty = int(np.clip(ty, 0, h - 1))
+
+            # Per-metric color selection
+            if masks_per_metric is None:
+                cur_text_color = text_color_bgr
+            else:
+                cur_text_color = GREEN_BGR if bool(masks_per_metric[j][i]) else RED_BGR
+
+            # outline then text
+            cv2.putText(frame, text, (tx0, ty), font, font_scale, outline_color_bgr,
+                        font_thickness + outline_extra, cv2.LINE_AA)
+            cv2.putText(frame, text, (tx0, ty), font, font_scale, cur_text_color,
+                        font_thickness, cv2.LINE_AA)
+
+            any_drawn = True
+
+        # If all metrics were NaN and skip_metric_if_nan=True, we still write the frame (with marker/trail)
+        writer.write(frame)
+
+        if progress and (i % 500 == 0):
+            print(f"[overlay_metric] frame {i}/{n_frames_used}")
+
+    writer.release()
+    cap.release()
+
+    return {
+        "in_video_path": in_video_path,
+        "out_video_path": out_video_path,
+        "fps": fps,
+        "width": w,
+        "height": h,
+        "n_frames_video": n_frames_video,
+        "n_frames_used": n_frames_used,
+        "n_metrics": n_metrics,
+        "trail_len": trail_len,
+        "used_color_mask": masks_per_metric is not None,
+    }

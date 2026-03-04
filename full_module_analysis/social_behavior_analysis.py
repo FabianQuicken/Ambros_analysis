@@ -252,7 +252,7 @@ def detail_social_investigation(
     body_start_end = [[] for _ in individuals]
 
     def _get_indices(arr):
-        arr = (arr > 0).astype(np.int8)
+        #arr = (arr > 0).astype(np.int8)
         out_list = []
 
         diff = np.diff(arr)

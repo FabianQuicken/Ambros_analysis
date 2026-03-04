@@ -93,7 +93,7 @@ arena_polygon = create_polygon(ARENA_COORDS)
 #path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\trajectory_immobile"
 habituation = False
 social_inv = False
-path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\Clavel_paradigm\germfree\38_47_53_males\top1"
+path = r"C:\Users\quicken\Code\Ambros_analysis\code_test\soial_behavior"
 path_ho = r"C:\Users\Fabian\Code\Ambros_analysis\code_test\ma_unfamiliar"
 ho = False
 if ho:
@@ -138,8 +138,7 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
     sum_visits = 0
     start_len_visits = []
 
-    # speichert alle theta values
-    thetas = []
+
     # speichert alle einzelnen trajectories
     trajectories = []
     # speichert alle arc/chord ratios einzelner trajectories
@@ -166,6 +165,10 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
     thetas = [[] for _ in range(len(individuals))]
     trajectories = [[] for _ in range(len(individuals))]
     all_arc_chord = [[] for _ in range(len(individuals))]
+    centers_xy = [[] for _ in range(len(individuals))]
+    fronts_xy = [[] for _ in range(len(individuals))]
+    rears_xy = [[] for _ in range(len(individuals))]
+    nose_xy = [[] for _ in range(len(individuals))]
 
     # # # Zusammenhängende Metriken: Start & End Indices von Events {ind: [(start, end), (start, end), ...]}
     start_end_visits = {ind: [] for ind in individuals}
@@ -510,7 +513,11 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
         print("\n Getting Mouse Center...")
         # jeweilige mouse center berechnen (shape n_ind, n_frames)
         all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bodyparts = math.ceil(len(bodyparts) / 3))
-
+        
+        for i in range(len(individuals)):
+            for j, (x, y) in enumerate(zip( all_centroid_x[i], all_centroid_y[i])):
+                #centers_xy[i][j] = (x, y*-1)
+                centers_xy[i].append((x, y*-1))
 
         head_energy = []
         trunk_energy = []
@@ -761,11 +768,17 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
                                                     ["shoulder_left", "shoulder_right", "dorsal_1"],
                                                     min_bodyparts=3)
         
+        
+        
         rear_center_x, rear_center_y = mouse_center(df,
                                                     scorer,
                                                     individuals,
                                                     ["hip_left", "hip_right", "dorsal_4"],
                                                     min_bodyparts=3)
+        
+        
+
+
         #print("\n Calculating thetas...")
         theta_list, theta_dic = theta_analysis(individuals=individuals,
                     front_x=front_center_x,
@@ -773,7 +786,15 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
                     rear_x=rear_center_x,
                     rear_y=rear_center_y,
                     slices=traj_slices)
-        thetas += theta_list
+        
+        for i in range(len(individuals)):
+            for j, (x, y) in enumerate(zip(front_center_x[i], front_center_y[i])):
+                fronts_xy[i].append((x, y*-1))
+            for j, (x, y) in enumerate(zip(rear_center_x[i], rear_center_y[i])):
+                rears_xy[i].append((x, y*-1))
+
+            thetas[i] += theta_list[i]
+
         xy1 = []
         xy2 = []
 
@@ -832,15 +853,28 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
 
         print("\n Investigating social investigation...")
         print(os.path.basename(file))
+
+        # nose coordinaten für videoplots speichern
+        for i, ind in enumerate(individuals):
+            nose_x = df.loc[:, (scorer, ind, "nose", "x")].to_numpy()
+            nose_y = df.loc[:, (scorer, ind, "nose", "y")].to_numpy()
+            for j, (x, y) in enumerate(zip(nose_x, nose_y)):
+                nose_xy[i].append((x, y*-1))
+
+        
         
         # social investigation analyse
         #social_inv = social_investigation(df, scorer, individuals, bodyparts)
         if social_inv:
             social_inv_details = detail_social_investigation(df, scorer, individuals, pixel_per_cm=PIXEL_PER_CM, max_dist_cm=2)
-            # checkt ob jeweils face, body oder anogenital investigation pro frame (keine doppelzählung, also zB anogenital_inv individual 1 -> individual 2 und invividual 2 -> individual 3 wird hier nicht beides gezählt)
-            face_inv = social_inv_details["presence_per_frame"]["face"]
-            body_inv = social_inv_details["presence_per_frame"]["body"]
-            anogenital_inv = social_inv_details["presence_per_frame"]["anogenital"]
+            # shape n_ind, n_frames
+            face_inv = social_inv_details["individual_inv"]["face"]
+            body_inv = social_inv_details["individual_inv"]["body"]
+            anogenital_inv = social_inv_details["individual_inv"]["anogenital"]
+
+            all_face = social_inv_details["counts_per_frame"]["face"]
+            all_body = social_inv_details["counts_per_frame"]["body"]
+            all_anogenital = social_inv_details["counts_per_frame"]["anogenital"]
 
             # hier die summen, um auch gleichzeitige investigation gleicher bodyparts zu finden
             sum_face_inv = social_inv_details["totals"]["face"]
@@ -848,9 +882,12 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
             sum_anogenital_inv = social_inv_details["totals"]["anogenital"]
 
             # eventindices sammeln
+            
             if stitch_dataframes:
                 for i, ind in enumerate(individuals):
                     start_end_faceing[ind] = social_inv_details["start_end_indices"]["face"][i]
+                    print(ind)
+                    print(social_inv_details["start_end_indices"]["face"][i])
                     start_end_bodyinv[ind] = social_inv_details["start_end_indices"]["body"][i]
                     start_end_anogenitalinv[ind] = social_inv_details["start_end_indices"]["anogenital"][i]
             
@@ -1082,13 +1119,32 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
                         scale_factor=1.0
         )
 
-    return {"mice_per_frame": mice_per_frame,
+    return {"individuals": individuals,
+            "exp_len": len(exp_duration_frames),
+            "centers_xy": centers_xy,
+            "fronts_xy": fronts_xy,
+            "rears_xy": rears_xy,
+            "nose_xy": nose_xy,
+            "mice_per_frame": mice_per_frame,
+            "mice_presence": mice_in_module,
             "immobile_per_frame": immobile_per_frame,
+            "mice_immobile": immobile_over_time,
             "mice_distances": mice_distances,
+            "mice_cumdists": cumdist_over_time,
             "cumdist": cumdist_per_frame,
+            "mice_in_center": mice_in_center,
+            "center_per_frame": mice_center_per_frame,
             "thetas": thetas,
+            "theta_dic": theta_dic,
             "visits": start_len_visits,
-            "accelerations": all_accelerations
+            "accelerations": all_accelerations,
+            "face_inv": face_inv,
+            "body_inv": body_inv,
+            "anogenital_inv": anogenital_inv,
+            "face_inv_idx": start_end_faceing,
+            "all_face": all_face,
+            "all_body": all_body,
+            "all_anogenital": all_anogenital
     }
 
 # center crossings über alle Mäuse zählen
@@ -1100,3 +1156,65 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
 # speichern als h5
 
 # plots generieren
+
+
+
+# # # # TESTING # # # # 
+metrics = multi_animal_main(path=r'C:\Users\quicken\Code\Ambros_analysis\code_test\soial_behavior',
+                  habituation=False,
+                  social_inv=True)
+
+individuals = metrics["individuals"]
+exp_len = metrics["exp_len"]
+
+for ind in metrics["individuals"]:
+    print(metrics["face_inv_idx"][ind])
+
+create =  False
+if create:
+    from create_labelled_video import create_labelled_video_modular
+    create_labelled_video_modular(video_path=r'C:\Users\quicken\Code\social_behavior_analysistest\2025_11_13_12_37_14_mice_omm12prop_females_home_unfamiliar_top1_labeled.mp4',
+                            output_path=r'C:\Users\quicken\Code\social_behavior_analysistest\socialbehavior.mp4',
+                            metrics=[
+                                ("Face Investigation:", metrics["face_inv"][0]),
+                                ("Body Investigation:", metrics["body_inv"][0]),
+                                ("Anogenital Investigation:", metrics["anogenital_inv"][0])
+                            ],
+                            row_gap=20,
+                            scale_factor=1.0
+    )
+create_center = True
+if create_center:
+    shrinked_coords = shrink_rectangle(ARENA_COORDS, scale=0.6)
+    arena_coords = []
+    for (x, y) in shrinked_coords:
+        arena_coords.append((x, y*-1))
+    overlay_metric_at_centers(in_video_path=r"C:\Users\quicken\Code\social_behavior_analysistest\2025_11_13_12_37_14_mice_omm12prop_females_home_unfamiliar_top1_labeled.mp4",
+                            out_video_path=r"C:\Users\quicken\Code\social_behavior_analysistest\faceinvoverlay.mp4",
+                            centers_xy = metrics["centers_xy"][0],
+                            metric = [np.nancumsum(metrics["face_inv"][0]) / np.nancumsum(metrics["mice_presence"][0]) *100],
+                            color_mask = metrics["face_inv"][0],
+                            unit=["% ind1 faceinv"],
+                            marker_radius=8,
+                            marker_color_bgr=(245, 66, 194),
+                            font_scale=0.8,
+                            draw_rect=True,
+                            rect_xy = arena_coords,
+                            draw_circle=True,
+                            circle_xy=metrics["nose_xy"][0],
+                            circle_radius=PIXEL_PER_CM*2.0,
+                            circle_fill_bgr=(245, 66, 194),
+                            circle_outline_bgr=(245, 66, 194)
+                            )
+
+thetaplot = False
+if thetaplot:
+    
+    overlay_two_points_line_and_theta_segments(in_video_path=r"C:\Users\quicken\Code\social_behavior_analysistest\2025_11_13_12_37_14_mice_omm12prop_females_home_unfamiliar_top1_labeled.mp4",
+                                                out_video_path=r"C:\Users\quicken\Code\social_behavior_analysistest\thetas.mp4",
+                                                xy1=metrics["fronts_xy"][0],
+                                                xy2=metrics["rears_xy"][0],
+                                                theta_segments=metrics["theta_dic"][individuals[0]],
+                                                trail_len=10
+                                                )
+    
