@@ -2,6 +2,7 @@ from main_multi_animal import multi_animal_main
 import matplotlib.pyplot as plt
 from config import PIXEL_PER_CM, FPS
 import numpy as np
+from save_load_dic import save_analysis
 
 def violinplot_mean_sem(
     data,
@@ -329,15 +330,47 @@ testpaths_grp2 = [
 
 
 
-groups = [testpaths_grp1, testpaths_grp2]
+from pathlib import Path
+
+# input groups
 groups = [germfree, germfreeprop, omm12, omm12prop, ommpgol]
-test_colors = ["cyan", "red", "blue", "black", "magenta"]
 groupnames = ["germfree", "germfreeprop", "omm12", "omm12prop", "ommpgol"]
+test_colors = ["cyan", "red", "blue", "black", "magenta"]  # falls du die später brauchst
+
+# output base folder
+out_base = Path(r"C:\Users\quicken\Code\Ambros_analysis\OMM_analysis")
+
+# define modes robustly
+modes = {
+    "hab":  {"rel": Path("top1") / "hab", "subdir": "hab",  "suffix": "_hab"},
+    "top1": {"rel": Path("top1"),        "subdir": "top1", "suffix": "_top1"},
+    "top2": {"rel": Path("top2"),        "subdir": "top2", "suffix": "_top2"},
+}
+
+for mode_name, m in modes.items():
+    for group, groupname in zip(groups, groupnames):
+        for path_str in group:
+            base_path = Path(path_str)
+
+            # analysis input folder
+            analysis_path = base_path / m["rel"]
+
+            # last two folders as identifier (e.g. "germfree_females_30_45_46")
+            path_infos = "_".join(base_path.parts[-2:])
+
+            # output file path
+            save_path = out_base / m["subdir"] / f"{path_infos}{m['suffix']}.joblib"
+
+            # run + save
+            print(analysis_path)
+            results = multi_animal_main(path=str(analysis_path), social_inv=True)
+            save_analysis(results, str(save_path))
 
 
 
+"""
 
-mode = top1
+
 cumdists = []
 cumpresence = []
 start_len_visits = [] # list of tuples [(startarr, lenarr)]
@@ -397,3 +430,6 @@ lineplot(cumdists, colors, labels, savefig=savepath+"cumdists.jpg")
 lineplot(cumpresence, colors, labels, y_label = "Time present [s]", savefig=savepath+r"cumpresence.jpg")
 violinplot_mean_sem(all_thetas,labels=groupnames,colors=test_colors, title="Thetas", savefig=savepath+r"thetas.jpg")
 violinplot_mean_sem(all_accelerations,labels=groupnames,colors=test_colors, title="Accelerations", savefig=savepath+r"acc.jpg")
+
+
+"""

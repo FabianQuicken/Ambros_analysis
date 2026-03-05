@@ -423,9 +423,9 @@ def get_all_traj(x_arrs, y_arrs, individuals, len_thr=FPS):
         plt.pause(close_after)
         plt.close(fig)
 
-    all_traj = []
+    all_traj = [[] for _ in range(len(individuals))]
     traj_slices = {}
-    start_len_traj = []
+    start_len_traj = [[] for _ in range(len(individuals))]
 
     for idx, ind in enumerate(individuals):
         x = x_arrs[idx]
@@ -478,8 +478,8 @@ def get_all_traj(x_arrs, y_arrs, individuals, len_thr=FPS):
         for a, d in paired:
             t = (x[a:d+1], y[a:d+1])
             t_len = len(t[0])
-            all_traj.append(t)
-            start_len_traj.append((a, t_len))
+            all_traj[idx].append(t)
+            start_len_traj[idx].append((a, t_len))
             #plot_trajectory_segment(x=x, y=y, e=a, ex=d)
 
     return all_traj, traj_slices, start_len_traj
