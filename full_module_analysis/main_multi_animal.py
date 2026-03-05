@@ -1126,7 +1126,7 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
             "mice_presence": mice_in_module,
             "immobile_per_frame": immobile_per_frame,
             "mice_immobile": immobile_over_time,
-            "mice_distances": mice_distances,
+            "mice_distances": distance_per_frame,
             "mice_cumdists": cumdist_over_time,
             "cumdist": cumdist_per_frame,
             "mice_in_center": mice_in_center,

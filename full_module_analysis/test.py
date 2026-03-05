@@ -1,76 +1,115 @@
+import os
+import glob
+from pathlib import Path
 import numpy as np
-import math
+import pandas as pd
+from save_load_dic import load_analysis
+# -----------------------------
+# 1) Inputs
+# -----------------------------
+basepath = r"C:\Users\quicken\Code\Ambros_analysis\OMM_analysis\all"
+paths = glob.glob(os.path.join(basepath, "*.joblib"))
 
-trajectories = [
-    {
-        "start_frame": 10234,
-        "end_frame": 11890,
-        "duration_s": 55.3
-    }
+n_frames = 216_000  # oder beliebig n
+metric_names = [
+    # hier deine Metrik-Header rein
+    "mice_per_frame",
+    "all_face",
+    "all_body",
+    "all_anogenital",
+    "mice_distances",
+    "immobile_per_frame",
+    "center_per_frame"
 ]
 
+# -----------------------------
+# 2) Helper: filename -> tokens
+# -----------------------------
+def parse_tokens(filepath: str):
+    """
+    Expects filename: <cond>_<sex>_<id1>_<id2>_<id3>_<module>.joblib
+    Example: germfree_females_30_45_46_hab.joblib
+    """
+    stem = Path(filepath).stem  # removes .joblib
+    parts = stem.split("_")
+    if len(parts) < 6:
+        raise ValueError(f"Unexpected filename format: {stem}")
 
-dic = {
-        "start_frame": 12234,
-        "end_frame": 13890,
-        "duration_s": 40.3
-    }
+    level1 = parts[0]                 # parts[0]
+    level2 = "_".join(parts[2:5])     # parts[2,3,4] together
+    level3 = parts[1]                 # parts[1]
+    level4 = parts[5]                 # parts[5] (hab/top1/top2)
 
-trajectories.append(dic)
+    return level1, level2, level3, level4
 
+# -----------------------------
+# 3) Build MultiIndex columns
+# -----------------------------
+col_tuples = []
+for p in sorted(paths):
+    l1, l2, l3, l4 = parse_tokens(p)
+    for m in metric_names:
+        col_tuples.append((l1, l2, l3, l4, m))
 
+columns = pd.MultiIndex.from_tuples(
+    col_tuples,
+    names=["group", "mouse_ids", "sex", "condition", "metric"]
+)
 
+# -----------------------------
+# 4) Initialize empty DF (length n_frames)
+# -----------------------------
+df = pd.DataFrame(
+    index=np.arange(n_frames),
+    columns=columns,
+    dtype=float
+)
 
-trajectories2 = [
-    {
-        "start_frame": 14234,
-        "end_frame": 16890,
-        "duration_s": 455.3
-    },
-    {
-        "start_frame": 18234,
-        "end_frame": 20890,
-        "duration_s": 155.3
-    }
-]
+# optional: sort columns nicely
+df = df.sort_index(axis=1)
 
-trajectories = trajectories + trajectories2
+group = df.columns.levels[0]
+ids = df.columns.levels[1]
+sex = df.columns.levels[2]
+condition = df.columns.levels[3]
+metrics = df.columns.levels[4]
 
+print(group)
+print(ids)
+print(sex)
+print(condition)
+print(metrics)
 
-a = [-1, -5, -10]
-#print(min(a))
+# Alles auswählen:
+df.loc[:, (group, ids, sex, condition, metrics)]
+#print(df.shape)
+#print(df.columns.names)
+#print(df.columns[:10])
 
+for path in paths:
+    dic = load_analysis(path)
 
-a = (1, 1)
-b1 = (6, 1)
-b2 = (6, 6)
+    parts = os.path.basename(path).split('_')
 
-# punkte als array für einfachere rechnungen
-a = np.asarray(a, float)
-b1 = np.asarray(b1, float)
-b2 = np.asarray(b2, float)
+    g = parts[0]
+    id = "_".join(parts[2:5]) 
+    s = parts[1]
+    cs = parts[5].split('.')
+    c = cs[0]
+              
+    print([g, id, s, c])
 
-# vektoren berechnen ("spitze minus fuss")
-v1 = b1 - a
-v2 = b2 - a
+    for metric in metrics:
+        data = dic[metric]
+        if metric == "mice_distances":
+            data = np.nansum(data, axis=0)
+        if len(data) > n_frames:
+            data = data[0:n_frames]
+        print(len(df.loc[0:len(data)-1, ([g], [id], [s], [c], [metric])]))
+        print(len(data))
+        print(len(df))
+        df.loc[0:len(data)-1, ([g], [id], [s], [c], [metric])] = data
 
-# wir wollen den inneren Winkel θ Tetha berechnen, der von beiden Vektoren eingeschlossen wird
-# cos θ = Skalarprodukt v1 * v2 dividied by |v1| * |v2|
-# daraus folgt θ = cos^-1 ((Skalarprodukt v1 * v2) / (|v1| * |v2|))
+print(df[0:10])
 
-# skalarprodukt v1 * v2:
-sp = v1[0] * v2[0] + v1[1] * v2[1]
-
-# betrag v1 und v2:
-betrag1 = math.sqrt(v1[0]**2 + v1[1]**2)
-betrag2 = math.sqrt(v2[0]**2 + v2[1]**2)
-
-# tetha berechnen
-radians = np.arccos(sp / (betrag1 * betrag2))
-degrees = np.degrees(radians)
-print(degrees)
-
-a = {'mouse1 and mouse2': [], 'mouse1 and mouse3': [], 'mouse2 and mouse3': [(np.int64(1907), np.int64(1937))]}
-
-for entry in a:
-    print(entry)
+df.to_csv(r"C:\Users\quicken\Code\Ambros_analysis\OMM_analysis\all\data.csv")

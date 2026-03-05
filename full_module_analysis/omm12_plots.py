@@ -94,7 +94,7 @@ def get_key_data(groups_to_analyze, data, key):
 
 # # # plot social behavior # # # 
 # - - - - - - -- - - - - - - - #
-plt_social = False
+plt_social = True
 plt_grps = {}
 for group in to_analyse:
     plt_grps[group+"_"+"male"] = {"hab": [], "top1": [], "top2": []} 
@@ -151,7 +151,7 @@ if plt_social:
         show_means=False,
     )
     plt.show()
-    """
+    
 
 
     for entry in hab_mice_per_frame:
@@ -176,7 +176,7 @@ if plt_social:
 
         # Anteil berechnen
         a = inv_sum / p_seconds    
-    """
+    
 
      
 
