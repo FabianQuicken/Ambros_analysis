@@ -95,6 +95,9 @@ def get_key_data(groups_to_analyze, data, key):
 # # # plot social behavior # # # 
 # - - - - - - -- - - - - - - - #
 plt_social = False
+plt_grps = {}
+for group in to_analyse:
+    plt_grps[group+"_"+"male"] = {"hab": [], "top1": [], "top2": []} 
 if plt_social:
     # benötigte Daten sammeln
     hab_mice_per_frame = get_key_data(to_analyse, hab_data, "mice_per_frame")
