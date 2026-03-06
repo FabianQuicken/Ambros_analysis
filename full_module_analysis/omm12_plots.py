@@ -28,8 +28,8 @@ group_colors = {
 sexes = ["male", "female"]
 # Diese sollten eigene Formen haben
 sex_layout = {
-    "male": {"scatterplot": "circle", "lineplot": "solid"},
-    "female": {"scatterplot": "triangle", "lineplot": "dotted"}
+    "males": {"scatterplot": "circle", "lineplot": "solid"},
+    "females": {"scatterplot": "triangle", "lineplot": "dotted"}
 }
 
 
