@@ -65,7 +65,7 @@ df = pd.DataFrame(
     dtype=float
 )
 
-# optional: sort columns nicely
+# optional: sort columns
 df = df.sort_index(axis=1)
 
 group = df.columns.levels[0]
