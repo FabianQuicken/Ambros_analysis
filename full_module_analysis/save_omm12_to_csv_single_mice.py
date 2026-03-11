@@ -22,13 +22,19 @@ metric_names = [
     "mice_immobile",
     "mice_cumdists",
     "mice_in_center",
-    "mice_accelerations"
-    "thetas"
+    "mice_accelerations",
+    "thetas",
     "face_inv",
     "body_inv",
     "anogenital_inv",
     "trajectories",
-    "arc_chord"
+    "arc_chord", 
+    "center_x",
+    "center_y"
+]
+
+metric_names = [
+    "mice_immobile"
 ]
 
 # -----------------------------
@@ -75,22 +81,14 @@ df = pd.DataFrame(
     dtype=float
 )
 
-df.to_csv(r"C:\Users\quicken\Code\Ambros_analysis\OMM_analysis\all\single_mouse_datatest.csv")
-
 # optional: sort columns
-df = df.sort_index(axis=1)
+#df = df.sort_index(axis=1)
 
 group = df.columns.levels[0]
 ids = df.columns.levels[1]
 sex = df.columns.levels[2]
 condition = df.columns.levels[3]
 metrics = df.columns.levels[4]
-
-print(group)
-print(ids)
-print(sex)
-print(condition)
-print(metrics)
 
 # Alles auswählen:
 df.loc[:, (group, ids, sex, condition, metrics)]
@@ -109,19 +107,48 @@ for path in paths:
     cs = parts[5].split('.')
     c = cs[0]
               
-    print([g, id, s, c])
+    print("Data:",[g, id, s, c])
 
     for metric in metrics:
-        data = dic[metric]
-        if metric == "mice_distances":
-            data = np.nansum(data, axis=0)
-        if len(data) > n_frames:
-            data = data[0:n_frames]
-        print(len(df.loc[0:len(data)-1, ([g], [id], [s], [c], [metric])]))
-        print(len(data))
-        print(len(df))
-        df.loc[0:len(data)-1, ([g], [id], [s], [c], [metric])] = data
+        #print(metric)
+        if metric == "center_x" or metric == "center_y":
+            data = dic["centers_xy"]
+        else:
+            data = dic[metric]
+        #print(len(data), data)
+        if len(data) != 3:
+            raise ValueError("Data shape not n_individuals")
+        for i, ind in enumerate(individuals):
+
+
+            data_singleanimal = data[i]
+            print(metric, ind)
+            if metric == "trajectories":
+                traj_lens = []
+                for arr in data_singleanimal:
+                    traj_lens.append(len(arr))
+                data_singleanimal = traj_lens
+            if metric == "center_x":
+                xs = []
+                for (x, y) in data_singleanimal:
+                    xs.append(x)
+                data_singleanimal = xs
+            if metric == "center_y":
+                ys = []
+                for (x, y) in data_singleanimal:
+                    ys.append(y)
+                data_singleanimal = ys
+
+            #print(data_singleanimal)
+            if len(data_singleanimal) > n_frames:
+                data_singleanimal = data_singleanimal[0:n_frames]
+            df.loc[0:len(data_singleanimal)-1, ([g], [id], [s], [c], [metric], [ind])] = data_singleanimal
+            print(metric, ind, " inserted")
+            #print(len(df.loc[0:len(data)-1, ([g], [id], [s], [c], [metric])]))
+            #print(len(data))
+            #print(len(df))
+            
 
 print(df[0:10])
-
-df.to_csv(r"C:\Users\quicken\Code\Ambros_analysis\OMM_analysis\all\single_mouse_data.csv")
+safename = f"/single_mouse_datatest_{metric_names[0]}.csv"
+df.to_csv(r"C:\Users\quicken\Code\Ambros_analysis\OMM_analysis\all" + safename)
