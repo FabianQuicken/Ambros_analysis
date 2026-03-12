@@ -34,7 +34,9 @@ metric_names = [
 ]
 
 metric_names = [
-    "mice_immobile"
+    "face_inv",
+    "body_inv",
+    "anogenital_inv"
 ]
 
 # -----------------------------
@@ -150,5 +152,5 @@ for path in paths:
             
 
 print(df[0:10])
-safename = f"/single_mouse_datatest_{metric_names[0]}.csv"
+safename = f"/single_mouse_datatest_{metric_names[0] if len(metric_names) == 0 else "social_behavior"}.csv"
 df.to_csv(r"C:\Users\quicken\Code\Ambros_analysis\OMM_analysis\all" + safename)

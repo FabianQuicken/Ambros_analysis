@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import os
 
 FPS = 30
 
@@ -46,27 +47,22 @@ subgroups = [subgroup1, subgroup2, subgroup3, subgroup4]
 
 
 for subgroup in subgroups:
-        
-
-        safename = ""
-
 
 
         plt.figure(figsize=(12, 6))
-        safename = r"\modulpref_"
+        safename = "modulpref_" + "_".join(subgroup) + ".jpg"
         title = " "
         
         for i, grp in enumerate(subgroup):
             title += grp 
-            safename += grp + "_"
             if i < len(subgroup)-1:
                 title += " vs. "
-            for sex in ["females"]:
+            for sex in sexes:
                 d = df.loc[:n_frames-1, idx[grp, :, sex, :, :, :]]
 
-                for mice_id in d.columns.get_level_values("mouse_ids").unique():
+                for j, mice_id in enumerate(d.columns.get_level_values("mouse_ids").unique()):
 
-                    for ind in individuals:
+                    for i, ind in enumerate(individuals):
 
                         top1 = d.loc[:, idx[:, mice_id, :, "top1", "mice_presence", ind]].values.ravel()
                         top2 = d.loc[:, idx[:, mice_id, :, "top2", "mice_presence", ind]].values.ravel()
@@ -91,7 +87,7 @@ for subgroup in subgroups:
                             plt.text(
                                 x_end + 0.1,   # kleiner Offset nach rechts
                                 y_end,
-                                ind,
+                                "m"+str(j+1)+"."+str(i+1),
                                 color=color,
                                 fontsize=8,
                                 va="center",
@@ -121,7 +117,7 @@ for subgroup in subgroups:
 
         # optional etwas Platz rechts schaffen für die Labels
         plt.xlim(0, n_frames / (FPS * 60) + 10)
-        plt.savefig(r"Z:\n2023_odor_related_behavior\2025_omm_mice\Analysis3\single_mice" + safename + ".jpg")
+        plt.savefig(os.path.join(r"Z:\n2023_odor_related_behavior\2025_omm_mice\Analysis3\single_mice", safename), dpi=300)
         #plt.show() 
 
 
