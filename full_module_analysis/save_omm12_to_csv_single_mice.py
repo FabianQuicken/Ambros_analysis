@@ -16,6 +16,7 @@ individuals = [
     "mouse_2",
     "mouse_3"
 ]
+
 metric_names = [
     # hier deine Metrik-Header rein
     "mice_presence",
@@ -34,9 +35,9 @@ metric_names = [
 ]
 
 metric_names = [
-    "face_inv",
-    "body_inv",
-    "anogenital_inv"
+    "mice_accelerations",
+    "thetas",
+    "arc_chord"
 ]
 
 # -----------------------------
@@ -152,5 +153,5 @@ for path in paths:
             
 
 print(df[0:10])
-safename = f"/single_mouse_datatest_{metric_names[0] if len(metric_names) == 0 else "social_behavior"}.csv"
+safename = f"/single_mouse_datatest_{metric_names[0] if len(metric_names) == 0 else "acc_theta_arcchord"}.csv"
 df.to_csv(r"C:\Users\quicken\Code\Ambros_analysis\OMM_analysis\all" + safename)
