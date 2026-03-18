@@ -7,16 +7,18 @@ from tqdm import tqdm
 
 FPS = 30
 
-df = pd.read_csv(
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\single_mouse_datatest_mice_in_center.csv",
-    header=[0,1,2,3,4,5],
-    index_col=0
-)
-df_presence = pd.read_csv(
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\single_mouse_datatest_mice_presence.csv",
-    header=[0,1,2,3,4,5],
-    index_col=0
-)
+#df = pd.read_csv(
+#    r"Z:\n2023_odor_related_behavior\2025_omm_mice\single_mouse_datatest_mice_in_center.csv",
+#    header=[0,1,2,3,4,5],
+#    index_col=0
+#)
+df = pd.read_csv(r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\single_mouse_datatest_mice_in_center.csv", header=[0,1,2,3,4,5], index_col=0)
+df_presence = pd.read_csv(r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\single_mouse_datatest_mice_presence.csv", header=[0,1,2,3,4,5], index_col=0)
+#df_presence = pd.read_csv(
+#    r"Z:\n2023_odor_related_behavior\2025_omm_mice\single_mouse_datatest_mice_presence.csv",
+#    header=[0,1,2,3,4,5],
+#    index_col=0
+#)
 
 idx = pd.IndexSlice
 n_frames = 216_000
@@ -56,7 +58,7 @@ subgroups = [subgroup1, subgroup2, subgroup3, subgroup4]
 # -----------------------------------
 # Einstellungen
 # -----------------------------------
-plot_minutes = 30              # z.B. nur erste 5 Minuten plotten
+plot_minutes = 120              # z.B. nur erste 5 Minuten plotten
 center_occupancy = False
 center_preference = True        # falls True: data = 2 * occupancy - 1
 
@@ -81,7 +83,7 @@ for subgroup in subgroups:
             if grp_idx < len(subgroup) - 1:
                 title += " vs. "
 
-            for sex in sexes:
+            for sex in ["males"]:
                 d = df.loc[:n_frames-1, idx[grp, :, sex, cond, :]]
                 d_presence = df_presence.loc[:n_frames-1, idx[grp, :, sex, cond, :]]
 
@@ -181,11 +183,12 @@ for subgroup in subgroups:
         plt.legend(handles=group_handles + sex_handles)
         plt.tight_layout()
 
-        safename += ".jpg"
-
+        safename += "_females.jpg"
+        safepath = r"Z:\n2023_odor_related_behavior\2025_omm_mice\Analysis3\single_mice"
+        safepath = r"C:\Users\Fabian\Desktop\Transfer\Analysis3\single_mice"
         plt.savefig(
             os.path.join(
-                r"Z:\n2023_odor_related_behavior\2025_omm_mice\Analysis3\single_mice",
+                safepath,
                 safename
             ),
             dpi=300

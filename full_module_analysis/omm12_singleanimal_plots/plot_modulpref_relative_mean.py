@@ -8,7 +8,8 @@ import os
 
 FPS = 30
 
-df = pd.read_csv(r"Z:\n2023_odor_related_behavior\2025_omm_mice\single_mouse_datatest_mice_presence.csv", header=[0,1,2,3,4,5], index_col=0)
+#df = pd.read_csv(r"Z:\n2023_odor_related_behavior\2025_omm_mice\single_mouse_datatest_mice_presence.csv", header=[0,1,2,3,4,5], index_col=0)
+df = pd.read_csv(r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\single_mouse_datatest_mice_presence.csv", header=[0,1,2,3,4,5], index_col=0)
 
 idx = pd.IndexSlice
 n_frames = 216_000
@@ -47,12 +48,12 @@ subgroup4 = ["omm12", "ommpgol"]
 subgroups = [subgroup1, subgroup2, subgroup3, subgroup4]
 
 # OPTIONAL: Um Plotlänge zu begrenzen
-n_frames = 27000
+#n_frames = 27000
 
 for subgroup in subgroups:
 
     plt.figure(figsize=(12, 6))
-    safename = "modulpref_relative_" + "_".join(subgroup) + ".jpg"
+    safename = "modulpref_relative_" + "_".join(subgroup) + "_females.jpg"
     title = " "
 
     for i, grp in enumerate(subgroup):
@@ -60,7 +61,7 @@ for subgroup in subgroups:
         if i < len(subgroup)-1:
             title += " vs. "
 
-        for sex in sexes:   # oder ["females"], falls du nur females willst
+        for sex in ["females"]:   # oder ["females"], falls du nur females willst
             d = df.loc[:n_frames-1, idx[grp, :, sex, :, :, :]]
 
             all_data = []   # <-- hier sammeln wir alle individuellen Kurven
@@ -129,7 +130,9 @@ for subgroup in subgroups:
     plt.legend(handles=group_handles + sex_handles)
 
     # optional etwas Platz rechts schaffen für die Labels
-    plt.savefig(os.path.join(r"Z:\n2023_odor_related_behavior\2025_omm_mice\Analysis3\single_mice", safename), dpi=300)
+    safepath = r"Z:\n2023_odor_related_behavior\2025_omm_mice\Analysis3\single_mice"
+    safepath = r"C:\Users\Fabian\Desktop\Transfer\Analysis3\single_mice\modulpref_relative_mean"
+    plt.savefig(os.path.join(safepath, safename), dpi=300)
     #plt.show() 
 
 
