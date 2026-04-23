@@ -9,7 +9,16 @@ from main_multi_animal import multi_animal_main
 paths = [
     r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\hab",
     r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\top1",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\top2"
+    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\top2",
+    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_68_69_70\hab",
+    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_68_69_70\top1",
+    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_68_69_70\top2",
+    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_38_47_53\hab",
+    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_38_47_53\top1",
+    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_38_47_53\top2",
+    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_53_55_61\hab",
+    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_53_55_61\top1",
+    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_53_55_61\top2"
 ]
 # hier path zu den zu analysierenden deeplabcut output files
 #path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\hab"
