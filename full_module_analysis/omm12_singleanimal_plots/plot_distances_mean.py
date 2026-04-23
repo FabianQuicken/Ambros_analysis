@@ -241,7 +241,7 @@ for subgroup in subgroups:
 
         safename += "_".join(sexes_to_plot) + ".jpg"
         savepath = os.path.join(save_dir, safename)
-        plt.savefig(savepath, dpi=300)
+        #plt.savefig(savepath, dpi=300)
         plt.show()
         plt.close()
 

@@ -100,7 +100,7 @@ ho = False
 if ho:
     path=path_ho
 #path = r"C:\Users\Fabian\Code\Ambros_analysis\code_test"
-def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=False, stitch_dataframes=True):
+def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=False, stitch_dataframes=True):
     file_list = glob.glob(os.path.join(path, '*.h5'))
     file_list.sort()
 
@@ -142,7 +142,7 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
     # # # Zusammenfassende Metriken: shape (n_ind, n_frames) # # #
     mice_in_module = np.zeros((len(individuals), len(exp_duration_frames)), dtype=int)
     mice_in_center = np.zeros((len(individuals), len(exp_duration_frames)), dtype=int)
-    immobile_over_time = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=int)
+    immobile_over_time = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_distances = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     cumdist_over_time = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_accelerations = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
@@ -607,10 +607,13 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
             is_immobile = np.where(dist_values == 0, 1, 0)
 
             
+            
 
             for i in range(len(is_immobile)):
                 if not np.isnan(is_immobile[i]):
                     immobile_over_time[index][i+(time_position_in_frames-1)] = is_immobile[i]
+
+            
             
 
             #print(f"\n Dist Traveled: {sum(dist_values)}")
@@ -1126,7 +1129,7 @@ def multi_animal_main(path, habituation=False, social_inv=False, plot_heatmap=Fa
             "mice_presence": mice_in_module,
             "immobile_per_frame": immobile_per_frame,
             "mice_immobile": immobile_over_time,
-            "mice_distances": distance_per_frame,
+            "mice_distances": mice_distances,
             "mice_cumdists": cumdist_over_time,
             "cumdist": cumdist_per_frame,
             "mice_in_center": mice_in_center,
