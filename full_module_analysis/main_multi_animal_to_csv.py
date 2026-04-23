@@ -7,18 +7,18 @@ from main_multi_animal import multi_animal_main
 
 # analysiert habituation, top1 oder top2 Aufnahme eines Experiments und speichert den output der main_multi_animal in einer csv
 paths = [
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\hab",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\top1",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\top2",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_68_69_70\hab",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_68_69_70\top1",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_68_69_70\top2",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_38_47_53\hab",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_38_47_53\top1",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_38_47_53\top2",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_53_55_61\hab",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_53_55_61\top1",
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_53_55_61\top2"
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_33_47_48\hab",
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_33_47_48\top1",
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_33_47_48\top2",
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_72_76_79\hab",
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_72_76_79\top1",
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_72_76_79\top2",
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_41_44_51\hab",
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_41_44_51\top1",
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_41_44_51\top2",
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_80_81_87\hab",
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_80_81_87\top1",
+    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_80_81_87\top2"
 ]
 # hier path zu den zu analysierenden deeplabcut output files
 #path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\hab"
@@ -195,6 +195,6 @@ for path in paths:
 
     #print(df[0:10])
     safename = f"/single_mouse_datatest_{l1}_{l2}_{l3}_{l4}.csv"
-    safepath = r"Z:\n2023_odor_related_behavior\2025_omm_mice\behavior_data" + safename
+    safepath = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\behavior_data" + safename
     df.to_csv(safepath)
     #print(safepath)
