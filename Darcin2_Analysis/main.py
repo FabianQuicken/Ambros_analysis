@@ -418,14 +418,15 @@ def filter_and_interpolate_all_bodyparts(
 
 
 
-all_mice = ["109", "121", "122", "125"]
-mouse = "109"
+all_mice = ["109", "121", "122", "125", "135", "137", "36", "38"]
+mouse = "38"
 
 """
 Daten einlesen und in Stimulus und Kontrolle sortieren
 """
 
 exp_path = r"Z:\n2023_odor_related_behavior\2025_darcin\Darcin2\raw"
+exp_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_darcin\Darcin2\raw"
 
 day1_files = sorted(glob.glob(os.path.join(exp_path + "/Day1/" + mouse, '*.h5')))
 day2_files = sorted(glob.glob(os.path.join(exp_path + "/Day2/" + mouse, '*.h5')))
@@ -606,12 +607,12 @@ for i in tqdm(range(3)): # über jeden Experimenttag iterieren, hier später 3  
                             title=f"Distance per Frame, mouse{mouse}, day {i+1}, stim",
                             save_as=exp_path+f"/disthist_day{i+1}_{mouse}_stim_norm.svg",
                             normalize_counts=True,
-                            show_plot=True)
+                            show_plot=False)
     plot_distance_histogram(distance_values=dist_con,
                             title=f"Distance per Frame, mouse{mouse}, day {i+1}, con",
                             save_as=exp_path+f"/disthist_day{i+1}_{mouse}_con_norm.svg",
                             normalize_counts=True,
-                            show_plot=True)
+                            show_plot=False)
     
     dist_sum_stim = np.nansum(dist_stim)
     dist_sum_con = np.nansum(dist_con)
@@ -633,7 +634,8 @@ for i in tqdm(range(3)): # über jeden Experimenttag iterieren, hier später 3  
 
 
 #print(dish_inv)
-print(time_present)
+print("time present:",time_present)
+print("dish inv:",dish_inv)
 
 
 

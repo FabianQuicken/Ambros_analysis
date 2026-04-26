@@ -135,6 +135,8 @@ stim_inv = []
 # d.h. stim_modul + con_modul + maus auf keiner Kamera = 1
 # es gibt vermutlich leichte Abweichungen durch die likelihood filterung + interpolation
 # interpolation ist auf 30frames begrenzt (größere misstracking zeiträume bleiben leer)
+
+# erste charge vom Dezember '25
 mouse_125 = {'day1': {'stim_modul': np.float64(0.216), 'con_modul': np.float64(0.212)},
             'day2': {'stim_modul': np.float64(0.28), 'con_modul': np.float64(0.229)}, 
             'day3': {'stim_modul': np.float64(0.292), 'con_modul': np.float64(0.246)}}
@@ -152,19 +154,48 @@ mouse_109 = {'day1': {'stim_modul': np.float64(0.031), 'con_modul': np.float64(0
             'day3': {'stim_modul': np.float64(0.194), 'con_modul': np.float64(0.185)}}
 
 
+# zweite charge vom April '26
+mouse_135 = {'day1': {'stim_modul': np.float64(0.269), 'con_modul': np.float64(0.235)},
+            'day2': {'stim_modul': np.float64(0.275), 'con_modul': np.float64(0.213)}, 
+            'day3': {'stim_modul': np.float64(0.203), 'con_modul': np.float64(0.243)}}
+
+mouse_137 = {'day1': {'stim_modul': np.float64(0.276), 'con_modul': np.float64(0.186)},
+            'day2': {'stim_modul': np.float64(0.269), 'con_modul': np.float64(0.232)}, 
+            'day3': {'stim_modul': np.float64(0.29), 'con_modul': np.float64(0.136)}}
+
+mouse_36 = {'day1': {'stim_modul': np.float64(0.264), 'con_modul': np.float64(0.345)},
+            'day2': {'stim_modul': np.float64(0.2), 'con_modul': np.float64(0.315)}, 
+            'day3': {'stim_modul': np.float64(0.25), 'con_modul': np.float64(0.285)}}
+
+mouse_38 = {'day1': {'stim_modul': np.float64(0.251), 'con_modul': np.float64(0.181)},
+            'day2': {'stim_modul': np.float64(0.22), 'con_modul': np.float64(0.23)}, 
+            'day3': {'stim_modul': np.float64(0.245), 'con_modul': np.float64(0.166)}}
+
 # wir beziehen den habituation day auf die Tage 2 und 3 ein
 # dafür berechnen wir zuerst den: 
 # Präferenzscore P: P(day) = stim_modul(day) - con_modul(day)
+# erste charge vom Dezember '25
 m125_p = {'day1': 0.004, 'day2': 0.051, 'day3': 0.046}
 m122_p = {'day1': -0.076, 'day2': 0.056, 'day3': -0.18}
 m121_p = {'day1': -0.038, 'day2': 0.000, 'day3': 0.011}
 m109_p = {'day1': -0.119, 'day2': -0.092, 'day3': 0.009}
+
+# zweite charge vom April '26
+m135_p = {'day1': 0.034, 'day2': 0.063, 'day3': -0.040}
+m137_p = {'day1': 0.090, 'day2': 0.037, 'day3': 0.154}
+m36_p = {'day1': -0.081, 'day2': -0.115, 'day3': -0.035}
+m38_p = {'day1': 0.070, 'day2': -0.010, 'day3': 0.079}
 
 # nun machen wir eine baseline korrektur und berechnen die differenz von Tag 2 und Tag 3 mit Tag 1 P(day) - P(day1):
 m125_p_corrected = {'day2': 0.047, 'day3': 0.042}
 m122_p_corrected = {'day2': 0.132, 'day3': -0.104}
 m121_p_corrected = {'day2': 0.038, 'day3': 0.049}
 m109_p_corrected = {'day2': 0.027, 'day3': 0.128}
+
+m135_p_corrected = {'day2': 0.029, 'day3': -0.074}
+m137_p_corrected = {'day2': -0.053, 'day3': 0.064}
+m36_p_corrected = {'day2': -0.034, 'day3': 0.046}
+m38_p_corrected = {'day2': -0.080, 'day3': 0.009}
 
 # discrimination index (T(stimulus) - T(control)) / (T(stimulus) + T(control))
 m125_d = {'day1': 0.009, 'day2': 0.100, 'day3': 0.086}
@@ -187,11 +218,15 @@ mice_data = {
 
 
 
-mice_order = ["109", "121", "122", "125"]
+mice_order = ["109", "121", "122", "125", "135", "137", "36", "38"]
 exp_path = r"Z:\n2023_odor_related_behavior\2025_darcin\Darcin2\raw"
 
 # ---- Deine handberechneten Daten zusammenführen ----
 p = {
+    "38": m38_p,
+    "36": m36_p,
+    "137": m137_p,
+    "135": m135_p,
     "125": m125_p,
     "122": m122_p,
     "121": m121_p,
@@ -199,16 +234,20 @@ p = {
 }
 
 dp = {
+    "38": m38_p_corrected,
+    "36": m36_p_corrected,
+    "137": m137_p_corrected,
+    "135": m135_p_corrected,
     "125": m125_p_corrected,
     "122": m122_p_corrected,
     "121": m121_p_corrected,
     "109": m109_p_corrected,
 }
 
-mice_order = ["109", "121", "122", "125"]
+mice_order = ["109", "121", "122", "125", "135", "137", "36", "38"]
 
 def _default_mouse_colors(mice):
-    colors = plt.rcParams['axes.prop_cycle'].by_key().get('color', ["C0","C1","C2","C3"])
+    colors = plt.rcParams['axes.prop_cycle'].by_key().get('color', ["C0","C1","C2","C3", "C4", "C5", "C6", "C7"])
     return {m: colors[i % len(colors)] for i, m in enumerate(mice)}
 
 colors = _default_mouse_colors(mice_order)
@@ -236,10 +275,10 @@ ax.set_xticks(x)
 ax.set_xticklabels(["Day2", "Day3"])
 ax.set_ylabel("ΔP = (stim - con) - baseline (day1)")
 ax.set_title("Baseline-corrected preference shift")
-ax.set_ylim(-1, 1)
+ax.set_ylim(-0.25, 0.25)
 ax.grid(True, axis="y", alpha=0.3)
 ax.legend(frameon=False, ncols=2)
-fig.savefig(exp_path + "/modul_preferenceindex_baselinecorrected.svg", dpi=300, bbox_inches="tight")
+#fig.savefig(exp_path + "/modul_preferenceindex_baselinecorrected.svg", dpi=300, bbox_inches="tight")
 plt.show()
 
 # =========================
@@ -259,10 +298,10 @@ ax.set_xticks(x)
 ax.set_xticklabels(["Day1", "Day2", "Day3"])
 ax.set_ylabel("P = stim - con")
 ax.set_title("Raw preference score across days")
-ax.set_ylim(-1, 1)
+ax.set_ylim(-0.25, 0.25)
 ax.grid(True, axis="y", alpha=0.3)
 ax.legend(frameon=False, ncols=2)
-fig.savefig(exp_path + "/modul_preferenceindex.svg", dpi=300, bbox_inches="tight")
+#fig.savefig(exp_path + "/modul_preferenceindex.svg", dpi=300, bbox_inches="tight")
 plt.show()
 
 # Funktion 1: über Tage, nur Stimulus
