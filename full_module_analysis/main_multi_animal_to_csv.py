@@ -20,6 +20,10 @@ paths = [
     r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_53_55_61\top1",
     r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_53_55_61\top2"
 ]
+
+paths = [
+    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_53_55_61\top2"
+]
 # hier path zu den zu analysierenden deeplabcut output files
 #path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\hab"
 
@@ -81,12 +85,14 @@ for path in paths:
                 "mice_cumdists",
                 "mice_in_center",
                 "thetas",
-    #            "visits",
+                "visit_len",
+                "visit_start",
                 "mice_accelerations",
                 "face_inv",
                 "body_inv",
                 "anogenital_inv",
-                "trajectories"
+#                "trajectories_x",
+#                "trajectories_y"
     #            "arc_chord"
     ]
 
@@ -152,7 +158,9 @@ for path in paths:
                 data = data_dic["fronts_xy"]
             elif metric == "rears_x" or metric == "rears_y":
                 data = data_dic["rears_xy"]
-
+            elif metric == "visit_len" or metric == "visit_start":
+                data = data_dic["visits"]
+            elif metric == "trajectories_x"
             else:
                 data = data_dic[metric]
             #print(len(data), data)
@@ -167,11 +175,20 @@ for path in paths:
                 else:
                     data_singleanimal = data[i]
                 #print(metric, ind)
-                if metric == "trajectories":
+                if metric == "visit_len":
                     traj_lens = []
-                    for arr in data_singleanimal:
-                        traj_lens.append(len(arr))
+                    
+                    for (start, length) in data_singleanimal:
+                        traj_lens.append(length)                       
                     data_singleanimal = traj_lens
+
+
+                if metric == "visit_start":
+                    traj_starts = []
+                    for (start, length) in data_singleanimal:
+                        traj_starts.append(start)
+                    data_singleanimal = traj_starts
+
                 if metric == "centers_x" or metric == "nose_x" or metric == "fronts_x" or metric == "rears_x":
                     xs = []
                     for (x, y) in data_singleanimal:
@@ -185,8 +202,6 @@ for path in paths:
                 
                 
                 
-                #print(data_singleanimal)
-
                 if len(data_singleanimal) > n_frames:
                     data_singleanimal = data_singleanimal[0:n_frames]
                 df.loc[0:len(data_singleanimal)-1, ([l1], [l2], [l3], [l4], [metric], [ind])] = data_singleanimal
