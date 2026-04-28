@@ -31,7 +31,7 @@ import warnings
 import scipy as sc
 
 # interne imports
-from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS, IMMOBILE_THRSH
+from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS, IMMOBILE_THRSH, IMMOBILE_THRSH_CM_S
 from metrics import distance_travelled_arraybased, acceleration, acceleration_events
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, moving_average, remove_distance_jitter
 from utils import convert_videostart_to_experiment_length, calculate_experiment_length
@@ -159,7 +159,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
     # # # Zusammenfassende Metriken: shape (n_ind, n_values) # # #
     thetas = [[] for _ in range(len(individuals))]
     trajectories = [[] for _ in range(len(individuals))]
-    all_arc_chord = [[] for _ in range(len(individuals))]
+    mean_t_arc_chord = [[] for _ in range(len(individuals))]
+    t_fragment_arc_chord = [[] for _ in range(len(individuals))]
     centers_xy = [[] for _ in range(len(individuals))]
     fronts_xy = [[] for _ in range(len(individuals))]
     rears_xy = [[] for _ in range(len(individuals))]
@@ -813,7 +814,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
         polarplot = False
 
         if polarplot:
-            print(len(theta_list))
+            #print(len(theta_list))
             ax, hist, bins = polar_angle_histogram(
                 theta_list,
                 n_bins=36,
@@ -829,7 +830,9 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
         for i in range(len(individuals)):
             for t in all_traj[i]:
                 trajectories[i].append(t)
-                all_arc_chord[i].append(arc_chord_ratio(trajectory=t))
+                t_mean_arc_chord, fragment_all_chord = arc_chord_ratio(trajectory=t, speed_thr=IMMOBILE_THRSH_CM_S)
+                mean_t_arc_chord[i].append(t_mean_arc_chord)
+                t_fragment_arc_chord[i].extend(fragment_all_chord)
         
 
 
@@ -886,8 +889,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             if stitch_dataframes:
                 for i, ind in enumerate(individuals):
                     start_end_faceing[ind] = social_inv_details["start_end_indices"]["face"][i]
-                    print(ind)
-                    print(social_inv_details["start_end_indices"]["face"][i])
+                    #print(ind)
+                    #print(social_inv_details["start_end_indices"]["face"][i])
                     start_end_bodyinv[ind] = social_inv_details["start_end_indices"]["body"][i]
                     start_end_anogenitalinv[ind] = social_inv_details["start_end_indices"]["anogenital"][i]
             
@@ -927,7 +930,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
     di = 0 
     for array in mice_distances:
         di += np.nansum(array)
-    print(di)
+    #print(di)
 
 
     # berechnen, ob mindestens eine Maus im center ist
@@ -1146,7 +1149,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             "all_body": all_body,
             "all_anogenital": all_anogenital,
             "trajectories": trajectories,
-            "arc_chord": all_arc_chord
+            "mean_arc_chord": mean_t_arc_chord,
+            "fragment_arc_chord": t_fragment_arc_chord
     }
 
 # center crossings über alle Mäuse zählen

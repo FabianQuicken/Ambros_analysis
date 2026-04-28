@@ -114,15 +114,51 @@ def get_theta(a, b1, b2, signed_angle=True):
 
 
 
-def arc_chord_ratio(trajectory, fragmentsize_divisor = 3, speed_thr = 2):
-    
-    
+def arc_chord_ratio(trajectory, fragmentsize_divisor=3, speed_thr=2.0):
+    """
+    Calculate trajectory tortuosity as the mean arc/chord ratio across fragments.
+
+    The trajectory is split into fixed-duration fragments of
+    ``FPS / fragmentsize_divisor`` frames. For each fragment, the arc length is
+    the summed frame-to-frame distance and the chord length is the straight-line
+    distance from fragment start to fragment end. Fragments with invalid
+    coordinates, zero chord length, or mean speed below ``speed_thr`` are
+    skipped.
+
+    Parameters
+    ----------
+    trajectory : tuple(array-like, array-like)
+        X and Y coordinate arrays for one trajectory.
+    fragmentsize_divisor : int or float, default=3
+        Divides ``FPS`` to define fragment size in frames. With ``FPS=30`` and
+        the default value, fragments are 10 frames long. Must be positive and
+        produce at least 2 frames per fragment.
+    speed_thr : int or float, default=2.0
+        Minimum mean fragment speed in cm/s. Slower fragments are treated as
+        immobile and excluded.
+
+    Returns
+    -------
+    float
+        Mean arc/chord ratio across valid fragments. Returns ``np.nan`` if no
+        valid fragment remains.
+    """
+    if fragmentsize_divisor <= 0:
+        raise ValueError("fragmentsize_divisor must be positive.")
+    if speed_thr < 0:
+        raise ValueError("speed_thr must be non-negative.")
+
     x = np.asarray(trajectory[0], dtype=float)
     y = np.asarray(trajectory[1], dtype=float)
+
+    if x.shape != y.shape:
+        raise ValueError("trajectory x and y arrays must have the same shape.")
     
     t_len = len(x)
 
     fragment_size = int(FPS/fragmentsize_divisor)
+    if fragment_size < 2:
+        raise ValueError("fragmentsize_divisor creates fragments shorter than 2 frames.")
 
 
     # int um abzurunden
@@ -139,27 +175,47 @@ def arc_chord_ratio(trajectory, fragmentsize_divisor = 3, speed_thr = 2):
         counter += 1
     
     tortuosity = []
+
     for f in fragments:
-        start_end_dist = euklidean_distance(x1=f[0][0], y1=f[1][0], x2 = f[0][-1], y2 = f[1][-1])
+        valid = np.isfinite(f[0]) & np.isfinite(f[1])
+        if valid.sum() < 2:
+            print("fragment_skipped")
+            continue
+
+        f_x = f[0][valid]
+        f_y = f[1][valid]
+
+        start_end_dist = euklidean_distance(x1=f_x[0], y1=f_y[0], x2 = f_x[-1], y2 = f_y[-1])
+        if not np.isfinite(start_end_dist) or start_end_dist <= 0:
+            print("fragment_skipped du to start _end dist")
+            continue
+
         # hier summe der dist values berechnen
-        distance_values = np.zeros((len(f[0])-1))
-        for i in range(len(f[0])-1):
-            distance_values[i] = euklidean_distance(x1=f[0][i],
-                                                    y1=f[1][i],
-                                                    x2=f[0][i+1],
-                                                    y2=f[1][i+1])
-        curve_length = sum(distance_values)
+        distance_values = np.zeros((len(f_x)-1))
+        for i in range(len(f_x)-1):
+            distance_values[i] = euklidean_distance(x1=f_x[i],
+                                                    y1=f_y[i],
+                                                    x2=f_x[i+1],
+                                                    y2=f_y[i+1])
+        curve_length = np.sum(distance_values)
+        if not np.isfinite(curve_length):
+            print("fragment_skipped du to curve length")
+            continue
 
         # fragmente unter speed threshold (= Maus ist immobile) fallen raus
-        duration_s = (len(f[0]) - 1) / FPS
+        duration_s = (len(f_x) - 1) / FPS
         speed = (curve_length / PIXEL_PER_CM) / duration_s
         if speed < speed_thr:
+            print("fragment_skipped du to speed")
             continue
 
         tortuosity.append(curve_length / start_end_dist)
     
     #print(f"\nT = {np.mean(tortuosity)}")
-    return np.mean(tortuosity)
+    if len(tortuosity) == 0:
+        return np.nan, [np.nan]
+
+    return np.mean(tortuosity), tortuosity
 
 
 

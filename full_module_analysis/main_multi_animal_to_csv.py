@@ -91,9 +91,10 @@ for path in paths:
                 "face_inv",
                 "body_inv",
                 "anogenital_inv",
-#                "trajectories_x",
-#                "trajectories_y"
-    #            "arc_chord"
+                "trajectories_x",
+                "trajectories_y",
+                "mean_arc_chord",
+                "fragment_arc_chord"
     ]
 
     # helper function um aus dem filenamen später den multiindex zu basteln
@@ -113,7 +114,7 @@ for path in paths:
         if habituation:
             level4 = "hab"
         else:
-            level4 = parts[11]                 # parts[5] (hab/top1/top2)
+            level4 = parts[11]                 #  (top1/top2)
 
         return level1, level2, level3, level4
 
@@ -150,21 +151,22 @@ for path in paths:
     for metric in metrics:
             data_dic = data_dictionary.copy()
             #print(metric)
-            if metric == "centers_x" or metric == "centers_y":
+            if metric in ("centers_x", "centers_y"):
                 data = data_dic["centers_xy"]
-            elif metric == "nose_x" or metric == "nose_y":
+            elif metric in ("nose_x", "nose_y"):
                 data = data_dic["nose_xy"]
-            elif metric == "fronts_x" or metric == "fronts_y":
+            elif metric in ("fronts_x", "fronts_y"):
                 data = data_dic["fronts_xy"]
-            elif metric == "rears_x" or metric == "rears_y":
+            elif metric in ("rears_x", "rears_y"):
                 data = data_dic["rears_xy"]
-            elif metric == "visit_len" or metric == "visit_start":
+            elif metric in ("visit_len", "visit_start"):
                 data = data_dic["visits"]
-            elif metric == "trajectories_x"
+            elif metric in ("trajectories_x", "trajectories_y"):
+                data = data_dic["trajectories"]
             else:
                 data = data_dic[metric]
-            #print(len(data), data)
-            print(metric)
+
+
             if len(data) != 3:
                 
                 raise ValueError("Data shape not n_individuals")
@@ -174,7 +176,7 @@ for path in paths:
                     data_singleanimal = data[ind]
                 else:
                     data_singleanimal = data[i]
-                #print(metric, ind)
+
                 if metric == "visit_len":
                     traj_lens = []
                     
@@ -182,12 +184,38 @@ for path in paths:
                         traj_lens.append(length)                       
                     data_singleanimal = traj_lens
 
-
                 if metric == "visit_start":
                     traj_starts = []
                     for (start, length) in data_singleanimal:
                         traj_starts.append(start)
                     data_singleanimal = traj_starts
+
+                # data_dic["trajectories"] ist so aufgebaut: [([x1.1, x1.2, x1.3],[y1.1, y1.2, y1.3]), ([x2.1, x2.2],[y2.1, y2.2])]
+                # x1.x sind die x-Werte des ersten Trajectories, x2.x die des Zweiten usw. 
+                # um alles in einer .csv in einer spalte zu speichern, speichern wir jeweils x und y koordinaten in einer Spalte
+                # und trennen einzelne trajectories mit einem "nan"
+                if metric == "trajectories_x":
+                    traj_xs = []
+                    for t in data_singleanimal:
+                        end = len(t[0])
+                        counter = 0
+                        while counter < end:
+                            traj_xs.append(t[0][counter])
+                            counter += 1
+                        traj_xs.append(np.nan)
+                    data_singleanimal = traj_xs
+                if metric == "trajectories_y":
+                    traj_ys = []
+                    for t in data_singleanimal:
+                        end = len(t[1])
+                        counter = 0
+                        while counter < end:
+                            traj_ys.append(t[1][counter])
+                            counter += 1
+                        traj_ys.append(np.nan)
+                    data_singleanimal = traj_ys
+
+
 
                 if metric == "centers_x" or metric == "nose_x" or metric == "fronts_x" or metric == "rears_x":
                     xs = []
@@ -200,8 +228,8 @@ for path in paths:
                         ys.append(y)
                     data_singleanimal = ys
                 
-                
-                
+                print(metric)
+                print(data_singleanimal[0:2])
                 if len(data_singleanimal) > n_frames:
                     data_singleanimal = data_singleanimal[0:n_frames]
                 df.loc[0:len(data_singleanimal)-1, ([l1], [l2], [l3], [l4], [metric], [ind])] = data_singleanimal
