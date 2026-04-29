@@ -5,38 +5,42 @@ import numpy as np
 import pandas as pd
 from main_multi_animal import multi_animal_main
 
-# analysiert habituation, top1 oder top2 Aufnahme eines Experiments und speichert den output der main_multi_animal in einer csv
-paths = [
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_33_47_48\hab",
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_33_47_48\top1",
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_33_47_48\top2",
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_72_76_79\hab",
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_72_76_79\top1",
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\females_72_76_79\top2",
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_41_44_51\hab",
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_41_44_51\top1",
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_41_44_51\top2",
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_80_81_87\hab",
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_80_81_87\top1",
-    r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output\ommpgol\males_80_81_87\top2"
+
+basepath = Path(r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output")
+
+groups = [
+    "germfree",
+    "germfreeprop",
+    "omm12",
+    "omm12prop",
+    "ommpgol",
 ]
 
-paths = [
-    r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\males_53_55_61\top2"
-]
-# hier path zu den zu analysierenden deeplabcut output files
-#path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\hab"
+paths = []
+
+for group in groups:
+    group_path = basepath / group
+
+    for h5_file in group_path.glob("*_*_*_*/hab/*.h5"):
+        paths.append(h5_file.parent)
+
+    for h5_file in group_path.glob("*_*_*_*/top1/*.h5"):
+        paths.append(h5_file.parent)
+
+    for h5_file in group_path.glob("*_*_*_*/top2/*.h5"):
+        paths.append(h5_file.parent)
+
+paths = sorted(set(paths))
 
 
 for path in paths:
 
-    paths = glob.glob(os.path.join(path, "*.h5"))
+    h5_paths = glob.glob(os.path.join(path, "*.h5"))
 
     # das dictionary mit Daten generieren
-    if "hab" in path:
-        habituation = True
-    else:
-        habituation = False
+    habituation = path.name == "hab"
+    print(habituation)
+    print(path)
 
     def get_mice(path):
         from pathlib import Path
@@ -55,7 +59,7 @@ for path in paths:
         return numbers
 
     mice = get_mice(path)
-    data_dictionary = multi_animal_main(path, habituation=habituation, social_inv=True, plot_heatmap=False, stitch_dataframes=True)
+    data_dictionary = multi_animal_main(str(path), habituation=habituation, social_inv=True, plot_heatmap=False, stitch_dataframes=True)
 
     n_frames = 216_000
     if habituation:
@@ -120,7 +124,7 @@ for path in paths:
 
 
     col_tuples = []
-    for p in [paths[0]]:
+    for p in [h5_paths[0]]:
         l1, l2, l3, l4 = parse_tokens(p)
         for m in metric_names:
             for ind in individuals:
@@ -229,7 +233,7 @@ for path in paths:
                     data_singleanimal = ys
                 
                 print(metric)
-                print(data_singleanimal[0:2])
+                #print(data_singleanimal[0:2])
                 if len(data_singleanimal) > n_frames:
                     data_singleanimal = data_singleanimal[0:n_frames]
                 df.loc[0:len(data_singleanimal)-1, ([l1], [l2], [l3], [l4], [metric], [ind])] = data_singleanimal

@@ -179,7 +179,7 @@ def arc_chord_ratio(trajectory, fragmentsize_divisor=3, speed_thr=2.0):
     for f in fragments:
         valid = np.isfinite(f[0]) & np.isfinite(f[1])
         if valid.sum() < 2:
-            print("fragment_skipped")
+            #print("fragment_skipped")
             continue
 
         f_x = f[0][valid]
@@ -187,7 +187,7 @@ def arc_chord_ratio(trajectory, fragmentsize_divisor=3, speed_thr=2.0):
 
         start_end_dist = euklidean_distance(x1=f_x[0], y1=f_y[0], x2 = f_x[-1], y2 = f_y[-1])
         if not np.isfinite(start_end_dist) or start_end_dist <= 0:
-            print("fragment_skipped du to start _end dist")
+            #print("fragment_skipped du to start _end dist")
             continue
 
         # hier summe der dist values berechnen
@@ -199,14 +199,14 @@ def arc_chord_ratio(trajectory, fragmentsize_divisor=3, speed_thr=2.0):
                                                     y2=f_y[i+1])
         curve_length = np.sum(distance_values)
         if not np.isfinite(curve_length):
-            print("fragment_skipped du to curve length")
+            #print("fragment_skipped du to curve length")
             continue
 
         # fragmente unter speed threshold (= Maus ist immobile) fallen raus
         duration_s = (len(f_x) - 1) / FPS
         speed = (curve_length / PIXEL_PER_CM) / duration_s
         if speed < speed_thr:
-            print("fragment_skipped du to speed")
+            #print("fragment_skipped du to speed")
             continue
 
         tortuosity.append(curve_length / start_end_dist)
