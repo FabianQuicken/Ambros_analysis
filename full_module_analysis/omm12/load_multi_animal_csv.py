@@ -1,4 +1,6 @@
 from pathlib import Path
+from tqdm import  tqdm
+import os
 
 import pandas as pd
 
@@ -44,8 +46,10 @@ def load_group_csvs(csv_folder, group, metrics, sex="both", pattern="*.csv"):
 
     sex_filter = _normalize_sex_filter(sex)
     dataframes = []
-
-    for csv_path in csv_paths:
+    # reading in single dataframes...
+    for csv_path in tqdm(csv_paths):
+        if not _has_exact_token(filename=csv_path, token=group):
+            continue
         df = pd.read_csv(csv_path, header=[0, 1, 2, 3, 4, 5], index_col=0)
         df.columns = df.columns.set_names(CSV_COLUMN_LEVELS)
 
@@ -90,3 +94,9 @@ def _normalize_sex_filter(sex):
             normalized.append(value)
 
     return normalized
+
+def _has_exact_token(filename, token=""):
+    basename = os.path.basename(filename)
+    name, _ = os.path.splitext(basename)
+    parts = name.split("_")
+    return token in parts

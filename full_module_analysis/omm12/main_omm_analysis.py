@@ -1,19 +1,23 @@
 import os
 import glob
 from pathlib import Path
+import sys
 import numpy as np
 import pandas as pd
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 from main_multi_animal import multi_animal_main
 
 
-basepath = Path(r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output")
+basepath = Path(r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output")
 
 groups = [
-    "germfree",
-    "germfreeprop",
-    "omm12",
-    "omm12prop",
-    "ommpgol",
+    "germfree"
+#    "germfreeprop",
+#    "omm12",
+#    "omm12prop",
+#    "ommpgol",
 ]
 
 paths = []
@@ -34,6 +38,9 @@ paths = sorted(set(paths))
 
 
 for path in paths:
+    if "females_68_69_70\hab" not in str(path):
+        print(str(path))
+        continue
 
     h5_paths = glob.glob(os.path.join(path, "*.h5"))
 
