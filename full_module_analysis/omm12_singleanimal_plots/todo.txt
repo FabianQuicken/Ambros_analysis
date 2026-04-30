@@ -1,0 +1,7 @@
+
+
+1. Funktion, die ein df ausgibt: Eine Gruppe (e.g. omm12), Geschlechter nach Wahl
+Metriken nach Wahl
+
+2. Plotfunktion - Scatter plot, nimmt immer zwei Gruppen und plottet die zusammen
+- Titel, Achsenbeschriftungen, Farben, ylim, mittelwert, sd, linie und stern über plot für statistil
