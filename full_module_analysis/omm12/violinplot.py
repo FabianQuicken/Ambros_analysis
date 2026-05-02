@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_barplot(
+def plot_violinplot(
     data,
     colormode="group",
     plotsize=(8, 6),
@@ -17,9 +17,11 @@ def plot_barplot(
     ylim=None,
     ylabel=None,
     stylemode="light",
+    showmeans=True,
+    showmedians=True,
 ):
     """
-    Create one or multiple barplots from nested mean/SD data.
+    Create one or multiple violin plots from create_data_dic-style data.
 
     Expected data shape:
         {
@@ -27,45 +29,8 @@ def plot_barplot(
                 "group1": {"mean": 5, "sd": 1, "values": [4, 5, 6]},
                 "group2": {"mean": 7, "sd": 1.5, "values": [6, 7, 8]},
             },
-            "plot2": {
-                "group1": {"mean": 3, "sd": 0.5, "values": [2.5, 3, 3.5]},
-                "group2": {"mean": 4, "sd": 0.8, "values": [3.2, 4, 4.8]},
-            },
+            "plot2": {...},
         }
-
-    Parameters
-    ----------
-    data : dict
-        Nested dictionary with plot names as first level and group names as
-        second level. Each group needs a "mean" value and can optionally have
-        "sd" and "values".
-    colormode : {"group", "plot"}, default "group"
-        If "group", equal group names use equal colors across subplots.
-        If "plot", all bars inside one subplot use that subplot's color.
-    plotsize : tuple, default (8, 6)
-        Figure size passed to matplotlib.
-    fontsize : int or float, default 12
-        Base font size for labels, ticks, and titles.
-    colors : dict or list, optional
-        Colors for bars. Dictionaries can be keyed by group name or plot name,
-        depending on colormode. Lists are cycled in order.
-    savepath : str or Path, optional
-        File path where the figure is saved. If omitted, only the figure/axes
-        are returned.
-    scatterdata : bool or dict, default True
-        If True, overlay the "values" from data. If a dictionary is provided,
-        it is read as scatterdata[plot_name][group_name].
-    scattercolors : dict or list, optional
-        Colors for scatter points. Defaults to matching the bar colors.
-    scattermarkers : dict or list, optional
-        Markers for scatter points. Dictionaries can be keyed by group or plot.
-    stylemode : {"light", "dark"}, default "light"
-        Controls figure background, axis, and text colors.
-
-    Returns
-    -------
-    tuple
-        (fig, axes), where axes is always a 1D numpy array.
     """
     if colormode not in ("group", "plot"):
         raise ValueError("colormode must be 'group' or 'plot'.")
@@ -90,8 +55,12 @@ def plot_barplot(
 
     for plot_index, (ax, plot_name) in enumerate(zip(axes, plot_names)):
         groups = data[plot_name]
-        x_positions = np.arange(len(groups))
-        bar_colors = [
+        x_positions = np.arange(1, len(groups) + 1)
+        values_by_group = [
+            _clean_values(_get_values(group_values))
+            for group_values in groups.values()
+        ]
+        violin_colors = [
             _resolve_color(
                 colors,
                 group_name,
@@ -103,28 +72,29 @@ def plot_barplot(
             for group_name in groups
         ]
 
-        means = [_as_float(values.get("mean", np.nan)) for values in groups.values()]
-        sds = [_as_float(values.get("sd", 0)) for values in groups.values()]
+        non_empty_positions = []
+        non_empty_values = []
+        non_empty_colors = []
+        for position, values, color in zip(x_positions, values_by_group, violin_colors):
+            if values.size > 0:
+                non_empty_positions.append(position)
+                non_empty_values.append(values)
+                non_empty_colors.append(color)
 
-        ax.bar(
-            x_positions,
-            means,
-            yerr=sds,
-            color=bar_colors,
-            edgecolor=textcolor,
-            linewidth=1,
-            capsize=5,
-            error_kw={"ecolor": textcolor, "elinewidth": 1.2, "capthick": 1.2},
-        )
+        if non_empty_values:
+            violin_parts = ax.violinplot(
+                non_empty_values,
+                positions=non_empty_positions,
+                widths=0.75,
+                showmeans=showmeans,
+                showmedians=showmedians,
+                showextrema=False,
+            )
+            _style_violin_parts(violin_parts, non_empty_colors, textcolor)
 
         if scatterdata:
             for group_index, (group_name, group_values) in enumerate(groups.items()):
-                values = _get_scatter_values(scatterdata, plot_name, group_name, group_values)
-                if values is None:
-                    continue
-
-                values = np.asarray(values, dtype=float)
-                values = values[np.isfinite(values)]
+                values = _clean_values(_get_scatter_values(scatterdata, plot_name, group_name, group_values))
                 if values.size == 0:
                     continue
 
@@ -144,7 +114,7 @@ def plot_barplot(
                     group_index,
                     plot_index,
                     colormode,
-                    fallback=bar_colors[group_index],
+                    fallback=violin_colors[group_index],
                 )
 
                 ax.scatter(
@@ -153,7 +123,7 @@ def plot_barplot(
                     color=scatter_color,
                     edgecolor=textcolor,
                     marker=marker,
-                    s=45,
+                    s=35,
                     zorder=3,
                     alpha=0.9,
                 )
@@ -161,18 +131,20 @@ def plot_barplot(
         ax.set_title(str(plot_name), fontsize=fontsize + 2, color=textcolor)
         ax.set_xticks(x_positions)
         ax.set_xticklabels(list(groups.keys()), rotation=30, ha="right", fontsize=fontsize)
-        ax.tick_params(axis="y", labelsize=fontsize, colors=textcolor)
-        ax.tick_params(axis="x", colors=textcolor)
+        ax.tick_params(axis="both", labelsize=fontsize, colors=textcolor)
         ax.set_facecolor(facecolor)
         ax.yaxis.grid(True, color=gridcolor, linestyle="--", linewidth=0.8, alpha=0.7)
         ax.set_axisbelow(True)
+
         if ylim is not None:
             ax.set_ylim(ylim)
-        else:
-            ax.set_ylim(bottom=0, top=max(means) * 1.5 if means else 1)
+        elif any(values.size > 0 for values in values_by_group):
+            all_values = np.concatenate([values for values in values_by_group if values.size > 0])
+            top = np.nanmax(all_values) * 1.15 if np.nanmax(all_values) > 0 else 1
+            ax.set_ylim(bottom=0, top=top)
+
         if ylabel is not None:
             ax.set_ylabel(ylabel, fontsize=fontsize, color=textcolor)
-        
 
         for spine in ax.spines.values():
             spine.set_color(textcolor)
@@ -184,9 +156,20 @@ def plot_barplot(
         savepath.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(savepath, dpi=300, facecolor=fig.get_facecolor(), bbox_inches="tight")
 
-    #plt.show()
-
     return fig, axes
+
+
+def _style_violin_parts(violin_parts, colors, textcolor):
+    for body, color in zip(violin_parts["bodies"], colors):
+        body.set_facecolor(color)
+        body.set_edgecolor(textcolor)
+        body.set_alpha(0.75)
+        body.set_linewidth(1)
+
+    for key in ("cmeans", "cmedians"):
+        if key in violin_parts:
+            violin_parts[key].set_color(textcolor)
+            violin_parts[key].set_linewidth(1.5)
 
 
 def _unique_group_names(data):
@@ -216,7 +199,11 @@ def _resolve_color(
 
     if isinstance(colors, dict):
         key = group_name if colormode == "group" else plot_name
-        return colors.get(key, fallback or _resolve_color(None, group_name, plot_name, group_index, plot_index, colormode))
+        return colors.get(
+            key,
+            fallback
+            or _resolve_color(None, group_name, plot_name, group_index, plot_index, colormode),
+        )
 
     index = group_index if colormode == "group" else plot_index
     return colors[index % len(colors)]
@@ -237,20 +224,26 @@ def _resolve_marker(markers, group_name, plot_name, group_index, plot_index, col
     return markers[index % len(markers)]
 
 
+def _get_values(group_values):
+    return group_values.get("values", [])
+
+
 def _get_scatter_values(scatterdata, plot_name, group_name, group_values):
     if isinstance(scatterdata, dict):
-        return scatterdata.get(plot_name, {}).get(group_name)
+        return scatterdata.get(plot_name, {}).get(group_name, [])
 
-    return group_values.get("values")
+    return group_values.get("values", [])
+
+
+def _clean_values(values):
+    if values is None:
+        return np.array([])
+
+    values = np.asarray(values, dtype=float).ravel()
+    return values[np.isfinite(values)]
 
 
 def _scatter_offsets(n_values):
     if n_values == 1:
         return np.array([0.0])
     return np.linspace(-0.12, 0.12, n_values)
-
-
-def _as_float(value):
-    if value is None:
-        return np.nan
-    return float(value)
