@@ -11,6 +11,7 @@ def create_data_dic(
     metric,
     data_extraction_mode="mean",
     data_transform=1,
+    log10_transform=False,
     norm_to_time_present=False,
     dic=None,
     update_dic=False,
@@ -38,21 +39,32 @@ def create_data_dic(
                 d = df.loc[:, (group, id, slice(None), condition, metric, individual)].to_numpy()
                 present = df.loc[:, (group, id, slice(None), condition, "mice_presence", individual)].to_numpy()
                 if data_extraction_mode == "mean":
-                    values.append(np.nanmean(d) * data_transform)
+                    value = np.nanmean(d) * data_transform
+                    values.append(_log10_transform(value) if log10_transform else value)
                 elif data_extraction_mode == "max":
-                    values.append(np.nanmax(d) * data_transform)
+                    value = np.nanmax(d) * data_transform
+                    values.append(_log10_transform(value) if log10_transform else value)
                 elif data_extraction_mode == "sum":
                     if norm_to_time_present:
-                        values.append(np.nansum(d) / np.nansum(present) * data_transform)
+                        value = np.nansum(d) / np.nansum(present) * data_transform
                     else:
-                        values.append(np.nansum(d) * data_transform)
+                        value = np.nansum(d) * data_transform
+                    values.append(_log10_transform(value) if log10_transform else value)
                 elif data_extraction_mode == "cumsum":
                     if norm_to_time_present:
-                        values.append(np.nancumsum(d) / np.nancumsum(present) * data_transform)
+                        value = np.nancumsum(d) / np.nancumsum(present) * data_transform
                     else:
-                        values.append(np.nancumsum(d) * data_transform)
+                        value = np.nancumsum(d) * data_transform
+                    values.append(_log10_transform(value) if log10_transform else value)
                 elif data_extraction_mode == "raw":
-                    values.extend(d * data_transform)
+                    value = d * data_transform
+                    if log10_transform:
+                        value = _log10_transform(value)
+                    values.extend(value)
+                elif data_extraction_mode == "len":
+                    value = np.sum(~np.isnan(d))
+                    
+                    values.append(_log10_transform(value) if log10_transform else value)
                 #print(id, condition, individual, np.nanmax(d))
         if data_extraction_mode == "cumsum":
             data[condition][group]["values"] = values
@@ -64,3 +76,15 @@ def create_data_dic(
             data[condition][group]["values"] = values
 
     return data
+
+
+def _log10_transform(value):
+    values = np.asarray(value, dtype=float)
+    transformed = np.full(values.shape, np.nan, dtype=float)
+    positive_mask = values > 0
+    transformed[positive_mask] = np.log10(values[positive_mask])
+
+    if transformed.ndim == 0:
+        return float(transformed)
+
+    return transformed
