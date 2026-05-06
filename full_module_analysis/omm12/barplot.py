@@ -2,6 +2,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
 
 def plot_barplot(
@@ -166,6 +167,7 @@ def plot_barplot(
         ax.set_facecolor(facecolor)
         ax.yaxis.grid(True, color=gridcolor, linestyle="--", linewidth=0.8, alpha=0.7)
         ax.set_axisbelow(True)
+        sns.despine()
         if ylim is not None:
             ax.set_ylim(ylim)
         else:

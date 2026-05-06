@@ -53,6 +53,7 @@ def create_data_dic(
                 elif data_extraction_mode == "cumsum":
                     if norm_to_time_present:
                         value = np.nancumsum(d) / np.nancumsum(present) * data_transform
+                        value = 2 * value - 1
                     else:
                         value = np.nancumsum(d) * data_transform
                     values.append(_log10_transform(value) if log10_transform else value)

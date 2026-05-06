@@ -2,6 +2,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
 
 def plot_cumsum(
@@ -13,6 +14,7 @@ def plot_cumsum(
     ylim=(0, 1),
     ylabel=None,
     stylemode="light",
+    plot_individual_curves=False,
 ):
     """
     Plot cumulative-sum arrays from create_data_dic output.
@@ -26,9 +28,10 @@ def plot_cumsum(
             "condition2": {...},
         }
 
-    Each condition is plotted as one subplot below the previous one. For every
-    group, the mean over arrays is plotted as a line and the SD is shown as a
-    transparent area.
+    Each condition is plotted as one subplot below the previous one. By default,
+    every group is plotted as the mean over arrays with the SD shown as a
+    transparent area. Set plot_individual_curves=True to plot every array as a
+    separate line without mean or SD.
     """
     if stylemode not in ("light", "dark"):
         raise ValueError("stylemode must be 'light' or 'dark'.")
@@ -64,21 +67,32 @@ def plot_cumsum(
             x_values = np.arange(len(mean_values))
             color = _resolve_color(colors, group, group_index, group_names)
 
-            ax.plot(
-                x_values,
-                mean_values,
-                color=color,
-                linewidth=3,
-                label=group,
-            )
-            ax.fill_between(
-                x_values,
-                mean_values - sd_values,
-                mean_values + sd_values,
-                color=color,
-                alpha=0.75,
-                linewidth=0,
-            )
+            if plot_individual_curves:
+                for value_index, value in enumerate(stacked_values):
+                    ax.plot(
+                        np.arange(len(value)),
+                        value,
+                        color=color,
+                        linewidth=1.5,
+                        alpha=0.85,
+                        label=group if value_index == 0 else None,
+                    )
+            else:
+                ax.plot(
+                    x_values,
+                    mean_values,
+                    color=color,
+                    linewidth=3,
+                    label=group,
+                )
+                ax.fill_between(
+                    x_values,
+                    mean_values - sd_values,
+                    mean_values + sd_values,
+                    color=color,
+                    alpha=0.75,
+                    linewidth=0,
+                )
 
         ax.set_title(str(condition), fontsize=fontsize + 2, color=textcolor)
         ax.set_xlabel("frame", fontsize=fontsize, color=textcolor)
@@ -91,6 +105,7 @@ def plot_cumsum(
         ax.set_facecolor(facecolor)
         ax.yaxis.grid(True, color=gridcolor, linestyle="--", linewidth=0.8, alpha=0.7)
         ax.set_axisbelow(True)
+        sns.despine()
 
         for spine in ax.spines.values():
             spine.set_color(textcolor)

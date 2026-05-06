@@ -2,6 +2,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
 
 def plot_ecdf(
@@ -93,6 +94,7 @@ def plot_ecdf(
     ax.yaxis.grid(True, color=gridcolor, linestyle="--", linewidth=0.8, alpha=0.7)
     ax.xaxis.grid(True, color=gridcolor, linestyle="--", linewidth=0.8, alpha=0.5)
     ax.set_axisbelow(True)
+    sns.despine()
 
     for spine in ax.spines.values():
         spine.set_color(textcolor)

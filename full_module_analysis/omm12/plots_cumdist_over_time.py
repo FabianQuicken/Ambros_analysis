@@ -20,5 +20,6 @@ plot_cumsum(data,
              stylemode="light",
              savepath=r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\Analysis4\cumsumcenterpref_gf_vs_gfp_male.pdf",
              ylabel="% in center",
-             ylim=(0, 1)
+             ylim=(-1, 1),
+             plot_individual_curves=True
              )

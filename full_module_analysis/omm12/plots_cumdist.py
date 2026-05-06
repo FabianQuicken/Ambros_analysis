@@ -8,7 +8,7 @@ PIXEL_PER_CM = 36.39
 csv_folder = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\behavior_data"
 individuals = ["mouse_1", "mouse_2", "mouse_3"]
 colors = {"germfree": "#D9D9D9", "germfreeprop": "#CCE6BB", "omm12": "#C0DEFC", "omm12prop": "#bef49d", "ommpgol": "#E58DF1"}
-
+sm = {"male": '^', "female": "o"}
 
 #data = create_data_dic(csv_folder, individuals, "female", "germfreeprop", "mice_cumdists")
 #data = create_data_dic(csv_folder, individuals, "female", "germfree", "mice_cumdists", dic=data, update_dic=True)
@@ -30,7 +30,10 @@ plot_barplot(data,
              stylemode="light",
              savepath=r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\Analysis4\cumdist_gf_vs_gfp_male.pdf",
              ylabel="Cumulative distance (m)",
-             ylim=(0, 95)
+             ylim=(0, 125),
+             fontsize=14,
+             plotsize= (6, 4.5),
+             scattermarkers=[sm["male"], sm["male"]]
              )
 
 data = create_data_dic(csv_folder, individuals, "female", "germfree", "mice_cumdists", data_transform=px_to_m)
@@ -44,7 +47,10 @@ plot_barplot(data,
              stylemode="light",
              savepath=r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\Analysis4\cumdist_gf_vs_gfp_female.pdf",
              ylabel="Cumulative distance (m)",
-             ylim=(0, 95)
+             ylim=(0, 125),
+             fontsize=14,
+             plotsize= (6, 4.5),
+             scattermarkers=[sm["female"], sm["female"]]
              )
 
 
@@ -62,7 +68,10 @@ plot_barplot(data,
              stylemode="light",
              savepath=r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\Analysis4\cumdist_omm12_vs_omm12prop_males.pdf",
              ylabel="Cumulative distance (m)",
-             ylim=(0, 75)
+             ylim=(0, 125),
+             fontsize=14,
+             plotsize= (6, 4.5),
+             scattermarkers=[sm["male"], sm["male"]]
              )
 
 data = create_data_dic(csv_folder, individuals, "female", "omm12", "mice_cumdists", data_transform=px_to_m)
@@ -76,7 +85,10 @@ plot_barplot(data,
              stylemode="light",
              savepath=r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\Analysis4\cumdist_omm12_vs_omm12prop_females.pdf",
              ylabel="Cumulative distance (m)",
-             ylim=(0, 115)
+             ylim=(0, 125),
+             fontsize=14,
+             plotsize= (6, 4.5),
+             scattermarkers=[sm["female"], sm["female"]]
              )
 
 # # # OMM12 VS OMMPGOL # # #
@@ -92,7 +104,10 @@ plot_barplot(data,
              stylemode="light",
              savepath=r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\Analysis4\cumdist_omm12_vs_ommpgol_males.pdf",
              ylabel="Cumulative distance (m)",
-             ylim=(0, 125)
+             ylim=(0, 125),
+             fontsize=14,
+             plotsize= (6, 4.5),
+             scattermarkers=[sm["male"], sm["male"]]
              )
 
 data = create_data_dic(csv_folder, individuals, "female", "omm12", "mice_cumdists", data_transform=px_to_m)
@@ -106,7 +121,10 @@ plot_barplot(data,
              stylemode="light",
              savepath=r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\Analysis4\cumdist_omm12_vs_ommpgol_females.pdf",
              ylabel="Cumulative distance (m)",
-             ylim=(0, 115)
+             ylim=(0, 125),
+             fontsize=14,
+             plotsize= (6, 4.5),
+             scattermarkers=[sm["female"], sm["female"]]
              )
 
 
