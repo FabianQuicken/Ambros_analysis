@@ -9,16 +9,27 @@ metric = "mice_in_center"
 data = create_data_dic(csv_folder, individuals, "female", "omm12", metric, data_extraction_mode="cumsum", norm_to_time_present=True, data_transform=1)
 data = create_data_dic(csv_folder, individuals, "female", "ommpgol", metric, dic=data, update_dic=True, data_extraction_mode="cumsum", norm_to_time_present=True, data_transform=1)
 
+plot_cumsum(data,
+             colors =
+             ["#C0DEFC", "#E58DF1"],
+             stylemode="dark",
+             savepath=r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\Analysis4\cumsumcenterpref_omm_vs_ommpgol_female.pdf",
+             ylabel="% in center",
+             ylim=(-1, 1),
+             plot_individual_curves=False,
+             figsize=(7.08661, 10.6299),
+             fps=30,
+             x_time_unit="minutes"
+             )
 
-
-
-
+data = create_data_dic(csv_folder, individuals, "male", "omm12", metric, data_extraction_mode="cumsum", norm_to_time_present=True, data_transform=1)
+data = create_data_dic(csv_folder, individuals, "male", "ommpgol", metric, dic=data, update_dic=True, data_extraction_mode="cumsum", norm_to_time_present=True, data_transform=1)
 
 plot_cumsum(data,
              colors =
              ["#C0DEFC", "#E58DF1"],
-             stylemode="light",
-             savepath=r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\Analysis4\cumsumcenterpref_omm_vs_ommpgol_female.pdf",
+             stylemode="dark",
+             savepath=r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\Analysis4\cumsumcenterpref_omm_vs_ommpgol_male.pdf",
              ylabel="% in center",
              ylim=(-1, 1),
              plot_individual_curves=False,
