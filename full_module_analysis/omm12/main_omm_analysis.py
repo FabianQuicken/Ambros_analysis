@@ -107,7 +107,8 @@ for path in paths:
                 "mean_arc_chord",
                 "fragment_arc_chord",
                 "orientations",
-                "posture_compactness"
+                "posture_compactness",
+                "mice_bodylength"
     ]
 
     # helper function um aus dem filenamen später den multiindex zu basteln

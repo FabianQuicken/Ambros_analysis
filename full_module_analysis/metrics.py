@@ -6,6 +6,41 @@ from utils import euklidean_distance, fill_missing_values, shrink_rectangle, mov
 from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2, FPS
 import matplotlib.pyplot as plt
 
+def body_length(nose_x, nose_y, tailbase_x, tailbase_y):
+    """
+    Calculate per-frame body length from nose and tailbase coordinates.
+
+    Body length is defined as the Euclidean distance between the nose and
+    tailbase points in each frame. The function assumes all coordinate arrays
+    are aligned frame-by-frame and have the same length.
+
+    Parameters
+    ----------
+    nose_x, nose_y : array-like
+        X and Y coordinates of the nose for each frame.
+    tailbase_x, tailbase_y : array-like
+        X and Y coordinates of the tailbase for each frame.
+
+    Returns
+    -------
+    bl : numpy.ndarray
+        One-dimensional array containing the nose-to-tailbase distance for each
+        frame. Missing coordinates propagate to NaN through
+        :func:`euklidean_distance`.
+
+    Notes
+    -----
+    Distances are returned in the same spatial unit as the input coordinates,
+    typically pixels for raw DeepLabCut output.
+    """
+    
+    bl = np.full(shape=(len(nose_x)), fill_value=np.nan, dtype=float)
+
+    for i in range(len(bl)):
+        bl[i] = euklidean_distance(nose_x[i], nose_y[i], tailbase_x[i], tailbase_y[i])
+
+
+    return bl
 
 def posture_compactness(df, scorer, ind, bodyparts, center_x, center_y):
     """
@@ -38,18 +73,25 @@ def posture_compactness(df, scorer, ind, bodyparts, center_x, center_y):
         center or bodypart coordinates are ignored with ``nanmean``; frames
         where all bodypart distances are invalid remain NaN.
     """
-    mean_dists = np.full(shape=(len(center_x)), fill_value=np.nan, dtype=float)
 
-    for i in range(len(mean_dists)):
-        bp_dists = []
-        for bp in bodyparts:
-            bp_x = df.loc[i, (scorer, ind, bp, "x")]
-            bp_y = df.loc[i, (scorer, ind, bp, "y")]
+    center_x = np.asarray(center_x, dtype=float)
+    center_y = np.asarray(center_y, dtype=float)
 
-            bp_dists.append(euklidean_distance(center_x[i], center_y[i], bp_x, bp_y))
-        
-        bp_dists = np.asarray(bp_dists, dtype=np.float32)
-        mean_dists[i] = np.nanmean(bp_dists)
+    # Spaltenamen für x oder y Koordinaten bauen
+    x_cols = [(scorer, ind, bp, "x") for bp in bodyparts]
+    y_cols = [(scorer, ind, bp, "y") for bp in bodyparts]
+
+    # holt alle x und y Koordinaten aus dem Dataframe (array mit n_frames, n_bodyparts)
+    bp_x = df.loc[:, x_cols].to_numpy(dtype=float)
+    bp_y = df.loc[:, y_cols].to_numpy(dtype=float)
+
+    # vektorisierte from der euklidean distance berechnung
+    dists = np.sqrt(
+        (bp_x - center_x[:, None]) ** 2 +
+        (bp_y - center_y[:, None]) ** 2
+    )
+
+    mean_dists = np.nanmean(dists, axis=1)
 
     return mean_dists
 

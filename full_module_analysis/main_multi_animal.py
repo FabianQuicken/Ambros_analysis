@@ -33,6 +33,7 @@ import scipy as sc
 # interne imports
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS, IMMOBILE_THRSH, IMMOBILE_THRSH_CM_S
 from metrics import distance_travelled_arraybased, acceleration, acceleration_events, get_orientation, posture_compactness
+from metrics import body_length
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, moving_average, remove_distance_jitter
 from utils import convert_videostart_to_experiment_length, calculate_experiment_length
 from utils import is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
@@ -153,6 +154,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
     anogenital_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_orientations = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_compactness = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_bodylength = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
 
     # # # Zusammenfassende Metriken: shape (n_frames), mit zeros gefüllter array # # # 
     min_one_mouse_in_module = exp_duration_frames.copy()
@@ -666,9 +668,22 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                 
         # # # Mouse Compactness Analyse # # # 
         for index, ind in enumerate(individuals):
+            print(f"\n Getting mouse compactness for {ind}...")
             pc = posture_compactness(df, scorer, ind, bodyparts, all_centroid_x[index], all_centroid_y[index])
             for i in range(len(pc)):
                 mice_compactness[index][i+(time_position_in_frames-1)] = pc[i]
+
+        # # # Body Length Analyse # # # 
+        for index, ind in enumerate(individuals):
+            print(f"\n Getting mouse bodylength for {ind}...")
+            nose_x = df.loc[:, (scorer, ind, "nose", "x")].to_numpy()
+            nose_y = df.loc[:, (scorer, ind, "nose", "y")].to_numpy()
+            tb_x = df.loc[:, (scorer, ind, "tail_base", "x")].to_numpy()
+            tb_y = df.loc[:, (scorer, ind, "tail_base", "y")].to_numpy()
+
+            bl = body_length(nose_x, nose_y, tb_x, tb_y)
+            for i in range(len(bl)):
+                mice_bodylength[index][i+(time_position_in_frames-1)] = bl[i]
 
         acc = False
         if acc:
@@ -781,6 +796,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                                                     ["hip_left", "hip_right", "dorsal_4"],
                                                     min_bodyparts=3)
         
+        print(f"\n Getting absolute orientations...")
         for i in range(len(individuals)):
             orientations = get_orientation(
                 front_x=front_center_x[i],
@@ -1167,7 +1183,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             "mean_arc_chord": mean_t_arc_chord,
             "fragment_arc_chord": t_fragment_arc_chord,
             "orientations": mice_orientations,
-            "posture_compactness": mice_compactness
+            "posture_compactness": mice_compactness,
+            "mice_bodylength": mice_bodylength
     }
 
 # center crossings über alle Mäuse zählen
