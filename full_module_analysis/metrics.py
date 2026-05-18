@@ -7,6 +7,49 @@ from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2, FPS
 import matplotlib.pyplot as plt
 
 
+def get_orientation(front_x, front_y, rear_x, rear_y):
+    """
+    Calculate the per-frame orientation angle of a vector from rear to front.
+
+    The orientation is computed with ``atan2(dy, dx)``, where ``dx`` and ``dy``
+    are the coordinate differences between the front and rear points. This gives
+    the direction of the vector ``rear -> front`` in the coordinate system of
+    the input data.
+
+    Parameters
+    ----------
+    front_x, front_y : array-like
+        X and Y coordinates of the front point for each frame.
+    rear_x, rear_y : array-like
+        X and Y coordinates of the rear point for each frame.
+
+    Returns
+    -------
+    orientations : numpy.ndarray
+        One-dimensional array of orientation angles in degrees, with one value
+        per frame. Values are in the range ``[-180, 180]``. Missing coordinates
+        propagate to NaN.
+
+    Notes
+    -----
+    The angle convention follows the input coordinate system: 0 degrees points
+    along positive x, and the sign of positive rotation depends on whether y
+    increases upward (Cartesian coordinates) or downward (image coordinates).
+    """
+    orientations = np.full(shape=(len(front_x)), fill_value=np.nan, dtype=float)
+
+    for i in range(len(orientations)):
+        dx = front_x[i] - rear_x[i]
+        dy = front_y[i] - rear_y[i]
+
+        angle_rad = np.arctan2(dy, dx)
+        angle_deg = np.degrees(angle_rad)
+
+        orientations[i] = angle_deg
+    
+    return orientations
+    
+
 def acceleration_events(a, acc_thr = 5):
     count = 0
     acc_events = np.where(a > acc_thr, 1, 0)

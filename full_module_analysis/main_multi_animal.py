@@ -32,7 +32,7 @@ import scipy as sc
 
 # interne imports
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS, IMMOBILE_THRSH, IMMOBILE_THRSH_CM_S
-from metrics import distance_travelled_arraybased, acceleration, acceleration_events
+from metrics import distance_travelled_arraybased, acceleration, acceleration_events, get_orientation
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, moving_average, remove_distance_jitter
 from utils import convert_videostart_to_experiment_length, calculate_experiment_length
 from utils import is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
@@ -151,6 +151,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
     face_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     body_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     anogenital_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_orientations = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
 
     # # # Zusammenfassende Metriken: shape (n_frames), mit zeros gefüllter array # # # 
     min_one_mouse_in_module = exp_duration_frames.copy()
@@ -775,7 +776,16 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                                                     ["hip_left", "hip_right", "dorsal_4"],
                                                     min_bodyparts=3)
         
-        
+        for i in range(len(individuals)):
+            orientations = get_orientation(
+                front_x=front_center_x[i],
+                front_y=front_center_y[i],
+                rear_x=rear_center_x[i],
+                rear_y=rear_center_y[i]
+                )
+            
+            for j in range(len(orientations)):
+                mice_orientations[i][j+(time_position_in_frames-1)] = orientations[j]
 
 
         #print("\n Calculating thetas...")
@@ -1150,7 +1160,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             "all_anogenital": all_anogenital,
             "trajectories": trajectories,
             "mean_arc_chord": mean_t_arc_chord,
-            "fragment_arc_chord": t_fragment_arc_chord
+            "fragment_arc_chord": t_fragment_arc_chord,
+            "orientations": mice_orientations
     }
 
 # center crossings über alle Mäuse zählen

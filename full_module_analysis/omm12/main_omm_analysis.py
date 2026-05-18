@@ -105,7 +105,8 @@ for path in paths:
                 "trajectories_x",
                 "trajectories_y",
                 "mean_arc_chord",
-                "fragment_arc_chord"
+                "fragment_arc_chord",
+                "orientations"
     ]
 
     # helper function um aus dem filenamen später den multiindex zu basteln
@@ -249,6 +250,6 @@ for path in paths:
 
     #print(df[0:10])
     safename = f"/single_mouse_datatest_{l1}_{l2}_{l3}_{l4}.csv"
-    safepath = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\behavior_data" + safename
+    safepath = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\behavior_data_betatest" + safename
     df.to_csv(safepath)
     #print(safepath)

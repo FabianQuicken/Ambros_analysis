@@ -146,36 +146,39 @@ def calculate_experiment_length(first_file, last_file):
 
 def mouse_center(df, scorer, individuals, bodyparts, min_bodyparts=None):
     """
-    Compute the geometric center (centroid) of each mouse across frames
-    using the x/y coordinates of DeepLabCut bodyparts.
+    Compute per-frame mouse centers from DeepLabCut bodypart coordinates.
+
+    For each individual, the center is calculated as the mean x/y position of
+    the available bodyparts in each frame. Frames with fewer valid bodyparts
+    than ``min_bodyparts`` are set to NaN. Y coordinates are inverted when the
+    input values appear to be in image coordinates.
 
     Parameters
     ----------
     df : pandas.DataFrame
-        DLC multi-animal prediction dataframe with columns:
-        (scorer, individual, bodypart, [x, y, likelihood]).
+        DeepLabCut multi-animal prediction dataframe with MultiIndex columns in
+        the form ``(scorer, individual, bodypart, coord)``. Only ``"x"`` and
+        ``"y"`` coordinates are used.
     scorer : str
-        Name of the DLC scorer (df.columns.levels[0]).
-    individuals : list of str
-        List of individual mouse identifiers.
-    bodyparts : list of str
-        List of bodyparts belonging to each mouse.
+        Name of the DLC scorer level to read from ``df``.
+    individuals : sequence of str
+        Individual mouse identifiers. The output rows follow this order.
+    bodyparts : sequence of str
+        Bodyparts used to estimate each mouse center.
     min_bodyparts : int, optional
-        Minimum number of valid bodyparts required to compute a center.
-        If None, defaults to ceil(n_bodyparts / 2).
+        Minimum number of valid bodyparts required for a frame to receive a
+        center value. If None, defaults to ``ceil(n_bodyparts / 2)``.
 
     Returns
     -------
-    centers : dict
-        Dictionary:
-        {
-            individual_name: (center_x, center_y)
-        }
-        where center_x and center_y are 1D arrays of length n_frames,
-        containing NaNs for frames with insufficient valid points.
+    all_center_x : numpy.ndarray
+        Array of shape ``(n_individuals, n_frames)`` containing center x
+        coordinates.
+    all_center_y : numpy.ndarray
+        Array of shape ``(n_individuals, n_frames)`` containing center y
+        coordinates.
     """
 
-    centers = {}
 
     n_ind = len(individuals)
     n_frames = len(df)
@@ -217,8 +220,6 @@ def mouse_center(df, scorer, individuals, bodyparts, min_bodyparts=None):
         too_few = valid_counts < min_bodyparts
         center_x[too_few] = np.nan
         center_y[too_few] = np.nan
-
-        centers[ind] = (center_x, center_y)
 
         all_center_x[i] = center_x
         all_center_y[i] = center_y

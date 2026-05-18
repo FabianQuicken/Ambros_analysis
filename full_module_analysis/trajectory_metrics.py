@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import math
 import warnings
 
-print()
+
 
 def get_theta(a, b1, b2, signed_angle=True):
     """
@@ -626,15 +626,46 @@ def entry_exit_trajectories(x_arrs, y_arrs, traj_slices, individuals, entry_poly
 
 def theta_analysis(individuals, front_x, front_y, rear_x, rear_y, slices, stepsize = 10):
     """
-    Docstring for theta_analysis
-    
-    :param individuals: Description
-    :param front_x: Description
-    :param front_y: Description
-    :param rear_x: Description
-    :param rear_y: Description
-    :param slices: Description
-    :param stepsize: Description
+    Calculate signed body-orientation change angles for trajectory slices.
+
+    For each individual and each ``(entry_frame, exit_frame)`` interval in
+    ``slices``, the function samples frame pairs separated by ``stepsize``.
+    The rear point at the first frame is used as the angle origin, while the
+    front point at the first and comparison frames define the two direction
+    vectors passed to :func:`get_theta`.
+
+    Parameters
+    ----------
+    individuals : sequence
+        Individual identifiers. The order must match the first dimension of
+        ``front_x``, ``front_y``, ``rear_x`` and ``rear_y``.
+    front_x, front_y : sequence of array-like
+        X and Y coordinates of the front/body-front point for each individual,
+        indexed as ``front_x[individual_index][frame]``.
+    rear_x, rear_y : sequence of array-like
+        X and Y coordinates of the rear/body-rear point for each individual,
+        indexed as ``rear_x[individual_index][frame]``.
+    slices : dict
+        Mapping from individual identifier to iterable of ``(start, end)``
+        frame intervals. Angles are only computed within these intervals, and
+        ``end`` is treated as inclusive.
+    stepsize : int, default=10
+        Frame distance between the current frame and comparison frame. Also
+        used as the increment when walking through each slice.
+
+    Returns
+    -------
+    thetas : list[list[float]]
+        Signed theta values in degrees for each individual, in the same order
+        as ``individuals``.
+    dic : dict
+        Mapping from individual identifier to records with ``"frame t0"``,
+        ``"frame t1"`` and ``"theta"`` for each computed angle.
+
+    Notes
+    -----
+    Frame pairs with missing ``rear_x``, ``front_x`` at ``t0``, or ``front_x``
+    at ``t1`` are skipped and counted as discarded frames.
     """
     thetas = []
 
