@@ -106,7 +106,8 @@ for path in paths:
                 "trajectories_y",
                 "mean_arc_chord",
                 "fragment_arc_chord",
-                "orientations"
+                "orientations",
+                "posture_compactness"
     ]
 
     # helper function um aus dem filenamen später den multiindex zu basteln

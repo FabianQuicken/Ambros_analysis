@@ -7,6 +7,54 @@ from config import PIXEL_PER_CM, ARENA_COORDS_TOP1, ARENA_COORDS_TOP2, FPS
 import matplotlib.pyplot as plt
 
 
+def posture_compactness(df, scorer, ind, bodyparts, center_x, center_y):
+    """
+    Calculate per-frame posture compactness from bodypart distances.
+
+    Compactness is defined as the mean Euclidean distance between the mouse
+    center and the selected bodyparts in each frame. Lower values indicate that
+    the selected bodyparts are closer to the center, while higher values
+    indicate a more extended posture.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DeepLabCut multi-animal prediction dataframe with MultiIndex columns in
+        the form ``(scorer, individual, bodypart, coord)``.
+    scorer : str
+        Name of the DLC scorer level to read from ``df``.
+    ind : str
+        Individual mouse identifier to analyze.
+    bodyparts : sequence of str
+        Bodyparts included in the compactness calculation.
+    center_x, center_y : array-like
+        Per-frame x and y coordinates of the mouse center. These arrays must be
+        aligned to the rows of ``df``.
+
+    Returns
+    -------
+    mean_dists : numpy.ndarray
+        One-dimensional array with one compactness value per frame. Missing
+        center or bodypart coordinates are ignored with ``nanmean``; frames
+        where all bodypart distances are invalid remain NaN.
+    """
+    mean_dists = np.full(shape=(len(center_x)), fill_value=np.nan, dtype=float)
+
+    for i in range(len(mean_dists)):
+        bp_dists = []
+        for bp in bodyparts:
+            bp_x = df.loc[i, (scorer, ind, bp, "x")]
+            bp_y = df.loc[i, (scorer, ind, bp, "y")]
+
+            bp_dists.append(euklidean_distance(center_x[i], center_y[i], bp_x, bp_y))
+        
+        bp_dists = np.asarray(bp_dists, dtype=np.float32)
+        mean_dists[i] = np.nanmean(bp_dists)
+
+    return mean_dists
+
+
+
 def get_orientation(front_x, front_y, rear_x, rear_y):
     """
     Calculate the per-frame orientation angle of a vector from rear to front.

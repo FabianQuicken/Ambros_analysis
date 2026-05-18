@@ -32,7 +32,7 @@ import scipy as sc
 
 # interne imports
 from config import FPS, PIXEL_PER_CM, LIKELIHOOD_THRESHOLD, DF_COLS, ARENA_COORDS, ENTER_ZONE_COORDS, IMMOBILE_THRSH, IMMOBILE_THRSH_CM_S
-from metrics import distance_travelled_arraybased, acceleration, acceleration_events, get_orientation
+from metrics import distance_travelled_arraybased, acceleration, acceleration_events, get_orientation, posture_compactness
 from utils import euklidean_distance, fill_missing_values, time_to_seconds, moving_average, remove_distance_jitter
 from utils import convert_videostart_to_experiment_length, calculate_experiment_length
 from utils import is_point_in_polygon, create_point, create_polygon, shrink_rectangle, mouse_center
@@ -152,6 +152,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
     body_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     anogenital_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_orientations = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_compactness = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
 
     # # # Zusammenfassende Metriken: shape (n_frames), mit zeros gefüllter array # # # 
     min_one_mouse_in_module = exp_duration_frames.copy()
@@ -663,7 +664,11 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             if stitch_dataframes:
                 pass
                 
-
+        # # # Mouse Compactness Analyse # # # 
+        for index, ind in enumerate(individuals):
+            pc = posture_compactness(df, scorer, ind, bodyparts, all_centroid_x[index], all_centroid_y[index])
+            for i in range(len(pc)):
+                mice_compactness[index][i+(time_position_in_frames-1)] = pc[i]
 
         acc = False
         if acc:
@@ -1161,7 +1166,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             "trajectories": trajectories,
             "mean_arc_chord": mean_t_arc_chord,
             "fragment_arc_chord": t_fragment_arc_chord,
-            "orientations": mice_orientations
+            "orientations": mice_orientations,
+            "posture_compactness": mice_compactness
     }
 
 # center crossings über alle Mäuse zählen
