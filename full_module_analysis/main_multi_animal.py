@@ -149,12 +149,19 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
     mice_accelerations = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_center_x = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_center_y = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_front_x = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_front_y = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_rear_x = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_rear_y = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_nose_x = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_nose_y = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     face_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     body_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     anogenital_inv = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_orientations = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_compactness = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_bodylength = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_mean_likelihood = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
 
     # # # Zusammenfassende Metriken: shape (n_frames), mit zeros gefüllter array # # # 
     min_one_mouse_in_module = exp_duration_frames.copy()
@@ -165,9 +172,6 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
     trajectories = [[] for _ in range(len(individuals))]
     mean_t_arc_chord = [[] for _ in range(len(individuals))]
     t_fragment_arc_chord = [[] for _ in range(len(individuals))]
-    centers_xy = [[] for _ in range(len(individuals))]
-    fronts_xy = [[] for _ in range(len(individuals))]
-    rears_xy = [[] for _ in range(len(individuals))]
     nose_xy = [[] for _ in range(len(individuals))]
 
     # # # Zusammenhängende Metriken: Start & End Indices von Events {ind: [(start, end), (start, end), ...]}
@@ -499,7 +503,22 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
         # y invertieren, da DLC Bildkoordinaten nutzt (y=0 ist oberer Bildrand)
         df.loc[:, (scorer, individuals, bodyparts, ["y"])] *= -1
 
+        # start und endpunkt festlegen zum speichern der Daten
+        start = time_position_in_frames
+        end = len(df)
         
+
+        
+        # # # Mean Likelihood als Maß für die Trackingqualität auslesen # # #
+
+        for index, ind in enumerate(individuals):
+            likelihoods = df.loc[:, (scorer, ind, bodyparts, "likelihood")].to_numpy()
+            # mean pro frame
+            mean_likelihood = np.nanmean(likelihoods, axis=1)
+
+            # speichern
+            mean_likelihood = np.round(mean_likelihood, decimals=2)
+            mice_mean_likelihood[index][start:end] = mean_likelihood
         
 
         # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -513,11 +532,6 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
         print("\n Getting Mouse Center...")
         # jeweilige mouse center berechnen (shape n_ind, n_frames)
         all_centroid_x, all_centroid_y = mouse_center(df, scorer, individuals, bodyparts, min_bodyparts = math.ceil(len(bodyparts) / 3))
-        
-        for i in range(len(individuals)):
-            for j, (x, y) in enumerate(zip( all_centroid_x[i], all_centroid_y[i])):
-                #centers_xy[i][j] = (x, y*-1)
-                centers_xy[i].append((x, y*-1))
 
         head_energy = []
         trunk_energy = []
@@ -574,11 +588,16 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                 if np.isfinite(coord):
                     ind_is_present[idx] = 1
 
-            # speichern der information im Kontext des gesamten Experiments
-            for i in range(len(ind_is_present)):
-                mice_in_module[index][i+(time_position_in_frames-1)] = ind_is_present[i]
-                mice_center_x[index][i+(time_position_in_frames-1)] = center_x_data[i]
-                mice_center_y[index][i+(time_position_in_frames-1)] = center_y_data[i]
+
+            # speichern
+            center_x_data = np.round(center_x_data, decimals=2)
+            center_y_data = np.round(center_y_data, decimals=2)
+            mice_in_module[index][start:end] = ind_is_present
+            mice_center_x[index][start:end] = center_x_data
+            mice_center_y[index][start:end] = center_y_data
+
+
+
 
 
         # # # # #  distance & speed analysis  # # # # # 
@@ -599,24 +618,26 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             dist_values = moving_average(data=dist_values,
                                         window=10
                                         )    
+            
+            
 
             # Werte unter dem Threshold werden auf 0 gesetzt und als "immobile" angesehen
             dist_values = remove_distance_jitter(dist_values=dist_values, thrsh=IMMOBILE_THRSH)
 
-            a_px_frame, a_cm_s = acceleration(dist_values)
-            for i in range (len(a_cm_s)):
-                if not np.isnan(a_cm_s[i]):
-                    mice_accelerations[index][i+(time_position_in_frames-1)] = a_cm_s[i]
-
 
             is_immobile = np.where(dist_values == 0, 1, 0)
 
-            
-            
+            a_px_frame, a_cm_s = acceleration(dist_values)
 
-            for i in range(len(is_immobile)):
-                if not np.isnan(is_immobile[i]):
-                    immobile_over_time[index][i+(time_position_in_frames-1)] = is_immobile[i]
+            # speichern, +1 da dist_vals auf intervalle zwischen frames bezieht
+            dist_values = np.round(dist_values, decimals=2)
+            mice_distances[index][start+1:end] = dist_values
+            # speichern, +1 da dist_vals auf intervalle zwischen frames bezieht
+            immobile_over_time[index][start+1:end] = is_immobile
+            # speichern, +2 da acceleration sich auf intervalle zwischen dist_vals bezieht
+            a_cm_s = np.round(a_cm_s, decimals=2)
+            mice_accelerations[index][start+2:end] = a_cm_s
+
 
             
             
@@ -643,14 +664,12 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                 
                 
             
-            for i in range(len(dist_values)):
-                if not np.isnan(dist_values[i]):
-                    mice_distances[index][i+(time_position_in_frames-1)] = dist_values[i]
+            
 
         
             cum_dist = np.nancumsum(dist_values)
-            for i in range(len(dist_values)):
-                cumdist_over_time[index][i+(time_position_in_frames-1)] = cum_dist[i]
+            cumdist_over_time[index][start+1:end] = cum_dist
+
             
             # für video generation
             immobiles.append(is_immobile)
@@ -670,8 +689,10 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
         for index, ind in enumerate(individuals):
             print(f"\n Getting mouse compactness for {ind}...")
             pc = posture_compactness(df, scorer, ind, bodyparts, all_centroid_x[index], all_centroid_y[index])
-            for i in range(len(pc)):
-                mice_compactness[index][i+(time_position_in_frames-1)] = pc[i]
+            # speichern, +1 da dist_vals auf intervalle zwischen frames bezieht
+            pc = np.round(pc, decimals=2)
+            mice_compactness[index][start:end] = pc
+
 
         # # # Body Length Analyse # # # 
         for index, ind in enumerate(individuals):
@@ -795,6 +816,17 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                                                     individuals,
                                                     ["hip_left", "hip_right", "dorsal_4"],
                                                     min_bodyparts=3)
+        for index, ind in enumerate(individuals):
+            # speichern
+            front_x_data = np.round(front_center_x[index], decimals=2)
+            front_y_data = np.round(front_center_y[index], decimals=2)
+            mice_front_x[index][start:end] = front_x_data
+            mice_front_y[index][start:end] = front_y_data
+            
+            rear_x_data = np.round(rear_center_x[index], decimals=2)
+            rear_y_data = np.round(rear_center_y[index], decimals=2)
+            mice_rear_x[index][start:end] = rear_x_data
+            mice_rear_y[index][start:end] = rear_y_data
         
         print(f"\n Getting absolute orientations...")
         for i in range(len(individuals)):
@@ -817,13 +849,9 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                     rear_y=rear_center_y,
                     slices=traj_slices)
         
-        for i in range(len(individuals)):
-            for j, (x, y) in enumerate(zip(front_center_x[i], front_center_y[i])):
-                fronts_xy[i].append((x, y*-1))
-            for j, (x, y) in enumerate(zip(rear_center_x[i], rear_center_y[i])):
-                rears_xy[i].append((x, y*-1))
-
+        for i in range(len(theta_list)):
             thetas[i] += theta_list[i]
+
 
         xy1 = []
         xy2 = []
@@ -889,11 +917,14 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
         print(os.path.basename(file))
 
         # nose coordinaten für videoplots speichern
-        for i, ind in enumerate(individuals):
+        for index, ind in enumerate(individuals):
             nose_x = df.loc[:, (scorer, ind, "nose", "x")].to_numpy()
             nose_y = df.loc[:, (scorer, ind, "nose", "y")].to_numpy()
-            for j, (x, y) in enumerate(zip(nose_x, nose_y)):
-                nose_xy[i].append((x, y*-1))
+        
+            nose_x_data = np.round(nose_x, decimals=2)
+            nose_y_data = np.round(nose_y, decimals=2)
+            mice_nose_x[index][start:end] = nose_x_data
+            mice_nose_y[index][start:end] = nose_y_data
 
         
         
@@ -1155,10 +1186,15 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
 
     return {"individuals": individuals,
             "exp_len": len(exp_duration_frames),
-            "centers_xy": centers_xy,
-            "fronts_xy": fronts_xy,
-            "rears_xy": rears_xy,
-            "nose_xy": nose_xy,
+            "mice_mean_likelihood": mice_mean_likelihood,
+            "centers_x": mice_center_x,
+            "centers_y": mice_center_y,
+            "fronts_x": mice_front_x,
+            "fronts_y": mice_front_y,
+            "rears_x": mice_rear_x,
+            "rears_y": mice_rear_y,
+            "nose_x": mice_nose_x,
+            "nose_y": mice_nose_y,
             "mice_per_frame": mice_per_frame,
             "mice_presence": mice_in_module,
             "immobile_per_frame": immobile_per_frame,

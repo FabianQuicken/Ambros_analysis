@@ -101,7 +101,7 @@ def get_theta(a, b1, b2, signed_angle=True):
     if signed_angle:
         cross = v1[0]*v2[1] - v1[1]*v2[0]
         radians = np.arctan2(cross, sp)  # radians in (-pi, pi]
-        return np.degrees(radians)
+        return np.round(np.degrees(radians), decimals=0)
 
 
     # tetha berechnen
@@ -110,7 +110,7 @@ def get_theta(a, b1, b2, signed_angle=True):
     cos_theta = np.clip(cos_theta, -1.0, 1.0)
 
     radians = np.arccos(cos_theta)
-    return np.degrees(radians)
+    return np.round(np.degrees(radians), decimals=0)
 
 
 

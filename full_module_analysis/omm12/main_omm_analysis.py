@@ -108,7 +108,8 @@ for path in paths:
                 "fragment_arc_chord",
                 "orientations",
                 "posture_compactness",
-                "mice_bodylength"
+                "mice_bodylength",
+                "mice_mean_likelihood"
     ]
 
     # helper function um aus dem filenamen später den multiindex zu basteln
@@ -164,16 +165,9 @@ for path in paths:
 
     for metric in metrics:
             data_dic = data_dictionary.copy()
-            #print(metric)
-            if metric in ("centers_x", "centers_y"):
-                data = data_dic["centers_xy"]
-            elif metric in ("nose_x", "nose_y"):
-                data = data_dic["nose_xy"]
-            elif metric in ("fronts_x", "fronts_y"):
-                data = data_dic["fronts_xy"]
-            elif metric in ("rears_x", "rears_y"):
-                data = data_dic["rears_xy"]
-            elif metric in ("visit_len", "visit_start"):
+
+
+            if metric in ("visit_len", "visit_start"):
                 data = data_dic["visits"]
             elif metric in ("trajectories_x", "trajectories_y"):
                 data = data_dic["trajectories"]
@@ -228,19 +222,6 @@ for path in paths:
                             counter += 1
                         traj_ys.append(np.nan)
                     data_singleanimal = traj_ys
-
-
-
-                if metric == "centers_x" or metric == "nose_x" or metric == "fronts_x" or metric == "rears_x":
-                    xs = []
-                    for (x, y) in data_singleanimal:
-                        xs.append(x)
-                    data_singleanimal = xs
-                if metric == "centers_y" or metric == "nose_y" or metric == "fronts_y" or metric == "rears_y":
-                    ys = []
-                    for (x, y) in data_singleanimal:
-                        ys.append(y)
-                    data_singleanimal = ys
                 
                 print(metric)
                 #print(data_singleanimal[0:2])
