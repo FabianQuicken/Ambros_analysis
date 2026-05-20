@@ -38,7 +38,7 @@ paths = sorted(set(paths))
 
 
 for path in paths:
-    if "females_68_69_70\hab" not in str(path):
+    if r"females_68_69_70\top2" not in str(path):
         print(str(path))
         continue
 
@@ -92,6 +92,8 @@ for path in paths:
                 "nose_y",
                 "mice_presence",
                 "mice_immobile",
+                "immobile_bouts",
+                "immobile_start",
                 "mice_distances",
                 "mice_cumdists",
                 "mice_in_center",
@@ -234,5 +236,5 @@ for path in paths:
     #print(df[0:10])
     safename = f"/single_mouse_datatest_{l1}_{l2}_{l3}_{l4}.csv"
     safepath = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\behavior_data_betatest" + safename
-    df.to_csv(safepath)
+    #df.to_csv(safepath)
     #print(safepath)

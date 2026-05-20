@@ -48,6 +48,7 @@ from video_gen import overlay_two_points_line_and_theta_segments, overlay_metric
 from grooming import grooming_energy
 from plotting import heatmap_plot
 from save_load_dic import save_analysis, load_analysis
+from spatial_entropy import spatial_entropy
 # struktur zum speichern erstellen
 
 @dataclass
@@ -169,6 +170,9 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
 
     # # # Zusammenfassende Metriken: shape (n_ind, n_values) # # #
     thetas = [[] for _ in range(len(individuals))]
+    immobile_bouts = [[] for _ in range(len(individuals))]
+    immobile_starts = [[] for _ in range(len(individuals))]
+    immobile_ends = [[] for _ in range(len(individuals))]
     trajectories = [[] for _ in range(len(individuals))]
     mean_t_arc_chord = [[] for _ in range(len(individuals))]
     t_fragment_arc_chord = [[] for _ in range(len(individuals))]
@@ -540,7 +544,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
         trunk_xs = []
         trunk_ys = []
 
-        for i, ind in enumerate(individuals):
+        for ind in individuals:
             head_coords = ['eye_left', 'eye_right', 'nose']
             trunk_coords = ['tail_base', 'dorsal_4']
             center_coords = ["dorsal_1", "dorsal_2", "dorsal_3", "lateral_left", "lateral_right"]
@@ -590,8 +594,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
 
 
             # speichern
-            center_x_data = np.round(center_x_data, decimals=2)
-            center_y_data = np.round(center_y_data, decimals=2)
+            center_x_data = np.round(center_x_data, decimals=0)
+            center_y_data = np.round(center_y_data, decimals=0)
             mice_in_module[index][start:end] = ind_is_present
             mice_center_x[index][start:end] = center_x_data
             mice_center_y[index][start:end] = center_y_data
@@ -626,6 +630,18 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
 
 
             is_immobile = np.where(dist_values == 0, 1, 0)
+
+            # erstes frame auf 0 setzen, damit behavior hier ggf startet
+            padded = np.r_[0, is_immobile, 0]
+            is_immobile_diff = np.diff(padded)
+            starts = np.where(is_immobile_diff == 1)
+            ends = np.where(is_immobile_diff == -1)
+            immobilebouts = ends[0]-starts[0]
+
+            immobile_bouts[index].extend(immobilebouts)
+            immobile_starts[index].extend(starts[0])
+            immobile_ends[index].extend(ends[0])
+
 
             a_px_frame, a_cm_s = acceleration(dist_values)
 
@@ -690,7 +706,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             print(f"\n Getting mouse compactness for {ind}...")
             pc = posture_compactness(df, scorer, ind, bodyparts, all_centroid_x[index], all_centroid_y[index])
             # speichern, +1 da dist_vals auf intervalle zwischen frames bezieht
-            pc = np.round(pc, decimals=2)
+            pc = np.round(pc, decimals=1)
             mice_compactness[index][start:end] = pc
 
 
@@ -703,8 +719,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             tb_y = df.loc[:, (scorer, ind, "tail_base", "y")].to_numpy()
 
             bl = body_length(nose_x, nose_y, tb_x, tb_y)
-            for i in range(len(bl)):
-                mice_bodylength[index][i+(time_position_in_frames-1)] = bl[i]
+            bl = np.round(bl, decimals=0)
+            mice_bodylength[index][start:end] = bl
 
         acc = False
         if acc:
@@ -762,8 +778,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                 mouse_in_center[i] = is_point_in_polygon(polygon = center_polygon, point=point)
             #print(f"Mouse in center for {sum(mouse_in_center)} frames")
             # speichern der information im Kontext des gesamten Experiments
-            for i in range(len(mouse_in_center)):
-                mice_in_center[index][i+(time_position_in_frames-1)] = mouse_in_center[i]
+            mice_in_center[index][start:end] = mouse_in_center
+
         
 
         # # # # # trajectory analyse # # # # # 
@@ -818,27 +834,43 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                                                     min_bodyparts=3)
         for index, ind in enumerate(individuals):
             # speichern
-            front_x_data = np.round(front_center_x[index], decimals=2)
-            front_y_data = np.round(front_center_y[index], decimals=2)
+            front_x_data = np.round(front_center_x[index], decimals=0)
+            front_y_data = np.round(front_center_y[index], decimals=0)
             mice_front_x[index][start:end] = front_x_data
             mice_front_y[index][start:end] = front_y_data
             
-            rear_x_data = np.round(rear_center_x[index], decimals=2)
-            rear_y_data = np.round(rear_center_y[index], decimals=2)
+            rear_x_data = np.round(rear_center_x[index], decimals=0)
+            rear_y_data = np.round(rear_center_y[index], decimals=0)
             mice_rear_x[index][start:end] = rear_x_data
             mice_rear_y[index][start:end] = rear_y_data
+
+            bin_size = 100
+            x_edges = np.arange(0, 2000 + bin_size, bin_size)
+            y_edges = np.arange(-1200, 0 + bin_size, bin_size)
+
+            result = spatial_entropy(
+                front_x_data,
+                front_y_data,
+                x_edges=x_edges,
+                y_edges=y_edges,
+                arena_coords=ARENA_COORDS,
+                return_details=True
+            )
+
+            print(result["normalized_entropy"])
+
         
         print(f"\n Getting absolute orientations...")
-        for i in range(len(individuals)):
+        for index, ind in enumerate(individuals):
             orientations = get_orientation(
-                front_x=front_center_x[i],
-                front_y=front_center_y[i],
-                rear_x=rear_center_x[i],
-                rear_y=rear_center_y[i]
+                front_x=front_center_x[index],
+                front_y=front_center_y[index],
+                rear_x=rear_center_x[index],
+                rear_y=rear_center_y[index]
                 )
             
-            for j in range(len(orientations)):
-                mice_orientations[i][j+(time_position_in_frames-1)] = orientations[j]
+            orientations = np.round(orientations, decimals=0)
+            mice_orientations[index][start:end] = orientations
 
 
         #print("\n Calculating thetas...")
@@ -890,7 +922,9 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             for t in all_traj[i]:
                 trajectories[i].append(t)
                 t_mean_arc_chord, fragment_all_chord = arc_chord_ratio(trajectory=t, speed_thr=IMMOBILE_THRSH_CM_S)
+                t_mean_arc_chord = round(t_mean_arc_chord, ndigits=2)
                 mean_t_arc_chord[i].append(t_mean_arc_chord)
+                fragment_all_chord = np.round(fragment_all_chord, decimals=2)
                 t_fragment_arc_chord[i].extend(fragment_all_chord)
         
 
@@ -921,8 +955,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             nose_x = df.loc[:, (scorer, ind, "nose", "x")].to_numpy()
             nose_y = df.loc[:, (scorer, ind, "nose", "y")].to_numpy()
         
-            nose_x_data = np.round(nose_x, decimals=2)
-            nose_y_data = np.round(nose_y, decimals=2)
+            nose_x_data = np.round(nose_x, decimals=0)
+            nose_y_data = np.round(nose_y, decimals=0)
             mice_nose_x[index][start:end] = nose_x_data
             mice_nose_y[index][start:end] = nose_y_data
 
@@ -1199,6 +1233,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             "mice_presence": mice_in_module,
             "immobile_per_frame": immobile_per_frame,
             "mice_immobile": immobile_over_time,
+            "immobile_bouts": immobile_bouts,
+            "immobile_start": immobile_starts,
             "mice_distances": mice_distances,
             "mice_cumdists": cumdist_over_time,
             "cumdist": cumdist_per_frame,

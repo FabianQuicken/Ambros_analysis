@@ -485,7 +485,9 @@ def get_all_traj(x_arrs, y_arrs, individuals, len_thr=FPS):
 
     for idx, ind in enumerate(individuals):
         x = x_arrs[idx]
+        x = np.round(x, decimals=0)
         y = y_arrs[idx]
+        y = np.round(y, decimals=0)
 
         # x und y arrays müssen gleich lang sein
         if len(x) != len(y):
