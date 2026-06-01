@@ -176,6 +176,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
     trajectories = [[] for _ in range(len(individuals))]
     mean_t_arc_chord = [[] for _ in range(len(individuals))]
     t_fragment_arc_chord = [[] for _ in range(len(individuals))]
+    speedevents = [[] for _ in range(len(individuals))]
     nose_xy = [[] for _ in range(len(individuals))]
 
     # # # Zusammenhängende Metriken: Start & End Indices von Events {ind: [(start, end), (start, end), ...]}
@@ -693,8 +694,10 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             dists.append(dist_values)
             accelerations.append(a_px_frame)
             all_accelerations += list(a_cm_s)
-            ac, ac_array = acceleration_events(a=a_px_frame)
-            accelerations_count_arrays.append(ac_array)
+            ac, ac_indices = acceleration_events(a=a_px_frame)
+
+
+            speedevents[index].extend(ac_indices)
 
             acc_events_count += ac
 
@@ -832,6 +835,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                                                     individuals,
                                                     ["hip_left", "hip_right", "dorsal_4"],
                                                     min_bodyparts=3)
+        """
+        # spatial entropy
         for index, ind in enumerate(individuals):
             # speichern
             front_x_data = np.round(front_center_x[index], decimals=0)
@@ -858,7 +863,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             )
 
             print(result["normalized_entropy"])
-
+        """
         
         print(f"\n Getting absolute orientations...")
         for index, ind in enumerate(individuals):
@@ -1244,6 +1249,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             "theta_dic": theta_dic,
             "visits": start_len_visits,
             "mice_accelerations": mice_accelerations,
+            "speedevents": speedevents,
             "face_inv": face_inv,
             "body_inv": body_inv,
             "anogenital_inv": anogenital_inv,

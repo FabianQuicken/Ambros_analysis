@@ -13,11 +13,11 @@ from main_multi_animal import multi_animal_main
 basepath = Path(r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output")
 
 groups = [
-    "germfree"
-#    "germfreeprop",
-#    "omm12",
-#    "omm12prop",
-#    "ommpgol",
+#    "germfree"
+    "germfreeprop",
+    "omm12",
+    "omm12prop",
+    "ommpgol",
 ]
 
 paths = []
@@ -38,9 +38,11 @@ paths = sorted(set(paths))
 
 
 for path in paths:
+    """
     if r"females_68_69_70\top2" not in str(path):
         print(str(path))
         continue
+    """
 
     h5_paths = glob.glob(os.path.join(path, "*.h5"))
 
@@ -101,6 +103,7 @@ for path in paths:
                 "visit_len",
                 "visit_start",
                 "mice_accelerations",
+                "speedevents",
                 "face_inv",
                 "body_inv",
                 "anogenital_inv",
@@ -236,5 +239,5 @@ for path in paths:
     #print(df[0:10])
     safename = f"/single_mouse_datatest_{l1}_{l2}_{l3}_{l4}.csv"
     safepath = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\behavior_data_betatest" + safename
-    #df.to_csv(safepath)
+    df.to_csv(safepath)
     #print(safepath)

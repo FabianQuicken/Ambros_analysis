@@ -2,6 +2,31 @@ import numpy as np
 
 from load_multi_animal_csv import load_group_csvs
 
+def create_data_list(
+        data_path,
+        individuals,
+        sex,
+        group,
+        condition,
+        metric
+):
+    df = load_group_csvs(csv_folder=data_path, group=group, metrics=metric, sex=sex)
+    ids = df.columns.get_level_values("mouse_ids").unique()
+
+    data_names = []
+    data_list = []
+
+    for id in ids:
+        for individual in individuals:
+            d = df.loc[:, (group, id, slice(None), condition, metric, individual)].to_numpy()
+            event_indices = np.asarray(d, dtype=float).ravel()
+            event_indices = event_indices[np.isfinite(event_indices)]
+            data_list.append(event_indices)
+            data_names.append(id+" "+individual)
+
+    return data_names, data_list
+
+
 
 def create_data_dic(
     data_path,
