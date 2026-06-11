@@ -30,6 +30,7 @@ import pandas as pd
 import tqdm
 import os
 import glob
+from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from tqdm import tqdm
@@ -37,10 +38,64 @@ from tqdm import tqdm
 FPS = 30
 PIXEL_PER_CM = 36.39
 DIST_THRESH = PIXEL_PER_CM*2.5
+RESULTS_SAVE_DIR = r"Z:\n2023_odor_related_behavior\2025_darcin\Darcin2"
+RESULTS_EXCEL_PATH = os.path.join(RESULTS_SAVE_DIR, "darcin2_analysis_results.xlsx")
 
 """
 Funktionen
 """
+def nested_metric_dict_to_dataframe(data: dict, mouse_id: str) -> pd.DataFrame:
+    rows = []
+
+    for day, metrics in data.items():
+        row = {
+            "mouse": str(mouse_id),
+            "day": day,
+        }
+        row.update(metrics)
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+def upsert_mouse_rows(existing_df: pd.DataFrame, new_df: pd.DataFrame, mouse_id: str) -> pd.DataFrame:
+    if existing_df is None or existing_df.empty:
+        combined_df = new_df
+    elif "mouse" not in existing_df.columns:
+        combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+    else:
+        keep_rows = existing_df["mouse"].astype(str) != str(mouse_id)
+        combined_df = pd.concat([existing_df.loc[keep_rows], new_df], ignore_index=True)
+
+    sort_columns = [column for column in ["mouse", "day"] if column in combined_df.columns]
+    if sort_columns:
+        combined_df = combined_df.sort_values(sort_columns)
+
+    return combined_df.reset_index(drop=True)
+
+
+def save_metric_dictionaries_to_excel(mouse_id: str, dictionaries: dict, excel_path: str) -> None:
+    Path(excel_path).parent.mkdir(parents=True, exist_ok=True)
+
+    if os.path.exists(excel_path):
+        sheets = pd.read_excel(excel_path, sheet_name=None)
+    else:
+        sheets = {}
+
+    for sheet_name, data in dictionaries.items():
+        new_df = nested_metric_dict_to_dataframe(data=data, mouse_id=mouse_id)
+        existing_df = sheets.get(sheet_name)
+        sheets[sheet_name] = upsert_mouse_rows(
+            existing_df=existing_df,
+            new_df=new_df,
+            mouse_id=mouse_id,
+        )
+
+    with pd.ExcelWriter(excel_path, engine="openpyxl", mode="w") as writer:
+        for sheet_name, sheet_df in sheets.items():
+            sheet_df.to_excel(writer, sheet_name=sheet_name[:31], index=False)
+
+
 def plot_distance_histogram(
     distance_values,
     bins=50,
@@ -419,7 +474,7 @@ def filter_and_interpolate_all_bodyparts(
 
 
 all_mice = ["109", "121", "122", "125", "135", "137", "36", "38"]
-mouse = "38"
+mouse = "109"
 
 """
 Daten einlesen und in Stimulus und Kontrolle sortieren
@@ -488,6 +543,28 @@ time_present = {
         }
     }
 
+
+
+movement_metrics = {
+        "day1": {
+            "stim_distance_cm": None,
+            "con_distance_cm": None,
+            "stim_avg_speed_cm_s": None,
+            "con_avg_speed_cm_s": None
+        },
+        "day2": {
+            "stim_distance_cm": None,
+            "con_distance_cm": None,
+            "stim_avg_speed_cm_s": None,
+            "con_avg_speed_cm_s": None
+        },
+        "day3": {
+            "stim_distance_cm": None,
+            "con_distance_cm": None,
+            "stim_avg_speed_cm_s": None,
+            "con_avg_speed_cm_s": None
+        }
+    }
 
 
 for i in tqdm(range(3)): # über jeden Experimenttag iterieren, hier später 3  einfügen
@@ -620,8 +697,13 @@ for i in tqdm(range(3)): # über jeden Experimenttag iterieren, hier später 3  
     dist_cm_c = dist_sum_con/PIXEL_PER_CM
 
     # geschwindigkeit
-    avg_speed_s = dist_cm_s / (time_present_s/FPS)
-    avg_speed_c = dist_cm_c / (time_present_c/FPS)
+    avg_speed_s = dist_cm_s / (time_present_s/FPS) if time_present_s > 0 else np.nan
+    avg_speed_c = dist_cm_c / (time_present_c/FPS) if time_present_c > 0 else np.nan
+
+    movement_metrics[f"day{str(i+1)}"]["stim_distance_cm"] = round(dist_cm_s, 3)
+    movement_metrics[f"day{str(i+1)}"]["con_distance_cm"] = round(dist_cm_c, 3)
+    movement_metrics[f"day{str(i+1)}"]["stim_avg_speed_cm_s"] = round(avg_speed_s, 3)
+    movement_metrics[f"day{str(i+1)}"]["con_avg_speed_cm_s"] = round(avg_speed_c, 3)
 
     """
     print("\nDistance and speed Stim:\n")
@@ -636,6 +718,15 @@ for i in tqdm(range(3)): # über jeden Experimenttag iterieren, hier später 3  
 #print(dish_inv)
 print("time present:",time_present)
 print("dish inv:",dish_inv)
+print("movement metrics:",movement_metrics)
 
-
-
+save_metric_dictionaries_to_excel(
+    mouse_id=mouse,
+    dictionaries={
+        "time_present": time_present,
+        "dish_inv": dish_inv,
+        "movement_metrics": movement_metrics,
+    },
+    excel_path=RESULTS_EXCEL_PATH,
+)
+print(f"Saved Excel results to: {RESULTS_EXCEL_PATH}")

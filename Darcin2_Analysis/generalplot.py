@@ -104,6 +104,7 @@ def plot_each_day_two_metrics(
 
             day_dict = mice_data[mouse][d]
             if key_a not in day_dict or key_b not in day_dict:
+                print(day_dict)
                 raise KeyError(f"Mouse '{mouse}' on '{d}' missing '{key_a}' or '{key_b}'")
 
             y_a = _to_float(day_dict[key_a])
@@ -218,7 +219,7 @@ mice_data = {
 
 
 
-mice_order = ["109", "121", "122", "125", "135", "137", "36", "38"]
+mice_order = ["109", "121", "125", "137", "36", "38"]
 exp_path = r"Z:\n2023_odor_related_behavior\2025_darcin\Darcin2\raw"
 
 # ---- Deine handberechneten Daten zusammenführen ----
@@ -226,9 +227,8 @@ p = {
     "38": m38_p,
     "36": m36_p,
     "137": m137_p,
-    "135": m135_p,
     "125": m125_p,
-    "122": m122_p,
+#    "122": m122_p,
     "121": m121_p,
     "109": m109_p,
 }
@@ -237,14 +237,13 @@ dp = {
     "38": m38_p_corrected,
     "36": m36_p_corrected,
     "137": m137_p_corrected,
-    "135": m135_p_corrected,
     "125": m125_p_corrected,
-    "122": m122_p_corrected,
+#    "122": m122_p_corrected,
     "121": m121_p_corrected,
     "109": m109_p_corrected,
 }
 
-mice_order = ["109", "121", "122", "125", "135", "137", "36", "38"]
+mice_order = ["109", "121", "125", "137", "36", "38"]
 
 def _default_mouse_colors(mice):
     colors = plt.rcParams['axes.prop_cycle'].by_key().get('color', ["C0","C1","C2","C3", "C4", "C5", "C6", "C7"])
@@ -278,7 +277,7 @@ ax.set_title("Baseline-corrected preference shift")
 ax.set_ylim(-0.25, 0.25)
 ax.grid(True, axis="y", alpha=0.3)
 ax.legend(frameon=False, ncols=2)
-#fig.savefig(exp_path + "/modul_preferenceindex_baselinecorrected.svg", dpi=300, bbox_inches="tight")
+fig.savefig(exp_path + "/modul_preferenceindex_baselinecorrected.svg", dpi=300, bbox_inches="tight")
 plt.show()
 
 # =========================
@@ -301,7 +300,7 @@ ax.set_title("Raw preference score across days")
 ax.set_ylim(-0.25, 0.25)
 ax.grid(True, axis="y", alpha=0.3)
 ax.legend(frameon=False, ncols=2)
-#fig.savefig(exp_path + "/modul_preferenceindex.svg", dpi=300, bbox_inches="tight")
+fig.savefig(exp_path + "/modul_preferenceindex.svg", dpi=300, bbox_inches="tight")
 plt.show()
 
 # Funktion 1: über Tage, nur Stimulus
@@ -312,16 +311,17 @@ plt.show()
 
 # Funktion 2: pro Tag ein Plot mit Stim vs Control verbunden
 #plot_each_day_stim_vs_con(mice_data, mice_order, save_as=exp_path)
-"""
+
 
 mouse_125 = {'day1': {'stim_dish': 619, 'con_dish': 496},
              'day2': {'stim_dish': 774, 'con_dish': 1053},
              'day3': {'stim_dish': 1970, 'con_dish': 763}}
 
+"""
 mouse_122 = {'day1': {'stim_dish': 1121, 'con_dish': 1964},
              'day2': {'stim_dish': 1180, 'con_dish': 1190},
             'day3': {'stim_dish': 2723, 'con_dish': 3753}}
-
+"""
 mouse_121 = {'day1': {'stim_dish': 17, 'con_dish': 516},
              'day2': {'stim_dish': 1282, 'con_dish': 1242},
              'day3': {'stim_dish': 1294, 'con_dish': 1019}}
@@ -330,11 +330,26 @@ mouse_109 = {'day1': {'stim_dish': 135, 'con_dish': 183},
              'day2': {'stim_dish': 770, 'con_dish': 1382},
              'day3': {'stim_dish': 640, 'con_dish': 391}}
 
+mouse_36 = {'day1': {'stim_dish': 838, 'con_dish': 810},
+             'day2': {'stim_dish': 679, 'con_dish': 1580},
+             'day3': {'stim_dish': 1133, 'con_dish': 1085}}
+
+mouse_38 = {'day1': {'stim_dish': 397, 'con_dish': 273},
+             'day2': {'stim_dish': 647, 'con_dish': 593},
+             'day3': {'stim_dish': 2258, 'con_dish': 287}}
+
+mouse_137 = {'day1': {'stim_dish': 836, 'con_dish': 269},
+             'day2': {'stim_dish': 1116, 'con_dish': 909},
+             'day3': {'stim_dish': 1397, 'con_dish': 1006}}
+
 mice_data = {
     "109": mouse_109,
     "121": mouse_121,
-    "122": mouse_122,
+#    "122": mouse_122,
     "125": mouse_125,
+    "36": mouse_36,
+    "38": mouse_38,
+    "137": mouse_137
 }
 """
 """
@@ -357,8 +372,8 @@ plot_days_one_metric(
 # Funktion 2: pro Tag Stim vs Control (verbunden)
 plot_each_day_two_metrics(
     mice_data, mice_order,
-    key_a="stim_modul", key_b="con_modul",
-    title_prefix="Time spent: Stim vs Control",
+    key_a="stim_dish", key_b="con_dish",
+    title_prefix="dish investigation [frames]",
     save_as=exp_path
 )
-"""
+
