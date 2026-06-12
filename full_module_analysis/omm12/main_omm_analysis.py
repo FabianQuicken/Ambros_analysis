@@ -180,6 +180,7 @@ for path in paths:
                 data = data_dic[metric]
 
 
+
             if len(data) != 3:
                 
                 raise ValueError("Data shape not n_individuals")
@@ -228,7 +229,9 @@ for path in paths:
                         traj_ys.append(np.nan)
                     data_singleanimal = traj_ys
                 
-                print(metric)
+                if metric == "fronts_x":
+                    print(data_singleanimal[0:100])
+                #print(metric)
                 #print(data_singleanimal[0:2])
                 if len(data_singleanimal) > n_frames:
                     data_singleanimal = data_singleanimal[0:n_frames]
@@ -239,5 +242,5 @@ for path in paths:
     #print(df[0:10])
     safename = f"/single_mouse_datatest_{l1}_{l2}_{l3}_{l4}.csv"
     safepath = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\behavior_data_betatest" + safename
-    df.to_csv(safepath)
+    #df.to_csv(safepath)
     #print(safepath)

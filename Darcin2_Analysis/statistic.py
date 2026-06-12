@@ -12,21 +12,31 @@ con_day2 = [1580, 593, 1242, 1053, 909, 1382]
 stim_day3 = [1133, 2258, 1294, 1970, 1397, 640]
 con_day3 = [1085, 287, 1019, 763, 1006, 391]
 
+print("Does the stimulus investigation time increase at day2 vs hab")
+stat, p = mannwhitneyu(x=stim_day2, y=stim_day1)
+print("p:", p)
 
-print("Stim day comparisons")
-print(mannwhitneyu(x=stim_day1, y=stim_day2))
-print(mannwhitneyu(x=stim_day1, y=stim_day3))
-print(mannwhitneyu(x=stim_day2, y=stim_day3))
+print("Does the stimulus investigation time increase at day3 vs hab")
+stat, p = mannwhitneyu(x=stim_day3, y=stim_day1)
+print("p:", p)
 
-print("Con day comparisons")
-print(mannwhitneyu(x=con_day1, y=con_day2))
-print(mannwhitneyu(x=con_day1, y=con_day3))
-print(mannwhitneyu(x=con_day2, y=con_day3))
+print("Does the stimulus investigation time increase at day3 vs day2")
+stat, p = mannwhitneyu(x=stim_day3, y=stim_day1)
+print("p:", p)
 
-print("Stim vs con day")
-print(mannwhitneyu(x=stim_day1, y=con_day1))
-print(mannwhitneyu(x=stim_day2, y=con_day2))
-print(mannwhitneyu(x=stim_day3, y=con_day3))
+print("Does the control investigation time increase at day2 vs hab")
+stat, p = mannwhitneyu(x=con_day2, y=con_day1)
+print("p:", p)
+
+print("Does the control investigation time increase at day3 vs hab")
+stat, p = mannwhitneyu(x=con_day3, y=con_day1)
+print("p:", p)
+
+print("Does the control investigation time increase at day3 vs day2")
+stat, p = mannwhitneyu(x=con_day3, y=con_day1)
+print("p:", p)
+
+"""
 
 
 # time present
@@ -81,3 +91,4 @@ print("p:", p)
 print("Is there a raw stimmodule at day3?")
 stat, p = wilcoxon(stimpref_day3, alternative="greater")
 print("p:", p)
+"""
