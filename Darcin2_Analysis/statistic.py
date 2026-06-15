@@ -1,8 +1,10 @@
 from scipy.stats import mannwhitneyu, wilcoxon
 import numpy as np
 
-
+# Daten siehe:
+# Z:\n2023_odor_related_behavior\2025_darcin\Darcin2\darcin2_analysis_results.xlsx
 # petri dish investigation
+"""
 stim_day1 = [838, 397, 17, 619, 836, 135]
 con_day1 = [810, 273, 516, 496, 269, 183]
 
@@ -36,6 +38,18 @@ print("Does the control investigation time increase at day3 vs day2")
 stat, p = mannwhitneyu(x=con_day3, y=con_day1)
 print("p:", p)
 
+print("Is there a difference between dish investigation on day 1?")
+stat, p = mannwhitneyu(x=stim_day1, y=con_day1)
+print("p:", p)
+
+print("Is there a difference between dish investigation on day 2?")
+stat, p = mannwhitneyu(x=stim_day2, y=con_day2)
+print("p:", p)
+
+print("Is there a difference between dish investigation on day 3?")
+stat, p = mannwhitneyu(x=stim_day3, y=con_day3)
+print("p:", p)
+
 """
 
 
@@ -62,7 +76,7 @@ day_2_pref_corrected = stim_day2_corrected - con_day2_corrected
 day_3_pref_corrected = stim_day3_corrected - con_day3_corrected
 
 # Steigt die Stimpref von Day2 zu Day3? 
-print("Is there a difference of baseline corrected stimpref vs day3 and day2?")
+print("Is there a difference of baseline corrected stimulus module vs day3 and day2?")
 stat, p = mannwhitneyu(x=day_2_pref_corrected, y=day_3_pref_corrected)
 print("p:", p)
 
@@ -91,4 +105,3 @@ print("p:", p)
 print("Is there a raw stimmodule at day3?")
 stat, p = wilcoxon(stimpref_day3, alternative="greater")
 print("p:", p)
-"""

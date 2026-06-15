@@ -19,7 +19,8 @@ def plot_days_one_metric(
     metric_key: str,                 # z.B. "stim_dish" oder "con_dish"
     days=("day1", "day2", "day3"),
     title: str = None,
-    ylabel: str = "Investigation time (frames)",
+    ylabel: str = "fraction",
+    yrange: int = None,
     show: bool = True,
     save_as: str = None,
     ax=None,
@@ -55,6 +56,8 @@ def plot_days_one_metric(
     ax.set_xticks(x)
     ax.set_xticklabels(days)
     ax.set_ylabel(ylabel)
+    if yrange:
+        ax.set_ylim((0, yrange))
     ax.set_title(title if title else f"{metric_key} across days")
     ax.grid(True, axis="y", alpha=0.3)
     ax.legend(frameon=False, ncols=2)
@@ -76,6 +79,7 @@ def plot_each_day_two_metrics(
     days=("day1", "day2", "day3"),
     title_prefix: str = "Stimulus vs Control (Investigation)",
     ylabel: str = "Time spent (Fraction)",
+    yrange: int = None,
     save_as: str = None,
     show: bool = True,
 ):
@@ -114,13 +118,15 @@ def plot_each_day_two_metrics(
 
         ax.set_ylabel(ylabel)
         ax.set_title(f"{title_prefix} – {d}")
+        if yrange:
+            ax.set_ylim((0,yrange))
         ax.grid(True, axis="y", alpha=0.3)
         ax.legend(frameon=False, ncols=2)
 
         figs_axes.append((fig, ax))
 
         if save_as:
-            fig.savefig(save_as + "/" + d + "timespent_stimvscon.svg", dpi=300, bbox_inches="tight")
+            fig.savefig(save_as + "/" + d + "dishinv_stimvscon.svg", dpi=300, bbox_inches="tight")
 
         if show:
             plt.show()
@@ -312,16 +318,16 @@ plt.show()
 # Funktion 2: pro Tag ein Plot mit Stim vs Control verbunden
 #plot_each_day_stim_vs_con(mice_data, mice_order, save_as=exp_path)
 
-
+"""
 mouse_125 = {'day1': {'stim_dish': 619, 'con_dish': 496},
              'day2': {'stim_dish': 774, 'con_dish': 1053},
              'day3': {'stim_dish': 1970, 'con_dish': 763}}
 
-"""
+
 mouse_122 = {'day1': {'stim_dish': 1121, 'con_dish': 1964},
              'day2': {'stim_dish': 1180, 'con_dish': 1190},
             'day3': {'stim_dish': 2723, 'con_dish': 3753}}
-"""
+
 mouse_121 = {'day1': {'stim_dish': 17, 'con_dish': 516},
              'day2': {'stim_dish': 1282, 'con_dish': 1242},
              'day3': {'stim_dish': 1294, 'con_dish': 1019}}
@@ -342,6 +348,29 @@ mouse_137 = {'day1': {'stim_dish': 836, 'con_dish': 269},
              'day2': {'stim_dish': 1116, 'con_dish': 909},
              'day3': {'stim_dish': 1397, 'con_dish': 1006}}
 
+bl_corrected_inv = True
+if bl_corrected_inv:
+
+    mouse_121 = {'day1': {'stim_dish': 17, 'con_dish': 516},
+               'day2': {'stim_dish': 1282-17, 'con_dish': 1242-516},
+              'day3': {'stim_dish': 1294-17, 'con_dish': 1019-516}}
+    
+    mouse_109 = {'day1': {'stim_dish': 135, 'con_dish': 183},
+                'day2': {'stim_dish': 770-135, 'con_dish': 1382-183},
+                'day3': {'stim_dish': 640-135, 'con_dish': 391-183}}
+
+    mouse_36 = {'day1': {'stim_dish': 838, 'con_dish': 810},
+                'day2': {'stim_dish': 679-838, 'con_dish': 1580-810},
+                'day3': {'stim_dish': 1133-838, 'con_dish': 1085-810}}
+
+    mouse_38 = {'day1': {'stim_dish': 397, 'con_dish': 273},
+                'day2': {'stim_dish': 647-397, 'con_dish': 593-273},
+                'day3': {'stim_dish': 2258-397, 'con_dish': 287-273}}
+
+    mouse_137 = {'day1': {'stim_dish': 836, 'con_dish': 269},
+                'day2': {'stim_dish': 1116-836, 'con_dish': 909-269},
+                'day3': {'stim_dish': 1397-836, 'con_dish': 1006-269}}    
+"""
 mice_data = {
     "109": mouse_109,
     "121": mouse_121,
@@ -356,24 +385,28 @@ mice_data = {
 # Funktion 1: nur Stimulus-Dish über die Tage
 plot_days_one_metric(
     mice_data, mice_order,
-    metric_key="stim_dish",
-    title="Investigation: Stimulus dish (Day1–Day3)",
-    save_as=exp_path+"/invtime_stim.svg"
+    metric_key="stim_modul",
+    yrange=0.4,
+    title="Time Spent: Stimulus module (Day1–Day3)",
+    save_as=exp_path+"/timespent_stim.svg"
 )
 
 # Funktion 1: nur Control-Dish über die Tage
 plot_days_one_metric(
     mice_data, mice_order,
-    metric_key="con_dish",
-    title="Investigation: Control dish (Day1–Day3)",
-    save_as=exp_path+"/invtime_con.svg"
+    metric_key="con_modul",
+    yrange=0.4,
+    title="Time Spent: Control module (Day1–Day3)",
+    save_as=exp_path+"/timespent_con.svg"
 )
 
 # Funktion 2: pro Tag Stim vs Control (verbunden)
 plot_each_day_two_metrics(
     mice_data, mice_order,
-    key_a="stim_dish", key_b="con_dish",
-    title_prefix="dish investigation [frames]",
+    key_a="stim_modul", key_b="con_modul",
+    title_prefix="module presence",
+    ylabel="fraction",
+    yrange=0.4,
     save_as=exp_path
 )
 
