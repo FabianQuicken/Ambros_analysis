@@ -474,7 +474,7 @@ def filter_and_interpolate_all_bodyparts(
 
 
 all_mice = ["109", "121", "122", "125", "135", "137", "36", "38"]
-mouse = "109"
+mouse = "38"
 
 """
 Daten einlesen und in Stimulus und Kontrolle sortieren
@@ -629,8 +629,10 @@ for i in tqdm(range(3)): # über jeden Experimenttag iterieren, hier später 3  
     time_present_c = (con_nose_filtered.loc[:, (scorer, "nose", "likelihood")] > filter_value).sum()
 
     #time_present[f"day{str(i+1)}"]["stim_modul"] = round(counter/len(stim_likelihood_mask), 3)
-    time_present[f"day{str(i+1)}"]["stim_modul"] = round(time_present_s/len(stim_likelihood_mask), 3)
-    time_present[f"day{str(i+1)}"]["con_modul"] = round(time_present_c/len(con_likelihood_mask), 3)
+    time_present[f"day{str(i+1)}"]["stim_modul[fraction]"] = round(time_present_s/len(stim_likelihood_mask), 3)
+    time_present[f"day{str(i+1)}"]["stim_modul[frames]"] = (time_present_s)
+    time_present[f"day{str(i+1)}"]["con_modul[fraction]"] = round(time_present_c/len(con_likelihood_mask), 3)
+    time_present[f"day{str(i+1)}"]["con_modul[frames]"] = (time_present_c)
 
     # nose coordinaten extrahieren s= stimulus, c=control
     s_nose_x = stim_nose_filtered.loc[:, (scorer, ["nose"], ["x"])].to_numpy().ravel()

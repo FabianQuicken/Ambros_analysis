@@ -369,7 +369,68 @@ if bl_corrected_inv:
 
     mouse_137 = {'day1': {'stim_dish': 836, 'con_dish': 269},
                 'day2': {'stim_dish': 1116-836, 'con_dish': 909-269},
-                'day3': {'stim_dish': 1397-836, 'con_dish': 1006-269}}    
+                'day3': {'stim_dish': 1397-836, 'con_dish': 1006-269}}   
+
+
+# dish investigation frames normalized to the frames present in respective module [%]
+
+mouse_125 = {'day1': {'stim_dish': 619, 'con_dish': 496},
+             'day2': {'stim_dish': 774, 'con_dish': 1053},
+             'day3': {'stim_dish': 1970, 'con_dish': 763}}
+
+
+mouse_122 = {'day1': {'stim_dish': 7.73, 'con_dish': 6.28},
+             'day2': {'stim_dish': 7.38, 'con_dish': 12.25},
+            'day3': {'stim_dish': 17.95, 'con_dish': 8.24}}
+
+mouse_121 = {'day1': {'stim_dish': 0.49, 'con_dish': 10.57},
+             'day2': {'stim_dish': 12.86, 'con_dish': 12.51},
+             'day3': {'stim_dish': 14.49, 'con_dish': 11.99}}
+
+mouse_109 = {'day1': {'stim_dish': 10.93, 'con_dish': 3.11},
+             'day2': {'stim_dish': 10.13, 'con_dish': 12.56},
+             'day3': {'stim_dish': 8.88, 'con_dish': 5.69}}
+
+mouse_36 = {'day1': {'stim_dish': 8.47, 'con_dish': 6.26},
+             'day2': {'stim_dish': 8.65, 'con_dish': 12.72},
+             'day3': {'stim_dish': 12.10, 'con_dish': 10.17}}
+
+mouse_38 = {'day1': {'stim_dish': 4.05, 'con_dish': 3.85},
+             'day2': {'stim_dish': 7.49, 'con_dish': 6.58},
+             'day3': {'stim_dish': 23.71, 'con_dish': 4.44}}
+
+mouse_137 = {'day1': {'stim_dish': 8.05, 'con_dish': 3.85},
+             'day2': {'stim_dish': 10.94, 'con_dish': 10.36},
+             'day3': {'stim_dish': 12.56, 'con_dish': 19.35}}
+
+bl_corrected_norm_inv = False
+if bl_corrected_norm_inv:
+
+    mouse_122 = {'day1': {'stim_dish': 7.73, 'con_dish': 6.28},
+                'day2': {'stim_dish': 7.38-7.73, 'con_dish': 12.25-6.28},
+                'day3': {'stim_dish': 17.95-7.73, 'con_dish': 8.24-6.28}}
+
+    mouse_121 = {'day1': {'stim_dish': 0.49, 'con_dish': 10.57},
+                'day2': {'stim_dish': 12.86-0.49, 'con_dish': 12.51-10.57},
+                'day3': {'stim_dish': 14.49-0.49, 'con_dish': 11.99-10.57}}
+
+    mouse_109 = {'day1': {'stim_dish': 10.93, 'con_dish': 3.11},
+                'day2': {'stim_dish': 10.13-10.93, 'con_dish': 12.56-3.11},
+                'day3': {'stim_dish': 8.88-10.93, 'con_dish': 5.69-3.11}}
+
+    mouse_36 = {'day1': {'stim_dish': 8.47, 'con_dish': 6.26},
+                'day2': {'stim_dish': 8.65-8.47, 'con_dish': 12.72-6.26},
+                'day3': {'stim_dish': 12.10-8.47, 'con_dish': 10.17-6.26}}
+
+    mouse_38 = {'day1': {'stim_dish': 4.05, 'con_dish': 3.85},
+                'day2': {'stim_dish': 7.49-4.05, 'con_dish': 6.58-3.85},
+                'day3': {'stim_dish': 23.71-4.05, 'con_dish': 4.44-3.85}}
+
+    mouse_137 = {'day1': {'stim_dish': 8.05, 'con_dish': 3.85},
+                'day2': {'stim_dish': 10.94-8.05, 'con_dish': 10.36-3.85},
+                'day3': {'stim_dish': 12.56-8.05, 'con_dish': 19.35-3.85}}
+
+
 """
 mice_data = {
     "109": mouse_109,
