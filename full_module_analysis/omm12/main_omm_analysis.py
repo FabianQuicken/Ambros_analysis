@@ -12,13 +12,17 @@ from main_multi_animal import multi_animal_main
 
 basepath = Path(r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\dlc_output")
 
+print()
+
 groups = [
-#    "germfree"
+    "germfree",
     "germfreeprop",
-    "omm12",
-    "omm12prop",
-    "ommpgol",
+#    "omm12",
+#    "omm12prop",
+#    "ommpgol",
 ]
+
+
 
 paths = []
 
@@ -48,8 +52,7 @@ for path in paths:
 
     # das dictionary mit Daten generieren
     habituation = path.name == "hab"
-    print(habituation)
-    print(path)
+
 
     def get_mice(path):
         from pathlib import Path
@@ -109,6 +112,7 @@ for path in paths:
                 "anogenital_inv",
                 "trajectories_x",
                 "trajectories_y",
+                "px_exploration_score",
                 "mean_arc_chord",
                 "fragment_arc_chord",
                 "orientations",
@@ -229,8 +233,6 @@ for path in paths:
                         traj_ys.append(np.nan)
                     data_singleanimal = traj_ys
                 
-                if metric == "fronts_x":
-                    print(data_singleanimal[0:100])
                 #print(metric)
                 #print(data_singleanimal[0:2])
                 if len(data_singleanimal) > n_frames:
@@ -242,5 +244,5 @@ for path in paths:
     #print(df[0:10])
     safename = f"/single_mouse_datatest_{l1}_{l2}_{l3}_{l4}.csv"
     safepath = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\behavior_data_betatest" + safename
-    #df.to_csv(safepath)
+    df.to_csv(safepath)
     #print(safepath)

@@ -48,8 +48,10 @@ from video_gen import overlay_two_points_line_and_theta_segments, overlay_metric
 from grooming import grooming_energy
 from plotting import heatmap_plot
 from save_load_dic import save_analysis, load_analysis
-from spatial_entropy import spatial_entropy
+from spatial_entropy import spatial_entropy, pixel_exploration_score
 # struktur zum speichern erstellen
+
+print()
 
 @dataclass
 class ModuleVariables:
@@ -163,6 +165,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
     mice_compactness = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_bodylength = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
     mice_mean_likelihood = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
+    mice_px_exploration_score = np.full((len(individuals), len(exp_duration_frames)), np.nan, dtype=float)
 
     # # # Zusammenfassende Metriken: shape (n_frames), mit zeros gefüllter array # # # 
     min_one_mouse_in_module = exp_duration_frames.copy()
@@ -725,6 +728,15 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             bl = np.round(bl, decimals=0)
             mice_bodylength[index][start:end] = bl
 
+            # #  Pixel Exploration Score # # #
+
+            print(f"\n Calculating exploration score for {ind}...")
+            px_exp_score = pixel_exploration_score(x=nose_x, y=nose_y, exp_duration_frames=exp_duration_frames)
+            px_exp_score = np.round(px_exp_score, decimals = 2)
+            mice_px_exploration_score[index][start:end] = px_exp_score
+
+
+
         acc = False
         if acc:
             ind_idx = 1
@@ -835,7 +847,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                                                     individuals,
                                                     ["hip_left", "hip_right", "dorsal_4"],
                                                     min_bodyparts=3)
-        """
+        
         # spatial entropy
         for index, ind in enumerate(individuals):
             # speichern
@@ -849,6 +861,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             mice_rear_x[index][start:end] = rear_x_data
             mice_rear_y[index][start:end] = rear_y_data
 
+            """
             bin_size = 100
             x_edges = np.arange(0, 2000 + bin_size, bin_size)
             y_edges = np.arange(-1200, 0 + bin_size, bin_size)
@@ -863,7 +876,8 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             )
 
             print(result["normalized_entropy"])
-        """
+            """
+        
         
         print(f"\n Getting absolute orientations...")
         for index, ind in enumerate(individuals):
@@ -1223,6 +1237,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                         scale_factor=1.0
         )
 
+
     return {"individuals": individuals,
             "exp_len": len(exp_duration_frames),
             "mice_mean_likelihood": mice_mean_likelihood,
@@ -1258,6 +1273,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             "all_body": all_body,
             "all_anogenital": all_anogenital,
             "trajectories": trajectories,
+            "px_exploration_score": mice_px_exploration_score,
             "mean_arc_chord": mean_t_arc_chord,
             "fragment_arc_chord": t_fragment_arc_chord,
             "orientations": mice_orientations,
@@ -1265,13 +1281,5 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
             "mice_bodylength": mice_bodylength
     }
 
-# center crossings über alle Mäuse zählen
-# mean visit time
-# visits per hour
-# strecke über zeit = mean geschwindigkeit, sollte auf eine maus runtergerechnet werden (zwei mäuse = doppelt so viel strecke pro zeit, also Summe des 2 Maus arrays *2 und summe des 3 Maus arrays * 3)
 
-
-# speichern als h5
-
-# plots generieren
 

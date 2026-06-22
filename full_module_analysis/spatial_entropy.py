@@ -1,6 +1,54 @@
 import numpy as np
 from matplotlib.path import Path
 import matplotlib.pyplot as plt
+from config import ARENA_COORDS
+
+
+def all_arena_pixels():
+
+    arena_x = []
+    arena_y = []
+    for (x, y) in ARENA_COORDS:
+        arena_x.append(x)
+        arena_y.append(y)
+
+    all_coords = []
+
+    for i in range(min(arena_y), max(arena_y)):
+        for j in range(min(arena_x), max(arena_x)):
+            c = (j, i)
+            all_coords.append(c)
+
+    return set(all_coords)
+
+def pixel_exploration_score(x, y, exp_duration_frames):
+
+    # Runden -> Integer für späteren Test in der for loop
+    x = np.rint(x)
+    y = np.rint(y)
+
+    arena_pixels = all_arena_pixels()
+    num_px = len(arena_pixels)
+    visited = set()
+
+    exp_score = np.full(len(exp_duration_frames), np.nan, dtype=float)
+
+    for idx, i in enumerate(zip(x, y)):
+        # falls nan überspringen
+        if np.isnan(i[0]) or np.isnan(i[1]):
+            continue
+
+        if i in arena_pixels:
+            visited.add(i)
+        
+        # Anteil Koordinaten berechnen, die bisher explored wurden
+        current_score = (len(visited)/num_px) * 100
+        exp_score[idx] = current_score
+
+
+    return exp_score
+
+
 
 
 def create_arena_mask(arena_coords, x_edges, y_edges):
