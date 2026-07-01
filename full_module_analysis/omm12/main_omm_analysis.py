@@ -15,11 +15,11 @@ basepath = Path(r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_
 print()
 
 groups = [
-    "germfree",
-    "germfreeprop",
-#    "omm12",
-#    "omm12prop",
-#    "ommpgol",
+#    "germfree",
+#    "germfreeprop",
+    "omm12",
+    "omm12prop",
+    "ommpgol",
 ]
 
 

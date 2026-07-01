@@ -5,14 +5,26 @@ import numpy as np
 # Z:\n2023_odor_related_behavior\2025_darcin\Darcin2\darcin2_analysis_results.xlsx
 # petri dish investigation
 """
-stim_day1 = [838, 397, 17, 619, 836, 135]
-con_day1 = [810, 273, 516, 496, 269, 183]
+stim_day1 = [838, 397, 17, 619, 836, 135
+             , 1080
+             ]
+con_day1 = [810, 273, 516, 496, 269, 183
+            , 460
+            ]
 
-stim_day2 = [679, 647, 1282, 774, 1116, 770]
-con_day2 = [1580, 593, 1242, 1053, 909, 1382]
+stim_day2 = [679, 647, 1282, 774, 1116, 770
+             , 1810
+             ]
+con_day2 = [1580, 593, 1242, 1053, 909, 1382
+            , 916
+            ]
 
-stim_day3 = [1133, 2258, 1294, 1970, 1397, 640]
-con_day3 = [1085, 287, 1019, 763, 1006, 391]
+stim_day3 = [1133, 2258, 1294, 1970, 1397, 640
+             , 805
+             ]
+con_day3 = [1085, 287, 1019, 763, 1006, 391
+            , 456
+            ]
 
 print("Does the stimulus investigation time increase at day2 vs hab")
 stat, p = mannwhitneyu(x=stim_day2, y=stim_day1)
@@ -52,18 +64,32 @@ print("p:", p)
 
 """
 
-
+mouse_135 = {'day1': {'stim_modul': np.float64(0.269), 'con_modul': np.float64(0.235)},
+            'day2': {'stim_modul': np.float64(0.275), 'con_modul': np.float64(0.213)}, 
+            'day3': {'stim_modul': np.float64(0.203), 'con_modul': np.float64(0.243)}}
 # time present
-stim_day1 = [0.264, 0.251, 0.09, 0.216, 0.276, 0.031]
-con_day1 = [0.345, 0.181, 0.128, 0.212, 0.186, 0.150]
+stim_day1 = [0.264, 0.251, 0.09, 0.216, 0.276, 0.031
+#             ,0.269
+             ]
+con_day1 = [0.345, 0.181, 0.128, 0.212, 0.186, 0.150
+#            ,0.235
+            ]
 stimpref_day1 = np.asarray(stim_day1) - np.asarray(con_day1)
 
-stim_day2 = [0.200, 0.220, 0.267, 0.280, 0.269, 0.206]
-con_day2 = [0.315, 0.230, 0.267, 0.229, 0.232, 0.298]
+stim_day2 = [0.200, 0.220, 0.267, 0.280, 0.269, 0.206
+#             ,0.275
+             ]
+con_day2 = [0.315, 0.230, 0.267, 0.229, 0.232, 0.298
+#            ,0.213
+            ]
 stimpref_day2 = np.asarray(stim_day2) - np.asarray(con_day2)
 
-stim_day3 = [0.250, 0.245, 0.243, 0.292, 0.290, 0.194]
-con_day3 = [0.285, 0.166, 0.232, 0.246, 0.136, 0.185]
+stim_day3 = [0.250, 0.245, 0.243, 0.292, 0.290, 0.194
+#             ,0.203
+             ]
+con_day3 = [0.285, 0.166, 0.232, 0.246, 0.136, 0.185
+#            ,0.243
+            ]
 stimpref_day3 = np.asarray(stim_day3) - np.asarray(con_day3)
 
 stim_day2_corrected = np.array(stim_day2) - np.array(stim_day1)
