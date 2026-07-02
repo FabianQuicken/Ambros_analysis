@@ -39,9 +39,9 @@ PANEL_HEIGHT_MM = 200
 
 DEFAULT_HEATMAP_BINS = (25, 15)
 
-PROJECT_PATH = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior"
+PROJECT_PATH = r"Z:\n2023_odor_related_behavior"
 
-OUTPUT_PATH = ""
+OUTPUT_PATH = r"Z:\n2023_odor_related_behavior\other\Reisen\Barcelona FENS 2026\Poster\Abbildungen\odor_preference.svg"
 
 PLOT_STYLE = {
     "scatter_colors": "white",
@@ -51,18 +51,18 @@ PLOT_STYLE = {
     "axis_line_width": 2.835,
     "tick_length": 2.835 * 2,
     "font_size": 14,
-    "label_font_size": 15,
-    "title_font_size": 13,
-    "heatmap_title_font_size": 12,
+    "label_font_size": 16,
+    "title_font_size": 14,
+    "heatmap_title_font_size": 14,
 }
 
 PLOT_LAYOUT = {
-    "left_margin_mm": 15,
-    "right_margin_mm": 5,
-    "bottom_margin_mm": 13,
-    "top_margin_mm": 10,
-    "column_spacing_mm": 20,
-    "row_spacing_mm": 20,
+    "left_margin_mm": 30,
+    "right_margin_mm": 0,
+    "bottom_margin_mm": 8,
+    "top_margin_mm": 5,
+    "column_spacing_mm": 24,
+    "row_spacing_mm": 24,
     "heatmap_spacing_mm": 4,
 }
 
@@ -124,17 +124,17 @@ m_con_n_visits = [134, 207, 149, 99, 158, 176, 233, 228]
 
 
 FEMALE_HEATMAPS = [
-    (m_17_d1_con_path, "Control habituation"),
-    (m_17_d2_con_path, "Control experiment"),
-    (m_17_d1_stim_path, "Stimulus habituation"),
-    (m_17_d2_stim_path, "Stimulus experiment"),
+    (m_17_d1_con_path, "baseline preference"),
+    (m_17_d2_con_path, "control preference"),
+    (m_17_d1_stim_path, "baseline preference"),
+    (m_17_d2_stim_path, "stimulus preference"),
 ]
 
 MALE_HEATMAPS = [
-    (m_73_d1_con_path, "Control habituation"),
-    (m_73_d2_con_path, "Control experiment"),
-    (m_73_d1_stim_path, "Stimulus habituation"),
-    (m_73_d2_stim_path, "Stimulus experiment"),
+    (m_73_d1_con_path, "baseline preference"),
+    (m_73_d2_con_path, "control preference"),
+    (m_73_d1_stim_path, "baseline preference"),
+    (m_73_d2_stim_path, "stimulus preference"),
 ]
 
 
@@ -440,7 +440,7 @@ def build_fens_panel(style=None, layout=None, heatmap_bins=DEFAULT_HEATMAP_BINS)
     )
 
     return fig
-
+"Control habituation"
 
 if __name__ == "__main__":
     print_wilcoxon_results()
@@ -448,4 +448,4 @@ if __name__ == "__main__":
     if OUTPUT_PATH:
         fig.savefig(OUTPUT_PATH, format="svg", facecolor=fig.get_facecolor())
     plt.show()
-    fig.savefig(r"C:\Users\Fabian\Desktop\Transfer\FENS\odor_preference.svg")
+

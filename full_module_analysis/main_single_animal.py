@@ -257,21 +257,21 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     return module_vars
 
 
-project_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\male_mice_female_stimuli/"
+project_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\raw\female_mice_male_stimuli/"
 
 #project_path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
 #project_path = project_path_ho
 
-mouse = "mouse_21"
+mouse = "mouse_67"
 
-dates = ["2025_05_12", "2025_05_14", "2025_05_15", "2025_05_16"]
+dates = ["2026_06_23", "2026_06_24", "2026_06_25", "2026_06_26"]
 
 
 for date in dates:
     Modul1Variables = analyze_one_module(path=f"{project_path}{mouse}/{date}/top1/")
     Modul2Variables = analyze_one_module(path=f"{project_path}{mouse}/{date}/top2/")
 
-    #print(Modul1Variables)
+
 
     """
 
