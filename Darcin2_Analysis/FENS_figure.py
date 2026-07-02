@@ -21,8 +21,11 @@ For each plot, I want to be able to adjust the following parameters:
 - thickness of lines connecting the scatter data points
 - x and y axis line thickness
 - font size of x and y labels and ticks
+- distance between plots
+- tick length of x and y ticks
+- top, bottom, left and right margins of the panel
 
-just show the plot for now, dont save it
+
 """
 
 

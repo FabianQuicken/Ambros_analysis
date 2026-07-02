@@ -201,18 +201,20 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
 
     #food_x_values_over_time = fill_missing_values(food_x_values_over_time)
     #food_y_values_over_time = fill_missing_values(food_y_values_over_time)
-    
+    """
     # food koordinaten plotten zur kontrolle
     plt.figure()
     plt.plot(food_x_values_over_time)
     plt.plot(food_y_values_over_time)
     plt.show()
     #plt.savefig(f"C:/Users/quicken/Desktop/für_fileserver/food_not_interpolated.svg", format='svg')
-    
+    """
 
     # wie lange ist ein visit im schnitt
     all_visits = np.array(all_visits)
+    print(f"Number of visits: {len(all_visits)}")
     mean_visit_time = np.mean(all_visits) / FPS
+    print(f"Mean visit time: {round(mean_visit_time, ndigits=2)}")
 
     # zählt die anzahl an crossings durch die Mitte
     center_crossings = count_center_crossings(center_array=maus_in_center_over_time)
@@ -225,6 +227,7 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     visits_per_hour = num_visits / (len(exp_duration_frames)/30/3600)
 
     zeit_in_modul_prozent = sum(maus_in_modul_über_zeit) / len(exp_duration_frames) * 100
+    print(f"Time in module percentage: {round(zeit_in_modul_prozent, ndigits=2)}")
 
     nose_coords = (nose_x_values_over_time, nose_y_values_over_time)
 
@@ -254,19 +257,23 @@ def analyze_one_module(path, bodyparts_to_extract = ["nose", "centroid", "food1"
     return module_vars
 
 
-project_path = "Z:/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/female_mice_male_stimuli_vent/"
+project_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\male_mice_female_stimuli/"
 
 #project_path_ho = "//fileserver2.bio2.rwth-aachen.de/AG Spehr BigData/n2023_odor_related_behavior/2023_behavior_setup_seminatural_odor_presentation/analyse/male_mice_female_stimuli/"
 #project_path = project_path_ho
 
-mouse = "mouse_5778"
+mouse = "mouse_21"
 
-dates = ["2025_07_22", "2025_07_23", "2025_07_24", "2025_07_25"]
+dates = ["2025_05_12", "2025_05_14", "2025_05_15", "2025_05_16"]
 
 
 for date in dates:
     Modul1Variables = analyze_one_module(path=f"{project_path}{mouse}/{date}/top1/")
     Modul2Variables = analyze_one_module(path=f"{project_path}{mouse}/{date}/top2/")
+
+    #print(Modul1Variables)
+
+    """
 
     name_modul1_h5 = f"{Modul1Variables.date}_top1_{('stimulus' if Modul1Variables.is_stimulus_module else 'control')}.h5"
     name_modul2_h5 = f"{Modul2Variables.date}_top2_{('stimulus' if Modul2Variables.is_stimulus_module else 'control')}.h5"
@@ -306,7 +313,7 @@ for date in dates:
 
     heatmap_plot(x_values=Modul2Variables.nose_coords_x_y[0], y_values=Modul2Variables.nose_coords_x_y[1], plotname="Heatmap Modul 2", save_as=f"{project_path}{mouse}/{date}/heatmap_modul2.svg", num_bins=12)
 
-    
+    """
 
 
 
