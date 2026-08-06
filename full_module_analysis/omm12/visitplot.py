@@ -21,6 +21,8 @@ def visitplot(
     xlabel=None,
     xlim=None,
     ylim=None,
+    linear_regression=False,
+    regression_linewidth=2,
 ):
     """
     Expected data shape:
@@ -34,6 +36,9 @@ def visitplot(
 
     ydata contains the y values and xdata contains the matching x positions.
     Only one condition is plotted. Each finite x/y pair is drawn as one dot.
+
+    If linear_regression is True, a least-squares regression line is fitted
+    separately for each group and its R-squared value is shown in the legend.
     """
     if stylemode not in ("light", "dark"):
         raise ValueError("stylemode must be 'light' or 'dark'.")
@@ -69,9 +74,16 @@ def visitplot(
         if group_name not in x_groups:
             raise ValueError(f"group {group_name!r} is missing from xdata[{condition!r}].")
 
-        x_values = _clean_values(_get_values(x_groups[group_name])) * x_transform
-        y_values = _clean_values(_get_values(group_values))
-        x_values, y_values = _paired_values(x_values, y_values)
+        x_values, y_values = _paired_values(
+            _get_values(x_groups[group_name]),
+            _get_values(group_values),
+        )
+
+        mask = np.where(y_values > 30)[0]
+        x_values = x_values[mask]
+        y_values = y_values[mask]
+
+        x_values = x_values * x_transform
 
         if y_logtransform:
             x_values, y_values = _log10_y_values(x_values, y_values)
@@ -93,6 +105,22 @@ def visitplot(
             label=group_name,
             zorder=3,
         )
+
+        if linear_regression:
+            regression = _linear_regression(x_values, y_values)
+            if regression is not None:
+                slope, intercept, r_squared = regression
+                line_x = np.array([x_values.min(), x_values.max()])
+                line_y = slope * line_x + intercept
+                r_squared_text = "n/a" if np.isnan(r_squared) else f"{r_squared:.3f}"
+                ax.plot(
+                    line_x,
+                    line_y,
+                    color=color,
+                    linewidth=regression_linewidth,
+                    label=f"{group_name} linear fit ($R^2$ = {r_squared_text})",
+                    zorder=4,
+                )
         plotted_groups.append(group_name)
 
     ax.set_title(str(condition), fontsize=fontsize + 2, color=textcolor)
@@ -150,16 +178,38 @@ def _clean_values(values):
 
 
 def _paired_values(x_values, y_values):
+    x_values = np.asarray(x_values, dtype=float).ravel()
+    y_values = np.asarray(y_values, dtype=float).ravel()
     pair_count = min(x_values.size, y_values.size)
     if pair_count == 0:
         return np.array([]), np.array([])
 
-    return x_values[:pair_count], y_values[:pair_count]
+    x_values = x_values[:pair_count]
+    y_values = y_values[:pair_count]
+    finite_pairs = np.isfinite(x_values) & np.isfinite(y_values)
+    return x_values[finite_pairs], y_values[finite_pairs]
 
 
 def _log10_y_values(x_values, y_values):
     positive_mask = y_values > 0
     return x_values[positive_mask], np.log10(y_values[positive_mask]+1)
+
+
+def _linear_regression(x_values, y_values):
+    """Return slope, intercept, and R-squared, or None if a fit is impossible."""
+    if x_values.size < 2 or np.unique(x_values).size < 2:
+        return None
+
+    slope, intercept = np.polyfit(x_values, y_values, 1)
+    predicted = slope * x_values + intercept
+    residual_sum_squares = np.sum((y_values - predicted) ** 2)
+    total_sum_squares = np.sum((y_values - np.mean(y_values)) ** 2)
+    r_squared = (
+        np.nan
+        if np.isclose(total_sum_squares, 0)
+        else 1 - residual_sum_squares / total_sum_squares
+    )
+    return slope, intercept, r_squared
 
 
 def _resolve_color(colors, group_name, group_index):

@@ -94,6 +94,7 @@ def fill_missing_values(array):
 
 # Wandle Zeit in Sekunden seit Mitternacht um
 def time_to_seconds(time_str):
+        
         hours, minutes, seconds = map(int, time_str.split("_"))
         return hours * 3600 + minutes * 60 + seconds
 

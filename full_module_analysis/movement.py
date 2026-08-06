@@ -1,0 +1,7 @@
+import movement
+
+data = "Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\hab\2025_11_07_13_11_02_mice_germfree_females_home_unfamiliar_top1_40439818_fullhabDLC_HrnetW32_multi_animal_mmoNov19shuffle1_detector_best-330_snapshot_best-20_el.csv"
+
+ds = movement.sample_data.fetch_dataset(data)
+
+print(ds)

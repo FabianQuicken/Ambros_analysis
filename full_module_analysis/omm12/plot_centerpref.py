@@ -5,7 +5,7 @@ from omm_statistics import compare_two_groups_to_excel
 PIXEL_PER_CM = 36.39
 
 
-csv_folder = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\behavior_data"
+csv_folder = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\behavior_data_betatest"
 individuals = ["mouse_1", "mouse_2", "mouse_3"]
 colors = {"germfree": "#D9D9D9", "germfreeprop": "#CCE6BB", "omm12": "#C0DEFC", "omm12prop": "#bef49d", "ommpgol": "#E58DF1"}
 metric = "mice_in_center"
@@ -51,7 +51,7 @@ plot_barplot(data,
              ylim=(0, 100),
              fontsize=14,
              plotsize= (6, 4.5),
-             scattermarkers=[sm["male"], sm["male"]]
+             scattermarkers=[sm["female"], sm["female"]]
              )
 
 
@@ -89,7 +89,7 @@ plot_barplot(data,
              ylim=(0, 100),
              fontsize=14,
              plotsize= (6, 4.5),
-             scattermarkers=[sm["male"], sm["male"]]
+             scattermarkers=[sm["female"], sm["female"]]
              )
 
 # # # OMM12 VS OMMPGOL # # #
@@ -125,5 +125,5 @@ plot_barplot(data,
              ylim=(0, 100),
              fontsize=14,
              plotsize= (6, 4.5),
-             scattermarkers=[sm["male"], sm["male"]]
+             scattermarkers=[sm["female"], sm["female"]]
              )

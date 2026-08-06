@@ -125,7 +125,10 @@ def plot_barplot(
                     continue
 
                 values = np.asarray(values, dtype=float)
+                
                 values = values[np.isfinite(values)]
+                print(group_name, plot_name)
+                print(len(values))
                 if values.size == 0:
                     continue
 
@@ -154,7 +157,7 @@ def plot_barplot(
                     color=scatter_color,
                     edgecolor=textcolor,
                     marker=marker,
-                    s=45,
+                    s=15,
                     zorder=3,
                     alpha=0.9,
                 )
