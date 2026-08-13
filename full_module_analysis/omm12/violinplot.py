@@ -9,11 +9,13 @@ def plot_violinplot(
     colormode="group",
     plotsize=(8, 6),
     fontsize=12,
+    conditions= ["hab", "top1", "top2"],
     colors=None,
     savepath=None,
     scatterdata=True,
     scattercolors=None,
     scattermarkers=None,
+    marker_size=15,
     ylim=None,
     ylabel=None,
     stylemode="light",
@@ -32,6 +34,12 @@ def plot_violinplot(
             "plot2": {...},
         }
     """
+    new_data = {}
+    for condition in conditions:
+        new_data[condition] = data[condition]
+    data = new_data
+
+    
     if colormode not in ("group", "plot"):
         raise ValueError("colormode must be 'group' or 'plot'.")
 
@@ -123,7 +131,7 @@ def plot_violinplot(
                     color=scatter_color,
                     edgecolor=textcolor,
                     marker=marker,
-                    s=35,
+                    s=marker_size,
                     zorder=3,
                     alpha=0.9,
                 )

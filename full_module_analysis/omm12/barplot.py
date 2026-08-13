@@ -10,11 +10,13 @@ def plot_barplot(
     colormode="group",
     plotsize=(8, 6),
     fontsize=12,
+    conditions= ["hab", "top1", "top2"],
     colors=None,
     savepath=None,
     scatterdata=True,
     scattercolors=None,
     scattermarkers=None,
+    marker_size=15,
     ylim=None,
     ylabel=None,
     stylemode="light",
@@ -68,6 +70,11 @@ def plot_barplot(
     tuple
         (fig, axes), where axes is always a 1D numpy array.
     """
+    new_data = {}
+    for condition in conditions:
+        new_data[condition] = data[condition]
+    data = new_data
+
     if colormode not in ("group", "plot"):
         raise ValueError("colormode must be 'group' or 'plot'.")
 
@@ -127,8 +134,7 @@ def plot_barplot(
                 values = np.asarray(values, dtype=float)
                 
                 values = values[np.isfinite(values)]
-                print(group_name, plot_name)
-                print(len(values))
+                print(values)
                 if values.size == 0:
                     continue
 
@@ -157,7 +163,7 @@ def plot_barplot(
                     color=scatter_color,
                     edgecolor=textcolor,
                     marker=marker,
-                    s=15,
+                    s=marker_size,
                     zorder=3,
                     alpha=0.9,
                 )

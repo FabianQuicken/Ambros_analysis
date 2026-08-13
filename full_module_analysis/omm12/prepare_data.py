@@ -10,7 +10,7 @@ def create_data_list(
         condition,
         metric
 ):
-    df = load_group_csvs(csv_folder=data_path, group=group, metrics=metric, sex=sex)
+    df = load_group_csvs(csv_folder=data_path, group=group, metrics=[metric, "immobile_bouts"], sex=sex)
     ids = df.columns.get_level_values("mouse_ids").unique()
 
     data_names = []
@@ -18,11 +18,16 @@ def create_data_list(
 
     for id in ids:
         for individual in individuals:
-            d = df.loc[:, (group, id, slice(None), condition, metric, individual)].to_numpy()
+            if metric == "immobile_start":
+                d = df.loc[:, (group, id, slice(None), condition, metric, individual)].to_numpy()
+                lens = df.loc[:, (group, id, slice(None), condition, "immobile_bouts", individual)].to_numpy()
+                d = np.where(lens > 30, d, np.nan)
+            else:
+                d = df.loc[:, (group, id, slice(None), condition, metric, individual)].to_numpy()
             event_indices = np.asarray(d, dtype=float).ravel()
             event_indices = event_indices[np.isfinite(event_indices)]
             data_list.append(event_indices)
-            data_names.append(id+" "+individual)
+            data_names.append(group)
 
     return data_names, data_list
 
@@ -40,8 +45,15 @@ def create_data_dic(
     norm_to_time_present=False,
     dic=None,
     update_dic=False,
+    min_value=None,
 ):
-    df = load_group_csvs(csv_folder=data_path, group=group, metrics=[metric, "mice_presence"], sex=sex)
+    """Create the data dictionary, optionally keeping only values above a cutoff.
+
+    ``min_value`` is applied to the raw metric data before extraction,
+    transformation, or summary statistics. Values equal to or below the cutoff
+    are replaced with NaN so they are ignored by the NaN-aware calculations.
+    """
+    df = load_group_csvs(csv_folder=data_path, group=group, metrics=[metric, "mice_presence", ""], sex=sex)
 
     conditions = df.columns.get_level_values("condition").unique()
     ids = df.columns.get_level_values("mouse_ids").unique()
@@ -61,10 +73,15 @@ def create_data_dic(
         values = []
         for id in ids:
             for individual in individuals:
-                d = df.loc[:, (group, id, slice(None), condition, metric, individual)].to_numpy()
+                d = df.loc[0:18000, (group, id, slice(None), condition, metric, individual)].to_numpy()
                 present = df.loc[:, (group, id, slice(None), condition, "mice_presence", individual)].to_numpy()
+                if min_value is not None:
+                    d = np.where(d > min_value, d, np.nan)
                 if data_extraction_mode == "mean":
                     value = np.nanmean(d) * data_transform
+                    values.append(_log10_transform(value) if log10_transform else value)
+                elif data_extraction_mode == "median":
+                    value = np.nanmedian(d) * data_transform
                     values.append(_log10_transform(value) if log10_transform else value)
                 elif data_extraction_mode == "max":
                     value = np.nanmax(d) * data_transform
@@ -89,6 +106,8 @@ def create_data_dic(
                     values.extend(value)
                 elif data_extraction_mode == "len":
                     value = np.sum(~np.isnan(d))
+                    if norm_to_time_present:
+                        value = value / np.nansum(present) * data_transform
                     
                     values.append(_log10_transform(value) if log10_transform else value)
                 #print(id, condition, individual, np.nanmax(d))
