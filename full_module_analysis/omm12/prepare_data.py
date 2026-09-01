@@ -43,6 +43,7 @@ def create_data_dic(
     data_transform=1,
     log10_transform=False,
     norm_to_time_present=False,
+    absolute_values=False,
     dic=None,
     update_dic=False,
     min_value=None,
@@ -75,6 +76,8 @@ def create_data_dic(
             for individual in individuals:
                 d = df.loc[0:18000, (group, id, slice(None), condition, metric, individual)].to_numpy()
                 present = df.loc[:, (group, id, slice(None), condition, "mice_presence", individual)].to_numpy()
+                if absolute_values:
+                    d = np.abs(d)
                 if min_value is not None:
                     d = np.where(d > min_value, d, np.nan)
                 if data_extraction_mode == "mean":
