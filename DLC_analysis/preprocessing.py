@@ -11,21 +11,20 @@ Here, the preprocessing of DLC data is performed. The preprocessing includes the
 
 """
 
+# # # # # # # _________________________________________________________________________________________________________________
+
+# Imports
+
+# # # # # # # _________________________________________________________________________________________________________________
+
 import glob as glob
 import os
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import shutil
+from variables import FPS
 
-# # # # # # # _________________________________________________________________________________________________________________
-
-# Variablen 
-
-# # # # # # # _________________________________________________________________________________________________________________
-
-path = r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\mouse_2\2024_12_17\top2"
-path = r"Z:\n2023_odor_related_behavior\2025_omm_mice\dlc_output\germfree\females_30_45_46\hab"
-FPS = 30
 
 
 # # # # # # # _________________________________________________________________________________________________________________
@@ -81,7 +80,7 @@ def time_to_seconds(time_str):
         hours, minutes, seconds = map(int, time_str.split("_"))
         return hours * 3600 + minutes * 60 + seconds
 
-def get_metadata(file_list, filetype, fps):
+def get_metadata(file_list, filetype, fps, exp_len):
     # get recording length
     exp_duration_frames, startzeit, endzeit, date = calculate_experiment_length(file_list[0], file_list[-1])
     filename = os.path.basename(file_list[0])
@@ -106,7 +105,8 @@ def get_metadata(file_list, filetype, fps):
         "start": startzeit,
         "end": endzeit,
         "date": date,
-        "experiment_length_frames": exp_duration_frames,
+        "recording_length_frames": exp_duration_frames,
+        "exp_len": exp_len*fps,
         "animal_info": animal_info,
         "experiment_info": experiment_info,
         "camera": camera
@@ -172,7 +172,10 @@ def create_working_df(files, filetype, metadata):
     if not ma:
         first_df = add_individual_level(first_df, metadata["animal_info"])
     # Create a new DataFrame with the same columns as the original DataFrame
-    working_df = pd.DataFrame(index=range(metadata["experiment_length_frames"]), columns=first_df.columns)
+    working_df = pd.DataFrame(index=range(metadata["recording_length_frames"]), columns=first_df.columns)
+
+    working_df = working_df.astype(float)
+    working_df = working_df.round(2)
 
     return working_df
 
@@ -197,26 +200,29 @@ def likelihood_filtering(df, filter_value = 0.3):
 
 
 def interpolate_with_max_gap(df, max_gap=30, method="linear"):
+    
     out = df.copy()
-    num_cols = out.select_dtypes(include=[np.number]).columns
 
-    # 1) Nur „echte“ Interpolation zwischen gültigen Punkten
-    out[num_cols] = out[num_cols].interpolate(method=method,
-                                              limit_direction="both",
-                                              limit_area="inside")
-    
-    # 2) NaN-Runs > max_gap identifizieren und wieder auf NaN setzen
-    for col in num_cols:
-        s = df[col]  # Original mit NaNs
-        # Gruppen-IDs zwischen Nicht-NaNs erstellen
+    coords = out.columns.get_level_values("coords")
+    interpolation_cols = out.columns[coords.isin(["x", "y"])]
+
+    out[interpolation_cols] = out[interpolation_cols].interpolate(
+        method=method,
+        limit_direction="both",
+        limit_area="inside"
+    )
+
+    for col in interpolation_cols:
+
+        s = df[col]
+
         grp = s.notna().cumsum()
-        # Länge jedes NaN-Runs
         run_len = s.isna().groupby(grp).transform("sum")
-        # Maske: Positionen in zu langen NaN-Runs
+
         too_long = s.isna() & (run_len > max_gap)
-        # Zurücksetzen
+
         out.loc[too_long, col] = np.nan
-    
+
     return out
 
 def find_relative_startframe(first_file, filename):
@@ -256,40 +262,90 @@ def insert_into_working_df(working_df, files, filetype, metadata):
 
     return working_df
 
+def crop_working_df(metadata, working_df):
+    return working_df.iloc[0:metadata["exp_len"], :]
 
+def create_metric_df(metadata, working_df, metrics):
 
-def find_overlap():
-    pass
+    name = (
+        f"{metadata['date']}_"
+        f"{metadata['start']}_"
+        f"{metadata['animal_info']}_"
+        f"{metadata['experiment_info']}_"
+        f"{metadata['camera']}"
+    )
 
-def crop_working_df():
-    pass
+    individuals = (
+        working_df.columns
+        .get_level_values("individuals")
+        .unique()
+        .tolist()
+    )
 
-def create_metric_df():
-    pass
+    columns = pd.MultiIndex.from_product(
+        [[name], individuals, metrics],
+        names=["name", "individuals", "metrics"]
+    )
 
-def save_metadata():
-    pass
+    metric_df = pd.DataFrame(
+        index=working_df.index.copy(),
+        columns=columns,
+        dtype=float
+    )
 
+    return metric_df
+
+def save_files(metadata, working_df, metric_df, path):
+    save_path = os.path.join(path, "metric_analysis")
+    os.makedirs(save_path, exist_ok=True)
+    metadata_df = pd.DataFrame([metadata])
+    metadata_df.to_csv(os.path.join(save_path, "metadata.csv"), index=False)
+    working_df = working_df.astype(float).round(2)
+    working_df.to_csv(os.path.join(save_path, "working_df.csv"))
+    working_df.to_hdf(os.path.join(save_path, "experiment.h5"), key="pose", mode="w")
+    metric_df.to_csv(os.path.join(save_path, "metric_df.csv"))
+    metric_df.to_hdf(os.path.join(save_path, "experiment.h5"), key="metrics", mode="a")
+
+def move_dlc_files(path):
+    h5_files = sorted(glob.glob(os.path.join(path, "*.h5")))
+    csv_files = sorted(glob.glob(os.path.join(path, "*.csv")))
+
+    savedir = os.path.join(path, "dlc_files")
+    os.makedirs(savedir, exist_ok=True)
+
+    for h5_file in h5_files:
+        shutil.move(h5_file, os.path.join(savedir, os.path.basename(h5_file)))
+
+    for csv_file in csv_files:
+        shutil.move(csv_file, os.path.join(savedir, os.path.basename(csv_file)))
 
 
 # # # # # # # _________________________________________________________________________________________________________________
 
-# Preprocessing  
+# Preprocessing Main 
 
 # # # # # # # _________________________________________________________________________________________________________________
 
 
-path = r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\mouse_2\2024_12_17\top2"
+def main_preprocessing(path, FPS, exp_len_seconds):
 
-# h5 bzw. csv files finden
-files, filetype = file_discovery(path)
+    # h5 bzw. csv files finden
+    files, filetype = file_discovery(path)
 
-# Experiment Metadata aus Namen extrahieren
-metadata = get_metadata(files, filetype, FPS)
+    # Experiment Metadata aus Namen extrahieren
+    metadata = get_metadata(files, filetype, FPS, exp_len_seconds)
 
-# ein leeres DF in Experimentlänge erstellen
-dlc_df = create_working_df(files, filetype, metadata)
+    # ein leeres DF in Experimentlänge erstellen
+    dlc_df = create_working_df(files, filetype, metadata)
 
-dlc_df = insert_into_working_df(dlc_df, files, filetype, metadata)
+    dlc_df = insert_into_working_df(dlc_df, files, filetype, metadata)
 
+    dlc_df = crop_working_df(metadata, dlc_df)
+
+    metric_df = create_metric_df(metadata, dlc_df, metrics=["speed", "acceleration"])
+
+    #metric_df.to_csv(os.path.join(path, "metric_df.csv"))
+    save_files(metadata, dlc_df, metric_df, path)
+
+    move_dlc_files(path)
 
