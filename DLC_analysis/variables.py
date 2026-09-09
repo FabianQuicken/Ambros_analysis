@@ -1,1 +1,2 @@
 FPS = 30
+PIXEL_PER_CM = 36.39

@@ -244,7 +244,7 @@ def find_relative_startframe(first_file, filename):
     return (current_seconds - start_seconds) * FPS
     
 
-def insert_into_working_df(working_df, files, filetype, metadata):
+def insert_into_working_df(working_df, files, filetype, metadata, filter_value):
 
     for file in tqdm(files):
         df, ma = load_dlc_df(file, filetype)
@@ -254,7 +254,7 @@ def insert_into_working_df(working_df, files, filetype, metadata):
 
         start_idx = find_relative_startframe(files[0], file)
 
-        df = likelihood_filtering(df, filter_value=0.3)
+        df = likelihood_filtering(df, filter_value)
         df = interpolate_with_max_gap(df, max_gap=30, method="linear")
 
         # Insert the data into the working DataFrame
@@ -327,7 +327,7 @@ def move_dlc_files(path):
 # # # # # # # _________________________________________________________________________________________________________________
 
 
-def main_preprocessing(path, FPS, exp_len_seconds):
+def main_preprocessing(path, FPS, exp_len_seconds, filter_value):
 
     # h5 bzw. csv files finden
     files, filetype = file_discovery(path)
@@ -338,7 +338,7 @@ def main_preprocessing(path, FPS, exp_len_seconds):
     # ein leeres DF in Experimentlänge erstellen
     dlc_df = create_working_df(files, filetype, metadata)
 
-    dlc_df = insert_into_working_df(dlc_df, files, filetype, metadata)
+    dlc_df = insert_into_working_df(dlc_df, files, filetype, metadata, filter_value)
 
     dlc_df = crop_working_df(metadata, dlc_df)
 
