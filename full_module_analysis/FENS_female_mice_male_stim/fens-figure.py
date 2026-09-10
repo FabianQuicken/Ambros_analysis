@@ -34,14 +34,14 @@ For each plot, I want to be able to adjust the following parameters:
 """
 
 MM_PER_INCH = 25.4
-PANEL_WIDTH_MM = 371.333
-PANEL_HEIGHT_MM = 200
+PANEL_WIDTH_MM = 411.433
+PANEL_HEIGHT_MM = 205.235
 
 DEFAULT_HEATMAP_BINS = (25, 15)
 
 PROJECT_PATH = r"Z:\n2023_odor_related_behavior"
 
-OUTPUT_PATH = r"Z:\n2023_odor_related_behavior\other\Reisen\Barcelona FENS 2026\Poster\Abbildungen\odor_preference.svg"
+OUTPUT_PATH = r"Z:\n2023_odor_related_behavior\other\Reisen\Paris ECRO 2026\Poster\odor_preference.svg"
 
 PLOT_STYLE = {
     "scatter_colors": "white",
@@ -57,7 +57,7 @@ PLOT_STYLE = {
 }
 
 PLOT_LAYOUT = {
-    "left_margin_mm": 30,
+    "left_margin_mm": 0,
     "right_margin_mm": 0,
     "bottom_margin_mm": 8,
     "top_margin_mm": 5,
@@ -75,26 +75,26 @@ def module_path(folder, mouse, date, module):
 
 # heatmap data stim
 # mouse 17 day2 top1 vs day1 top1
-m_17_d2_stim_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\female_mice_male_stimuli\mouse_17\2025_04_15\top1"
-m_17_d1_stim_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\female_mice_male_stimuli\mouse_17\2025_04_14\top1"
+m_17_d2_stim_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\female_mice_male_stimuli\mouse_17\2025_04_15\top1\dlc_files"
+m_17_d1_stim_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\female_mice_male_stimuli\mouse_17\2025_04_14\top1\dlc_files"
 
 # heatmap data con
 # mouse 17 day2 top2 vs day1 top2
-m_17_d2_con_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\female_mice_male_stimuli\mouse_17\2025_04_15\top2"
-m_17_d1_con_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\female_mice_male_stimuli\mouse_17\2025_04_14\top2"
+m_17_d2_con_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\female_mice_male_stimuli\mouse_17\2025_04_15\top2\dlc_files"
+m_17_d1_con_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\female_mice_male_stimuli\mouse_17\2025_04_14\top2\dlc_files"
 
 # discrimination data stim: (exp1 stim - hab stim) / (exp1 stim + hab stim) and (exp2 stim - recall stim) / (exp2 stim + recall stim)
 # and con (exp1 con - hab con) / (exp1 con + hab con) and (exp2 con - recall con) / (exp2 con + recall con)
-f_stim_disc = [0.95, 0.19, 0.27, 0.46, 0.40, 0.55, -0.23, 0.32, 0.25, 0.30]
-f_con_disc = [0.85, 0.10, -0.15, -0.09, -0.09, -0.15, -0.99, -0.08, 0.09, -0.50]
+f_stim_disc = [0.96, 0.17, 0.40, 0.53, 0.27, 0.49, 0.38, -0.06, 0.91, 0.24, 0.27, 0.28, 0.53, 0.09, -0.27, 0.33, 0.82, 0.09]
+f_con_disc = [0.89, 0.12, -0.10, -0.15, -0.15, -0.08, -0.01, 0.19, 0.77, -0.10, 0.10, -0.50, 0.22, 0.23, -0.99, -0.07, 0.62, -0.11]
 
 # mean visit time data
-f_stim_mean_visit_time = [14.00, 14.66, 20.46, 31.69, 22.32, 23.59, 32.11, 18.90, 20.89, 26.61]
-f_con_mean_visit_time = [13.62, 12.02, 11.79, 1.50, 16.29, 21.96, 20.41, 10.60, 16.95, 23.20]
+f_stim_mean_visit_time = [12.9, 20.5, 22.8, 19, 16.3, 33.9, 21.9, 17.4, 24.4, 30.1, 19.6, 19.9, 34.3, 25.3, 11.9, 17, 16.1, 27.8]
+f_con_mean_visit_time = [14.1, 22.8, 12.5, 12.4, 14.3, 23.4, 14.3, 32.7, 17.2, 25.6, 12.8, 17.4, 2.1, 19.8, 9.4, 9, 13.4, 13.9]
 
 # number of visits data
-f_stim_n_visits = [421, 384, 308, 74, 153, 259, 271, 378, 255, 162]
-f_con_n_visits = [409, 154, 263, 12, 273, 177, 174, 305, 283, 65]
+f_stim_n_visits = [388, 291, 285, 388, 362, 274, 267, 223, 139, 155, 312, 237, 60, 227, 351, 321, 372, 241]
+f_con_n_visits = [389, 194, 256, 271, 129, 165, 200, 212, 263, 63, 262, 264, 3, 255, 382, 290, 175, 146]
 
 
 # # # male data # # #

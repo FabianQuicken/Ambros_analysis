@@ -334,81 +334,119 @@ def get_all_traj(x, y, len_thr=FPS):
 
         return all_traj, traj_slices, len_traj, start_traj
 
+def save_metrics(metrics_df, folder_path):
+
+    # Experiment-Datei suchen
+    experiment_files = [
+        file for file in glob.glob(os.path.join(folder_path, "*.h5"))
+        if "experiment" in os.path.basename(file).lower()
+    ]
+
+    if len(experiment_files) == 0:
+        raise FileNotFoundError(
+            f"No experiment file found in {folder_path}"
+        )
+
+    if len(experiment_files) > 1:
+        raise ValueError(
+            f"Multiple experiment files found in {folder_path}: "
+            f"{experiment_files}"
+        )
+
+    experiment_file = experiment_files[0]
+
+    # Aktualisiertes DataFrame unter demselben Key speichern
+    metrics_df.to_hdf(
+        experiment_file,
+        key="metrics",
+        mode="a",
+        format="fixed"
+    )
+
+    print(f"Metrics saved to: {experiment_file}")
+
 # # # # # # # _________________________________________________________________________________________________________________
 
 # Analysis Main 
 
 # # # # # # # _________________________________________________________________________________________________________________
 
-folder_path = r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\mouse_2\2024_12_17\top2\metric_analysis"
+
 folder_path = r"C:\Users\Fabian\Desktop\Transfer\analysis_testing\metric_analysis"
 
-individuals_to_remove = None
-bodyparts_to_remove = ["food1"]
+def main_analysis(individuals_to_remove,
+                  bodyparts_to_remove,
+                  folder_path
+                ):
 
-working_df, metrics_df = load_experiment_data(folder_path)
+    
 
-working_df = drop_dlc_columns(working_df, individuals_to_remove, bodyparts_to_remove)
+    working_df, metrics_df = load_experiment_data(folder_path)
 
-name = metrics_df.columns.get_level_values("name").unique().item()
+    working_df = drop_dlc_columns(working_df, individuals_to_remove, bodyparts_to_remove)
 
-individuals = working_df.columns.get_level_values("individuals").unique()
+    name = metrics_df.columns.get_level_values("name").unique().item()
 
-bodyparts = working_df.columns.get_level_values("bodyparts").unique()
+    individuals = working_df.columns.get_level_values("individuals").unique()
 
-
-
-
-
-
-# einzene Metrics werden pro Individual erstellt und ins metric dataframe eingefügt
-for individual in individuals:
-
-    working_df = working_df.copy()
-    #working_df.loc[:, (individual, bodyparts, ["y"])] *= -1
-
-    # mean likelihood als Maß für die Tracking Qualität
-    mean_lh = calculate_mean_likelihood(working_df, metrics_df, individual, bodyparts)
-    metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "mean_likelihood", mean_lh)
-
-    # mouse center als mean aller koordinaten
-    center_x, center_y = mouse_center(working_df, individual, bodyparts, min_bodyparts=len(bodyparts)/3)
-    metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "center_x", center_x)
-    metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "center_y", center_y)
-
-    # nose für investigation metrics rausholen
-    nose_x = working_df.loc[:, (individual, "nose", "x")].to_numpy()
-    nose_y = working_df.loc[:, (individual, "nose", "y")].to_numpy()
-
-    # time visible
-    visible = (~np.isnan(center_x)).astype(int)
-    metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "visible", visible)
-
-    # speed, inklusive moving average und smoothing um jitter entgegen zu wirken
-    speed = distance_travelled_arraybased(center_x, center_y)
-    speed = moving_average(speed, window=int(FPS/2))
-    # speed wird unter threshold auf 0 gesetzt (Maus ist immobile, Bewegung ist getrieben von Keypoint Jitter)
-    speed = remove_distance_jitter(speed, thrsh=4)
-    metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "speed", speed)
-
-    # immobile
-    immobile = np.where(speed == 0, 1, 0)
-    metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "immobile", immobile)
-
-    # acceleration
-    acc, acc_cm_s = acceleration(speed, FPS, PIXEL_PER_CM)
-    metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "acceleration", acc)
-
-    # speed events
-    count_speed_events, speed_event_frame_idx = acceleration_events(acc)
-
-    # all trajectories (not regarding if a trajectory starts in the "entry area" of a module)
-    all_traj, traj_slices, len_traj, start_traj = get_all_traj(center_x, center_y)
-    metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "trajectory_start", start_traj)
-    metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "trajectory_length", len_traj)
+    bodyparts = working_df.columns.get_level_values("bodyparts").unique()
 
 
-  
+
+
+
+
+    # einzene Metrics werden pro Individual erstellt und ins metric dataframe eingefügt
+    for individual in individuals:
+
+        working_df = working_df.copy()
+        #working_df.loc[:, (individual, bodyparts, ["y"])] *= -1
+
+        # mean likelihood als Maß für die Tracking Qualität
+        mean_lh = calculate_mean_likelihood(working_df, metrics_df, individual, bodyparts)
+        metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "mean_likelihood", mean_lh)
+
+        # mouse center als mean aller koordinaten
+        center_x, center_y = mouse_center(working_df, individual, bodyparts, min_bodyparts=len(bodyparts)/3)
+        metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "center_x", center_x)
+        metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "center_y", center_y)
+
+        # nose für investigation metrics rausholen
+        nose_x = working_df.loc[:, (individual, "nose", "x")].to_numpy()
+        nose_y = working_df.loc[:, (individual, "nose", "y")].to_numpy()
+
+        # time visible
+        visible = (~np.isnan(center_x)).astype(int)
+        metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "visible", visible)
+
+        # speed, inklusive moving average und smoothing um jitter entgegen zu wirken
+        speed = distance_travelled_arraybased(center_x, center_y)
+        speed = moving_average(speed, window=int(FPS/2))
+        # speed wird unter threshold auf 0 gesetzt (Maus ist immobile, Bewegung ist getrieben von Keypoint Jitter)
+        speed = remove_distance_jitter(speed, thrsh=4)
+        metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "speed", speed)
+
+        # immobile
+        immobile = np.where(speed == 0, 1, 0)
+        metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "immobile", immobile)
+
+        # acceleration
+        acc, acc_cm_s = acceleration(speed, FPS, PIXEL_PER_CM)
+        metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "acceleration", acc)
+
+        # speed events
+        count_speed_events, speed_event_frame_idx = acceleration_events(acc)
+
+        # all trajectories (not regarding if a trajectory starts in the "entry area" of a module)
+        all_traj, traj_slices, len_traj, start_traj = get_all_traj(center_x, center_y)
+        metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "trajectory_start", start_traj)
+        metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "trajectory_length", len_traj)
+
+
+
+    # speichern
+
+    save_metrics(metrics_df, folder_path)
 
 
 
