@@ -17,7 +17,7 @@ MM_PER_INCH = 25.4
 path_speedtrace = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\FENS\data_speed\single_mouse_datatest_omm12prop_32_35_37_females_top1.csv"
 full_hab_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2025_omm_mice\FENS\data_speed\single_mouse_datatest_omm12prop_32_35_37_females_hab.csv"
 
-OUTPUT_PATH = r"C:\Users\Fabian\Desktop\Transfer\FENS\speed.svg"
+OUTPUT_PATH = r"Z:\n2023_odor_related_behavior\other\Reisen\Paris ECRO 2026\Poster\speed.svg"
 
 EXAMPLE_INDIVIDUAL = "mouse_2"
 EXAMPLE_START_FRAME = 155000
@@ -77,8 +77,8 @@ For each plot, I want to be able to adjust the following parameters:
 - no panel letters A or B
 """
 
-PANEL_WIDTH_MM = 371.333
-PANEL_HEIGHT_MM = 110
+PANEL_WIDTH_MM = 321.329
+PANEL_HEIGHT_MM = 118.533
 
 PLOT_STYLE = {
     "trace_color": "white",
@@ -92,8 +92,8 @@ PLOT_STYLE = {
 }
 
 PLOT_LAYOUT = {
-    "left_margin_mm": 30,
-    "right_margin_mm": 7,
+    "left_margin_mm": 23,
+    "right_margin_mm": 15,
     "bottom_margin_mm": 15,
     "top_margin_mm": 7,
     "horizontal_spacing_mm": 22,

@@ -22,7 +22,7 @@ def find_experiment_files(folder_path):
 
     return sorted(experiment_files)
 
-paths = find_experiment_files(r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\female_mice_male_stimuli")
+paths = find_experiment_files(r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\male_mice_female_stimuli")
 
 """
 for file in tqdm(paths):
@@ -144,5 +144,5 @@ def create_module_summary(paths, folder_path, fps=30):
 
     return summary_df
 
-create_module_summary(paths, r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\female_mice_male_stimuli", 30)
+create_module_summary(paths, r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\male_mice_female_stimuli", 30)
     

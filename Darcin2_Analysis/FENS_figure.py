@@ -116,8 +116,8 @@ Baseline corrected module preference
 FPS = 30
 MM_PER_INCH = 25.4
 
-PANEL_WIDTH_MM = 371.333
-PANEL_HEIGHT_MM = 100
+PANEL_WIDTH_MM = 411.433
+PANEL_HEIGHT_MM = 130.179
 
 DAYS = ("day1", "day2", "day3")
 DAY_LABELS = ("Habituation", "Conditioning", "Recall")
@@ -425,4 +425,4 @@ if __name__ == "__main__":
     fig, axes = build_fens_panel()
     assert_panel_content_in_bounds(fig)
     plt.show()
-    fig.savefig(r"Z:\n2023_odor_related_behavior\other\Reisen\Barcelona FENS 2026\Poster\Abbildungen\3_chamber.svg")
+    fig.savefig(r"Z:\n2023_odor_related_behavior\other\Reisen\Paris ECRO 2026\Poster\3_chamber.svg")

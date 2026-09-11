@@ -43,8 +43,8 @@ plot = ["face_inv", "body_inv", "anogenital_inv"]
 ylims = [40, 5, 5]
 
 MM_PER_INCH = 25.4
-PANEL_WIDTH_MM = 191.854
-PANEL_HEIGHT_MM = 90
+PANEL_WIDTH_MM = 244.877
+PANEL_HEIGHT_MM = 104.929
 
 METRIC_TITLES = {
     "face_inv": "face",
@@ -68,12 +68,12 @@ PLOT_STYLE = {
 PLOT_LAYOUT = {
     "left_margin_mm": 18,
     "right_margin_mm": 0,
-    "bottom_margin_mm": 13,
+    "bottom_margin_mm": 16,
     "top_margin_mm": 9,
     "plot_spacing_mm": 14,
 }
 
-OUTPUT_PATH = r"C:\Users\Fabian\Desktop\Transfer\FENS\social_behavior.svg"
+OUTPUT_PATH = r"Z:\n2023_odor_related_behavior\other\Reisen\Paris ECRO 2026\Poster\social_behavior.svg"
 
 
 def mm_to_inches(value):
@@ -220,7 +220,7 @@ def plot_unpaired_metric(ax, female_data, male_data, title, style, ylim=(0, 100)
     ax.set_title(title, fontsize=style["title_font_size"], pad=7)
     ax.set_ylabel("investigation [%]", fontsize=style["label_font_size"])
     ax.set_xticks(x_positions)
-    ax.set_xticklabels(("female", "male"))
+    ax.set_xticklabels(("female\ngroup", "male\ngroup"))
     ax.set_xlim(-0.45, 1.45)
     ax.set_ylim(*ylim)
     despine_axis(ax)

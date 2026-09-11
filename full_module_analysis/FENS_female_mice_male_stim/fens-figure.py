@@ -111,16 +111,16 @@ m_73_d1_con_path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_od
 
 # discrimination data stim: (exp1 stim - hab stim) / (exp1 stim + hab stim) and (exp2 stim - recall stim) / (exp2 stim + recall stim)
 # and con (exp1 con - hab con) / (exp1 con + hab con) and (exp2 con - recall con) / (exp2 con + recall con)
-m_stim_disc = [0.73, 0.09, 0.58, 0.20, 0.15, 0.30, 0.00, 0.17]
-m_con_disc = [-0.16, 0.20, 0.72, -0.15, 0.15, 0.26, 0.31, -0.05]
+m_stim_disc = [0.73, 0.09, 0.58, 0.20, 0.15, 0.30, 0.00, 0.17, 0.27, 0.06, 0.77, 0.27, 0.97, 0.93]
+m_con_disc = [-0.16, 0.20, 0.72, -0.15, 0.15, 0.26, 0.31, -0.05, -0.02, 0.11, 0.59, -0.03, 0.50, 0.48]
 
 # mean visit time data
-m_stim_mean_visit_time = [50.17, 62.67, 44.24, 54.97, 41.09, 45.18, 23.77, 24.61]
-m_con_mean_visit_time = [20.87, 24.63, 24.11, 29.53, 22.72, 34.67, 24.79, 19.88]
+m_stim_mean_visit_time = [50.17, 62.67, 44.24, 54.97, 41.09, 45.18, 23.77, 24.61, 40.1, 32.3, 28.1, 25.4, 27.7, 39.9]
+m_con_mean_visit_time = [20.87, 24.63, 24.11, 29.53, 22.72, 34.67, 24.79, 19.88, 37.8, 38.9, 15.8, 23, 4.6, 7.4]
 
 # number of visits data
-m_stim_n_visits = [154, 136, 187, 117, 170, 167, 205, 269]
-m_con_n_visits = [134, 207, 149, 99, 158, 176, 233, 228]
+m_stim_n_visits = [154, 136, 187, 117, 170, 167, 205, 269, 147, 147, 252, 210, 214, 97]
+m_con_n_visits = [134, 207, 149, 99, 158, 176, 233, 228, 129, 161, 149, 176, 94, 67]
 
 
 FEMALE_HEATMAPS = [
@@ -350,7 +350,7 @@ def print_wilcoxon_results():
         ("male stimulus vs control number of visits", m_stim_n_visits, m_con_n_visits),
     ]
     for label, stim, con in stats:
-        stat, p = wilcoxon(x=stim, y=con)
+        stat, p = wilcoxon(x=stim, y=con, alternative="greater")
         print(f"{label}: W={stat:.3f}, p={p:.4g}")
 
 
