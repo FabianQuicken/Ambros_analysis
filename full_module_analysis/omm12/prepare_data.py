@@ -47,13 +47,45 @@ def create_data_dic(
     dic=None,
     update_dic=False,
     min_value=None,
+    fraction_threshold=None,
+    fraction_comparison=">",
 ):
     """Create the data dictionary, optionally keeping only values above a cutoff.
 
     ``min_value`` is applied to the raw metric data before extraction,
     transformation, or summary statistics. Values equal to or below the cutoff
     are replaced with NaN so they are ignored by the NaN-aware calculations.
+
+    ``P90`` (or ``p90``) extracts the 90th percentile per individual.
+    ``IQR`` (or ``iqr``) extracts the 75th minus the 25th percentile.
+    ``fraction`` extracts the proportion of non-NaN samples satisfying
+    ``fraction_comparison`` against ``fraction_threshold``. Comparisons may
+    be ``>``, ``>=``, ``<``, ``<=``, ``==``, or ``!=``; the default is ``>``.
+    The threshold uses metric units after absolute_values and min_value
+    filtering, but before data_transform and log10_transform. An individual
+    with no valid samples yields NaN. These modes apply data_transform and
+    log10_transform to the extracted statistic, as with ``mean``; they do
+    not use norm_to_time_present. They retain the 18,001-frame limit.
+
+    ``raw_traces`` preserves full-length (frames, recordings) arrays, one per
+    individual, ordered by mouse_ids then individuals. Unlike ``raw``, it does
+    not flatten traces or apply the historical 18,001-frame limit.
     """
+    data_extraction_mode = data_extraction_mode.lower()
+    if data_extraction_mode == "fraction":
+        comparisons = {
+            ">": np.greater, ">=": np.greater_equal,
+            "<": np.less, "<=": np.less_equal,
+            "==": np.equal, "!=": np.not_equal,
+        }
+        if fraction_comparison not in comparisons:
+            raise ValueError("fraction_comparison must be >, >=, <, <=, ==, or !=.")
+        if (fraction_threshold is None or not np.isscalar(fraction_threshold)
+                or not isinstance(fraction_threshold, (int, float, np.number))
+                or not np.isreal(fraction_threshold) or not np.isfinite(fraction_threshold)):
+            raise ValueError("fraction_threshold must be a finite real number.")
+        compare = comparisons[fraction_comparison]
+
     df = load_group_csvs(csv_folder=data_path, group=group, metrics=[metric, "mice_presence", ""], sex=sex)
 
     conditions = df.columns.get_level_values("condition").unique()
@@ -74,7 +106,8 @@ def create_data_dic(
         values = []
         for id in ids:
             for individual in individuals:
-                d = df.loc[0:18000, (group, id, slice(None), condition, metric, individual)].to_numpy()
+                frames = slice(None) if data_extraction_mode == "raw_traces" else slice(0, 18000)
+                d = df.loc[frames, (group, id, slice(None), condition, metric, individual)].to_numpy()
                 present = df.loc[:, (group, id, slice(None), condition, "mice_presence", individual)].to_numpy()
                 if absolute_values:
                     d = np.abs(d)
@@ -89,6 +122,19 @@ def create_data_dic(
                 elif data_extraction_mode == "max":
                     value = np.nanmax(d) * data_transform
                     values.append(_log10_transform(value) if log10_transform else value)
+                elif data_extraction_mode in ("p90", "iqr", "fraction"):
+                    valid = d[~np.isnan(d)]
+                    if valid.size == 0:
+                        value = np.nan
+                    elif data_extraction_mode == "p90":
+                        value = np.percentile(valid, 90)
+                    elif data_extraction_mode == "iqr":
+                        q25, q75 = np.percentile(valid, [25, 75])
+                        value = q75 - q25
+                    else:
+                        value = np.mean(compare(valid, fraction_threshold))
+                    value *= data_transform
+                    values.append(_log10_transform(value) if log10_transform else value)
                 elif data_extraction_mode == "sum":
                     if norm_to_time_present:
                         value = np.nansum(d) / np.nansum(present) * data_transform
@@ -102,6 +148,9 @@ def create_data_dic(
                     else:
                         value = np.nancumsum(d) * data_transform
                     values.append(_log10_transform(value) if log10_transform else value)
+                elif data_extraction_mode == "raw_traces":
+                    value = d * data_transform
+                    values.append(_log10_transform(value) if log10_transform else value)
                 elif data_extraction_mode == "raw":
                     value = d * data_transform
                     if log10_transform:
@@ -114,7 +163,7 @@ def create_data_dic(
                     
                     values.append(_log10_transform(value) if log10_transform else value)
                 #print(id, condition, individual, np.nanmax(d))
-        if data_extraction_mode == "cumsum":
+        if data_extraction_mode in ("cumsum", "raw_traces"):
             data[condition][group]["values"] = values
             data[condition][group]["mean"] = np.nan
             data[condition][group]["sd"] = np.nan

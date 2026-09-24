@@ -1,4 +1,5 @@
 from pathlib import Path
+import csv
 from tqdm import  tqdm
 import os
 
@@ -50,7 +51,10 @@ def load_group_csvs(csv_folder, group, metrics, sex="both", pattern="*.csv"):
     for csv_path in tqdm(csv_paths):
         if not _has_exact_token(filename=csv_path, token=group):
             continue
-        df = pd.read_csv(csv_path, header=[0, 1, 2, 3, 4, 5], index_col=0)
+        # Some exports were saved with a semicolon delimiter by spreadsheet software.
+        with csv_path.open(encoding="utf-8-sig") as stream:
+            delimiter = csv.Sniffer().sniff(stream.readline(), delimiters=",;").delimiter
+        df = pd.read_csv(csv_path, sep=delimiter, header=[0, 1, 2, 3, 4, 5], index_col=0)
         df.columns = df.columns.set_names(CSV_COLUMN_LEVELS)
 
         columns = df.columns

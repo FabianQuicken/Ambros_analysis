@@ -51,7 +51,6 @@ from save_load_dic import save_analysis, load_analysis
 from spatial_entropy import spatial_entropy, pixel_exploration_score
 # struktur zum speichern erstellen
 
-print()
 
 @dataclass
 class ModuleVariables:
