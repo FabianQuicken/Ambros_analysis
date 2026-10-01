@@ -119,7 +119,6 @@ def _load_dlc_csv(file):
     header_labels = preview.iloc[:, 0].astype(str).str.lower().tolist()
     ma = False
     if "individuals" in header_labels and "coords" in header_labels:
-        print("hello")
         header = [0, 1, 2, 3]
         ma = True
     elif "coords" in header_labels:
@@ -135,19 +134,19 @@ def _load_dlc_csv(file):
 
     return df, ma
 
-def load_dlc_df(first_file, filetype):
+def load_dlc_df(file, filetype):
 
     if "h5" in filetype:
-        df = pd.read_hdf(first_file)
+        df = pd.read_hdf(file)
         cols = df.columns.nlevels
         ma = False
         if "individuals" in df.columns.names:
             ma = True 
         if not "coords" in df.columns.names:
-            raise ValueError(f"Unexpected column names in HDF5 file: {first_file}. Expected 'coords' in the column names.")  
+            raise ValueError(f"Unexpected column names in HDF5 file: {file}. Expected 'coords' in the column names.")  
 
     elif "csv" in filetype:
-        df, ma = _load_dlc_csv(first_file)
+        df, ma = _load_dlc_csv(file)
 
 
     return df, ma
