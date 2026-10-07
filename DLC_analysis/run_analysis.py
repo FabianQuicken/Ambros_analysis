@@ -1,4 +1,4 @@
-from analysis import main_analysis
+import analysis
 import os
 
 folder_path = r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\mouse_2\2024_12_17\top2\metric_analysis"
@@ -44,7 +44,7 @@ for mouse in mice:
         individuals_to_remove = None
         bodyparts_to_remove = None
 
-        main_analysis(individuals_to_remove,
+        analysis.main_analysis(individuals_to_remove,
                     bodyparts_to_remove,
                     path)
 
