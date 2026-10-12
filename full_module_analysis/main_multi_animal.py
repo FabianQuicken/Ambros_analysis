@@ -839,8 +839,7 @@ def multi_animal_main(path, habituation=False, social_inv=True, plot_heatmap=Fal
                                                     ["shoulder_left", "shoulder_right", "dorsal_1"],
                                                     min_bodyparts=3)
         
-        
-        
+               
         rear_center_x, rear_center_y = mouse_center(df,
                                                     scorer,
                                                     individuals,
