@@ -11,7 +11,7 @@ from datetime import datetime
 folder = Path(r"Z:\n2023_odor_related_behavior\2026_sick_behavior\kamera-merge-test")
 
 camera_names = ["stim_top1_40439817", "home_top2_40405188"]
-output = folder / "combined.avi"
+output = folder / "combined_rotated.avi"
 
 # --------------------------------------------------
 # Read metadata
@@ -179,6 +179,8 @@ try:
     for i in range(total_frames):
         frame1 = readers[0].get_frame(i)
         frame2 = readers[1].get_frame(i)
+
+        frame2 = cv2.rotate(frame2, cv2.ROTATE_180)
 
         combined = np.hstack((frame1, frame2))
         writer.write(combined)
