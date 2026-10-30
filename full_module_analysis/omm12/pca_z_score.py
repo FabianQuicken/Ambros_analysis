@@ -145,19 +145,19 @@ def analyze_file(file):
             "body_inv_fraction": body_inv_fraction,
             "anogenital_inv_fraction": anogenital_inv_fraction,
             "median_center_boutlength": median_center_boutlength,
-            "center_entries_per_minute": center_entries_per_minute,
+#            "center_entries_per_minute": center_entries_per_minute,
             "in_center_fraction": in_center_fraction,
             "median_face_inv_boutlength": median_face_inv_boutlength,
             "median_body_inv_boutlength": median_body_inv_boutlength,
             "median_anogenital_inv_boutlength": median_anogenital_inv_boutlength,
             "median_speed": median_speed,
-            "p90_speed": p90_speed,
-            "iqr_speed": iqr_speed,
+#            "p90_speed": p90_speed,
+#            "iqr_speed": iqr_speed,
             "median_acceleration": median_acceleration,
-            "p95_acceleration": p95_acceleration,
+#            "p95_acceleration": p95_acceleration,
             "speedevents_per_minute": speedevents_per_minute,
             "median_theta": median_theta,
-            "p90_theta": p90_theta,
+#            "p90_theta": p90_theta,
             "large_turn_fraction": large_turn_fraction,
             "median_immobile_boutlength": median_immobile_bl,
             "median_visit_len": median_visit_len,
@@ -259,7 +259,7 @@ def plot_pca_results(results):
                                   color=color, label=f"{group} / {sex}", alpha=0.9)
             ax_scores.set_xlabel(f"PC1 ({variance['PC1']:.1%})")
             ax_scores.set_ylabel(f"PC2 ({variance['PC2']:.1%})")
-            ax_scores.legend(title="Group / Sex")
+            #ax_scores.legend(title="Group / Sex")
         else:
             ax_scores.text(0.5, 0.5, "PC2 unavailable", ha="center", transform=ax_scores.transAxes)
             ax_scores.set_axis_off()
