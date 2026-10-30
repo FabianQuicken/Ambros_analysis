@@ -61,9 +61,9 @@ def analyze_file(file):
         visit_len = extract_metric(df, recording, "visit_len", individual)
         speedevents = extract_metric(df, recording, "speedevents", individual)
         px_exploration = extract_metric(df, recording, "px_exploration_score", individual)
-        traj_mean_arc_chord = extract_metric(df, recording, "mean_arc_chord", individual)
         frag_mean_arc_chord = extract_metric(df, recording, "fragment_arc_chord", individual)
-        orientations = extract_metric(df, recording, "orientations", individual)
+        traj_mean_arc_chord = extract_metric(df, recording, "mean_arc_chord", individual) # ist der mittelwert der einzelnen trajectories in frag_mean_arc_chord
+        orientations = extract_metric(df, recording, "orientations", individual) # lassen wir erstmal raus, da es sich mit thetas ein wenig überschneidet
         posture_compactness = extract_metric(df, recording, "posture_compactness", individual)
         bodylengths = extract_metric(df, recording, "mice_bodylength", individual)
         mean_likelihood = extract_metric(df, recording, "mice_mean_likelihood", individual)
@@ -94,7 +94,6 @@ def analyze_file(file):
         anogenital_inv_boutlengths = calculate_bout_lengths(anogenital_inv)
         median_anogenital_inv_boutlength = np.median(anogenital_inv_boutlengths) if anogenital_inv_boutlengths.size else np.nan
 
-
         # distance related metrics
         median_speed = np.nanmedian(distances)
         p90_speed = np.nanpercentile(distances, 90)
@@ -102,6 +101,7 @@ def analyze_file(file):
         median_acceleration = np.nanmedian(np.absolute(accelerations))
         p95_acceleration = np.nanpercentile(np.absolute(accelerations), 95)
         speedevents_per_minute = np.count_nonzero(np.isfinite(speedevents)) / minutes_present
+        median_immobile_bl = np.nanmedian(immobile_bout_lengths)
 
         # thetas
         thetas = thetas[~np.isnan(thetas)]
@@ -112,6 +112,24 @@ def analyze_file(file):
         abs_thetas = np.absolute(thetas)
         large_turns = abs_thetas[abs_thetas>45]
         large_turn_fraction = len(large_turns) / len(thetas)
+
+        # visit_len bei hab auf den gleichen Wert setzen
+        if condition == "hab":
+            median_visit_len = 54000
+        else:
+            median_visit_len = np.nanmedian(visit_len)
+
+        # body metrics
+        median_bodylength = np.nanmedian(bodylengths)
+        median_posture_compactness = np.nanmedian(posture_compactness)
+
+        # exploratory metrics
+        px_exploration_score = np.nanmax(px_exploration)
+        median_fragment_arc_chord = np.nanmedian(frag_mean_arc_chord)
+        p90_fragment_arc_chord = np.nanpercentile(frag_mean_arc_chord, 90)
+
+
+        
 
         rows.append({
             "group": group,
@@ -136,6 +154,17 @@ def analyze_file(file):
             "median_acceleration": median_acceleration,
             "p95_acceleration": p95_acceleration,
             "speedevents_per_minute": speedevents_per_minute,
+            "median_theta": median_theta,
+            "p90_theta": p90_theta,
+            "large_turn_fraction": large_turn_fraction,
+            "median_immobile_boutlength": median_immobile_bl,
+            "median_visit_len": median_visit_len,
+            "median_bodylength": median_bodylength,
+            "median_posture_compactness": median_posture_compactness,
+            "px_exploration_score": px_exploration_score,
+            "median_arc_chord": median_fragment_arc_chord,
+            "p90_arc_chord": p90_fragment_arc_chord
+
         })
     return pd.DataFrame(rows)
 
