@@ -81,7 +81,7 @@ def time_to_seconds(time_str):
         hours, minutes, seconds = map(int, time_str.split("_"))
         return hours * 3600 + minutes * 60 + seconds
 
-def get_metadata_from_json(path):
+def get_metadata_from_json(path, camera):
     json_path = os.path.join(path, "session.json")
     # try to find the JSON
     json_files = glob.glob(os.path.join(json_path, "*.json"))
@@ -97,7 +97,17 @@ def get_metadata_from_json(path):
         fps = obj.get("configuration", {}).get("fps", None)
         cameras = (obj["cameras"])
 
-        runtime = int(obj["elapsed_seconds"] * fps)
+        # fallback falls JSON unvollständig ist, z.B. nach einem Absturz - die restlichen Metadaten sollten auslesbar sein
+        # csv wird dauerhaft beschrieben
+        try:
+            runtime = int(obj["elapsed_seconds"] * fps)
+        except:
+            # read in csv containing timestamps
+            timestamp_csv_path = os.path.join(path, f"{camera}_frames.csv")
+            df_timestamps = pd.read_csv(timestamp_csv_path)
+            runtime = df_timestamps["capture_sequence"].max() + 1
+
+
         camera_serial = obj["configuration"]["top_serial"]
 
         label = obj["configuration"]["label"]
@@ -122,6 +132,57 @@ def get_metadata_from_json(path):
         }
     except:
         return None
+
+def get_metadata_from_json(path, camera):
+    json_path = os.path.join(path, "session.json")
+    # try to find the JSON
+    json_files = glob.glob(os.path.join(json_path, "*.json"))
+    with open(json_path, 'r') as f:
+        obj = json.load(f)
+
+    # print all keys in the JSON
+    print("Keys in the JSON file:")
+    for key in obj:
+        print(f"  {key}")
+
+    fps = obj.get("configuration", {}).get("fps", None)
+    cameras = (obj["cameras"])
+
+    # fallback falls JSON unvollständig ist, z.B. nach einem Absturz - die restlichen Metadaten sollten auslesbar sein
+    # csv wird bis zum Absturz dauerhaft beschrieben
+    try:
+        runtime = int(obj["elapsed_seconds"] * fps)
+    except:
+        # read in csv containing timestamps
+        timestamp_csv_path = os.path.join(path, f"{camera}_frames.csv")
+        df_timestamps = pd.read_csv(timestamp_csv_path, delimiter=";")
+        print(df_timestamps.head())
+        runtime = df_timestamps["capture_sequence"].max() + 1
+
+
+    camera_serial = obj["configuration"]["top_serial"]
+
+    label = obj["configuration"]["label"]
+    label_parts = label.split("_")
+    animal_info = label_parts[0] + "_" + label_parts[1]
+    experiment_info = label_parts[2] + "_" + label_parts[3]
+
+    # readout some additional information from the folder name
+    folder_name = os.path.basename(path)
+    date = folder_name[0:8]
+    start = folder_name[9:15]
+
+    return {
+        "fps": fps,
+        "recording_length_frames": runtime,
+        "animal_info": animal_info,
+        "experiment_info": experiment_info,
+        "camera": camera_serial,
+        "recordings": cameras,
+        "date": date,
+        "start": start
+    }
+
 
 
 def get_metadata(file_list, filetype, fps, exp_len):
@@ -291,7 +352,7 @@ def insert_into_working_df_json(path, working_df, files, filetype, metadata, fil
     # read in csv containing timestamps
     timestamp_csv_path = os.path.join(path, f"{camera}_frames.csv")
 
-    df_timestamps = pd.read_csv(timestamp_csv_path)
+    df_timestamps = pd.read_csv(timestamp_csv_path, delimiter=";")
 
     # über segmente iterieren
     n_segments = df_timestamps["segment"].max()
@@ -301,8 +362,8 @@ def insert_into_working_df_json(path, working_df, files, filetype, metadata, fil
     for i, c in enumerate(metadata["recordings"]):
         if c["name"] == camera:
             cam_index = i
-            if n_segments != len(c["writer"]["clips"]):
-                raise ValueError(f"Number of segments in timestamps ({n_segments}) does not match number of clips in metadata ({len(c['writer']['clips'])}) for camera {camera}.")
+            #if n_segments != len(c["writer"]["clips"]):
+            #    raise ValueError(f"Number of segments in timestamps ({n_segments}) does not match number of clips in metadata ({len(c['writer']['clips'])}) for camera {camera}.")
 
     missed_segments = []
 
@@ -315,9 +376,19 @@ def insert_into_working_df_json(path, working_df, files, filetype, metadata, fil
         # segment_end wird nicht gebraucht, da DLC Dataframes kürzt, falls die Maus am Ende des Videos nicht getracked ist
         segment_start = segment_df["capture_sequence"].min()
         segment_end = segment_df["capture_sequence"].max()
-        
-        # passende dlc datei für das segment suchen
-        filename = metadata["recordings"][cam_index]["writer"]["clips"][segment - 1]["file"]
+
+        try:
+            # passende dlc datei für das segment suchen
+            filename = metadata["recordings"][cam_index]["writer"]["clips"][segment - 1]["file"]
+        except (KeyError, IndexError):
+            # fallback, falls die JSOn aufgrund eines Absturzes unvollständig ist
+            videofiles = glob.glob(os.path.join(path, f"*{video_filetype}"))
+            relevant_videofiles = [f for f in videofiles if camera in f]
+            relevant_videofiles.sort()
+            filename = os.path.basename(relevant_videofiles[segment - 1])
+
+
+                
         filename = filename.removesuffix(video_filetype)
         matching_file = None
         for file in files:
@@ -444,7 +515,10 @@ def main_preprocessing(path, FPS, exp_len_seconds, video_filetype, filter_value)
 
 
     # wenn vorhanden, metadata aus JSNON File extrahieren
-    metadata = get_metadata_from_json(path)
+    metadata = get_metadata_from_json(path, camera = "top")
+
+    print(metadata)
+
 
     if metadata is not None:
 

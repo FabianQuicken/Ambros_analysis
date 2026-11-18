@@ -23,6 +23,6 @@ for mouse in mice:
 
 """
 
-path = r"Z:\n2023_odor_related_behavior\2026_sick_behavior\raw\c4\sick\20261029_100904_904802_mice_c4_sick_stim"
+path = r"Z:\n2023_odor_related_behavior\2026_sick_behavior\raw\c3\habituation\20261020_100924_912084_mice_c3_habituation_stim"
 
 preprocessing.main_preprocessing(path, FPS, None, video_filetype=".avi", filter_value=0.6)
