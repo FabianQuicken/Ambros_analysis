@@ -24,6 +24,7 @@ import pandas as pd
 from tqdm import tqdm
 import shutil
 from variables import FPS
+import json
 
 
 
@@ -79,6 +80,49 @@ def time_to_seconds(time_str):
         
         hours, minutes, seconds = map(int, time_str.split("_"))
         return hours * 3600 + minutes * 60 + seconds
+
+def get_metadata_from_json(path):
+    json_path = os.path.join(path, "session.json")
+    # try to find the JSON
+    json_files = glob.glob(os.path.join(json_path, "*.json"))
+    try:
+        with open(json_path, 'r') as f:
+            obj = json.load(f)
+
+        # print all keys in the JSON
+        print("Keys in the JSON file:")
+        for key in obj:
+            print(f"  {key}")
+
+        fps = obj.get("configuration", {}).get("fps", None)
+        cameras = (obj["cameras"])
+
+        runtime = int(obj["elapsed_seconds"] * fps)
+        camera_serial = obj["configuration"]["top_serial"]
+
+        label = obj["configuration"]["label"]
+        label_parts = label.split("_")
+        animal_info = label_parts[0] + "_" + label_parts[1]
+        experiment_info = label_parts[2] + "_" + label_parts[3]
+
+        # readout some additional information from the folder name
+        folder_name = os.path.basename(path)
+        date = folder_name[0:8]
+        start = folder_name[9:15]
+
+        return {
+            "fps": fps,
+            "recording_length_frames": runtime,
+            "animal_info": animal_info,
+            "experiment_info": experiment_info,
+            "camera": camera_serial,
+            "recordings": cameras,
+            "date": date,
+            "start": start
+        }
+    except:
+        return None
+
 
 def get_metadata(file_list, filetype, fps, exp_len):
     # get recording length
@@ -241,6 +285,73 @@ def find_relative_startframe(first_file, filename):
     
     # Berechne die Differenz in Frames
     return (current_seconds - start_seconds) * FPS
+
+def insert_into_working_df_json(path, working_df, files, filetype, metadata, filter_value, video_filetype = ".avi", camera = "top"):
+
+    # read in csv containing timestamps
+    timestamp_csv_path = os.path.join(path, f"{camera}_frames.csv")
+
+    df_timestamps = pd.read_csv(timestamp_csv_path)
+
+    # über segmente iterieren
+    n_segments = df_timestamps["segment"].max()
+
+    # testen, ob es für jedes segment einen eintrag gibt
+    cam_index = None
+    for i, c in enumerate(metadata["recordings"]):
+        if c["name"] == camera:
+            cam_index = i
+            if n_segments != len(c["writer"]["clips"]):
+                raise ValueError(f"Number of segments in timestamps ({n_segments}) does not match number of clips in metadata ({len(c['writer']['clips'])}) for camera {camera}.")
+
+    missed_segments = []
+
+    for segment in range(1, n_segments + 1):
+
+        # spalten für das segment filtern
+        segment_df = df_timestamps[df_timestamps["segment"] == segment]
+
+        # capture_sequence range auslesen um das Fragment zeitlich einordnen zu können
+        # segment_end wird nicht gebraucht, da DLC Dataframes kürzt, falls die Maus am Ende des Videos nicht getracked ist
+        segment_start = segment_df["capture_sequence"].min()
+        segment_end = segment_df["capture_sequence"].max()
+        
+        # passende dlc datei für das segment suchen
+        filename = metadata["recordings"][cam_index]["writer"]["clips"][segment - 1]["file"]
+        filename = filename.removesuffix(video_filetype)
+        matching_file = None
+        for file in files:
+            if os.path.basename(file).startswith(filename):
+                matching_file = file
+                print(segment, filename, os.path.basename(matching_file))
+                break
+
+        # falls .h5 fehlt die segmente merken    
+        if matching_file is None:
+            missed_segments.append(segment)
+            continue
+
+        # DLC Daten laden und einsetzen
+        df, ma = load_dlc_df(matching_file, filetype)
+        if not ma:
+            df = add_individual_level(df, metadata["animal_info"])
+        df = likelihood_filtering(df, filter_value)
+        df = interpolate_with_max_gap(df, max_gap=30, method="linear")
+        working_df.iloc[segment_start:segment_start+len(df), :] = df.values
+
+    if missed_segments:
+        print(f"Warning: Missing DLC data for segments: {missed_segments}."
+              f"These segments will be filled with NaN values in the working DataFrame."
+              f"Please check the corresponding video files if mice were present.")
+
+    return working_df
+
+        
+
+            
+        
+
+
     
 
 def insert_into_working_df(working_df, files, filetype, metadata, filter_value):
@@ -326,25 +437,40 @@ def move_dlc_files(path):
 # # # # # # # _________________________________________________________________________________________________________________
 
 
-def main_preprocessing(path, FPS, exp_len_seconds, filter_value):
+def main_preprocessing(path, FPS, exp_len_seconds, video_filetype, filter_value):
 
     # h5 bzw. csv files finden
     files, filetype = file_discovery(path)
 
-    # Experiment Metadata aus Namen extrahieren
-    metadata = get_metadata(files, filetype, FPS, exp_len_seconds)
 
-    # ein leeres DF in Experimentlänge erstellen
-    dlc_df = create_working_df(files, filetype, metadata)
+    # wenn vorhanden, metadata aus JSNON File extrahieren
+    metadata = get_metadata_from_json(path)
 
-    dlc_df = insert_into_working_df(dlc_df, files, filetype, metadata, filter_value)
+    if metadata is not None:
 
-    dlc_df = crop_working_df(metadata, dlc_df)
+        # ein leeres DF in Experimentlänge erstellen
+        dlc_df = create_working_df(files, filetype, metadata)
+
+        dlc_df = insert_into_working_df_json(path, dlc_df, files, filetype, metadata, video_filetype = video_filetype, filter_value = filter_value)
+
+    
+
+    # route wenn metadata aus filename genommen wird
+    if metadata is None:
+        # Experiment Metadata aus Namen extrahieren
+        metadata = get_metadata(files, filetype, FPS, exp_len_seconds)
+
+        # ein leeres DF in Experimentlänge erstellen
+        dlc_df = create_working_df(files, filetype, metadata)
+
+        dlc_df = insert_into_working_df(dlc_df, files, filetype, metadata, filter_value)
+
+        dlc_df = crop_working_df(metadata, dlc_df)
 
     metric_df = create_metric_df(metadata, dlc_df, metrics=["speed", "acceleration"])
 
     #metric_df.to_csv(os.path.join(path, "metric_df.csv"))
     save_files(metadata, dlc_df, metric_df, path)
 
-    move_dlc_files(path)
+    #move_dlc_files(path)
 

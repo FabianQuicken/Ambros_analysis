@@ -2,10 +2,9 @@ import preprocessing
 import os
 
 FPS = 30
-path = r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\mouse_2\2024_12_17\top2"
-path = r"C:\Users\Fabian\Desktop\Transfer\analysis_testing"
+"""
 
-exp_path = r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\female_mice_male_stimuli"
+
 
 mice = [
     r"mouse_5785\2025_05_05",
@@ -21,3 +20,9 @@ for mouse in mice:
         path = os.path.join(exp_path, mouse, cam)
 
         preprocessing.main_preprocessing(path, FPS, exp_len_seconds=18000, filter_value=0.6)
+
+"""
+
+path = r"Z:\n2023_odor_related_behavior\2026_sick_behavior\raw\c4\sick\20261029_100904_904802_mice_c4_sick_stim"
+
+preprocessing.main_preprocessing(path, FPS, None, video_filetype=".avi", filter_value=0.6)

@@ -170,12 +170,7 @@ def analyze_file(file):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract per-mouse PCA features")
-    parser.add_argument("files", nargs="*", help="CSV files (default: all CSVs in data folder)")
-    args = parser.parse_args()
-    files = args.files or glob.glob(os.path.join(path, "*.csv"))
-    if not files:
-        parser.error(f"No CSV files found in {path}")
+    files = glob.glob(os.path.join(path, "*.csv"))
     features = pd.concat([analyze_file(file) for file in tqdm.tqdm(files)], ignore_index=True)
     print(features.to_string(index=False))
     return features
