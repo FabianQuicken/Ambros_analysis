@@ -1,6 +1,7 @@
 import analysis
+import preprocessing
 import os
-
+"""
 folder_path = r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse\mouse_2\2024_12_17\top2\metric_analysis"
 
 experiment_folder = r"Z:\n2023_odor_related_behavior\2023_behavior_setup_seminatural_odor_presentation\analyse"
@@ -47,7 +48,15 @@ for mouse in mice:
         analysis.main_analysis(individuals_to_remove,
                     bodyparts_to_remove,
                     path)
+"""
 
+FPS = 30
+
+path = r"Z:\n2023_odor_related_behavior\2026_sick_behavior\raw\c3\sick\20261022_101006_953318_mice_c3_sick_home"
+
+preprocessing.main_preprocessing(path, FPS, None, video_filetype=".avi", filter_value=0.6)
+
+analysis.main_analysis(folder_path=os.path.join(path, "metric_analysis"))
 
 
             

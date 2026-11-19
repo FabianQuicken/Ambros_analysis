@@ -85,58 +85,6 @@ def get_metadata_from_json(path, camera):
     json_path = os.path.join(path, "session.json")
     # try to find the JSON
     json_files = glob.glob(os.path.join(json_path, "*.json"))
-    try:
-        with open(json_path, 'r') as f:
-            obj = json.load(f)
-
-        # print all keys in the JSON
-        print("Keys in the JSON file:")
-        for key in obj:
-            print(f"  {key}")
-
-        fps = obj.get("configuration", {}).get("fps", None)
-        cameras = (obj["cameras"])
-
-        # fallback falls JSON unvollständig ist, z.B. nach einem Absturz - die restlichen Metadaten sollten auslesbar sein
-        # csv wird dauerhaft beschrieben
-        try:
-            runtime = int(obj["elapsed_seconds"] * fps)
-        except:
-            # read in csv containing timestamps
-            timestamp_csv_path = os.path.join(path, f"{camera}_frames.csv")
-            df_timestamps = pd.read_csv(timestamp_csv_path)
-            runtime = df_timestamps["capture_sequence"].max() + 1
-
-
-        camera_serial = obj["configuration"]["top_serial"]
-
-        label = obj["configuration"]["label"]
-        label_parts = label.split("_")
-        animal_info = label_parts[0] + "_" + label_parts[1]
-        experiment_info = label_parts[2] + "_" + label_parts[3]
-
-        # readout some additional information from the folder name
-        folder_name = os.path.basename(path)
-        date = folder_name[0:8]
-        start = folder_name[9:15]
-
-        return {
-            "fps": fps,
-            "recording_length_frames": runtime,
-            "animal_info": animal_info,
-            "experiment_info": experiment_info,
-            "camera": camera_serial,
-            "recordings": cameras,
-            "date": date,
-            "start": start
-        }
-    except:
-        return None
-
-def get_metadata_from_json(path, camera):
-    json_path = os.path.join(path, "session.json")
-    # try to find the JSON
-    json_files = glob.glob(os.path.join(json_path, "*.json"))
 
     try:
         with open(json_path, 'r') as f:
@@ -145,25 +93,12 @@ def get_metadata_from_json(path, camera):
         print(f"Warning: JSON file not found in {json_path}. Metadata extraction from JSON will be skipped.")
         return None
 
-    # print all keys in the JSON
-    print("Keys in the JSON file:")
-    for key in obj:
-        print(f"  {key}")
-
     fps = obj.get("configuration", {}).get("fps", None)
     cameras = (obj["cameras"])
 
-    # fallback falls JSON unvollständig ist, z.B. nach einem Absturz - die restlichen Metadaten sollten auslesbar sein
-    # csv wird bis zum Absturz dauerhaft beschrieben
-    try:
-        runtime = int(obj["elapsed_seconds"] * fps)
-    except:
-        # read in csv containing timestamps
-        timestamp_csv_path = os.path.join(path, f"{camera}_frames.csv")
-        df_timestamps = pd.read_csv(timestamp_csv_path, delimiter=";")
-        print(df_timestamps.head())
-        runtime = df_timestamps["capture_sequence"].max() + 1
-
+    timestamp_csv_path = os.path.join(path, f"{camera}_frames.csv")
+    df_timestamps = pd.read_csv(timestamp_csv_path)
+    runtime = int(df_timestamps["capture_sequence"].max()) + 1
 
     camera_serial = obj["configuration"]["top_serial"]
 
@@ -300,7 +235,7 @@ def likelihood_filtering(df, filter_value = 0.3):
             lh = df.loc[:, (slice(None), ind, bp, "likelihood")].squeeze() # aus lh (df) eine series machen
 
             # Maske: True wo likelihood < threshold
-            mask = lh < filter_value
+            mask = ~np.isfinite(lh) | (lh < filter_value)
 
             # x und y auf NaN setzen
             df.loc[mask, (slice(None), ind, bp, ["x", "y"])] = np.nan
@@ -357,10 +292,14 @@ def insert_into_working_df_json(path, working_df, files, filetype, metadata, fil
     # read in csv containing timestamps
     timestamp_csv_path = os.path.join(path, f"{camera}_frames.csv")
 
-    df_timestamps = pd.read_csv(timestamp_csv_path, delimiter=";")
+    df_timestamps = pd.read_csv(timestamp_csv_path)
 
     # über segmente iterieren
-    n_segments = df_timestamps["segment"].max()
+    try:
+        n_segments = df_timestamps["segment"].max()
+    except KeyError:
+        df_timestamps = pd.read_csv(timestamp_csv_path, delimiter=";")
+        n_segments = df_timestamps["segment"].max()
 
     # testen, ob es für jedes segment einen eintrag gibt
     cam_index = None
@@ -513,7 +452,7 @@ def move_dlc_files(path):
 # # # # # # # _________________________________________________________________________________________________________________
 
 
-def main_preprocessing(path, FPS, exp_len_seconds, video_filetype, filter_value):
+def main_preprocessing(path, FPS, exp_len_seconds, video_filetype, filter_value, move_files=False):
 
     # h5 bzw. csv files finden
     files, filetype = file_discovery(path)
@@ -521,8 +460,6 @@ def main_preprocessing(path, FPS, exp_len_seconds, video_filetype, filter_value)
 
     # wenn vorhanden, metadata aus JSNON File extrahieren
     metadata = get_metadata_from_json(path, camera = "top")
-
-    print(metadata)
 
 
     if metadata is not None:
@@ -546,10 +483,15 @@ def main_preprocessing(path, FPS, exp_len_seconds, video_filetype, filter_value)
 
         dlc_df = crop_working_df(metadata, dlc_df)
 
-    metric_df = create_metric_df(metadata, dlc_df, metrics=["speed", "acceleration"])
+    metric_df = create_metric_df(metadata,
+                                 dlc_df,
+                                 metrics=["mice_presence"
+                                          ]
+                                )
 
     #metric_df.to_csv(os.path.join(path, "metric_df.csv"))
     save_files(metadata, dlc_df, metric_df, path)
 
-    move_dlc_files(path)
+    if move_files:
+        move_dlc_files(path)
 

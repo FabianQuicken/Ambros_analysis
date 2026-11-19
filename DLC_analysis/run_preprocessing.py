@@ -23,6 +23,6 @@ for mouse in mice:
 
 """
 
-path = r"\\fileserver2.bio2.rwth-aachen.de\AG Spehr BigData\n2023_odor_related_behavior\2026_sick_behavior\raw\c1\baseline\top1"
+path = r"Z:\n2023_odor_related_behavior\2026_sick_behavior\raw\c4\sick\20261029_100904_904802_mice_c4_sick_stim"
 
-preprocessing.main_preprocessing(path, FPS, 440000, video_filetype=".avi", filter_value=0.6)
+preprocessing.main_preprocessing(path, FPS, None, video_filetype=".avi", filter_value=0.6)

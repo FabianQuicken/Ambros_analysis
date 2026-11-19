@@ -140,11 +140,6 @@ def mouse_center(df, individual, bodyparts, min_bodyparts=None):
     # y-Werte sind in Spalten [1, 3, 5, ...]
     arr_y = data[:, 1::2]
 
-    # Y invertieren für "echte" geometrische Orientierung, falls noch nicht geschehen
-    if np.max(arr_y) > 0:
-        print("Inverting y")
-        arr_y = -arr_y
-
     n_frames, n_bp = arr_x.shape
 
     # Defaults: mindestens die Hälfte der Bodyparts müssen valid sein
@@ -277,62 +272,7 @@ def acceleration_events(a, acc_thr = 5):
 
     return count, list(acc_eventstarts)
 
-def get_all_traj(x, y, len_thr=FPS):
 
-
-
-        # x und y arrays müssen gleich lang sein
-        if len(x) != len(y):
-            raise ValueError("x and y arrays have different length.")
-        
-        # testen ob daten da sind für das jeweilige individum, sonst nächstes Ind
-        valid = np.isfinite(x) & np.isfinite(y)
-
-        # um Randfälle (Maus wird schon im ersten Frame getrackt bzw noch im letzten) zu berechnen:
-        if valid[0]:
-            valid[0] = False
-        if valid[-1]:
-            valid[-1] = False
-
-        # finden wo coordinaten neu getrackt werden
-        diff = np.diff(valid.astype(int))
-        appearances = np.where(diff == 1)[0] + 1
-        disappearances = np.where(diff == -1)[0] + 1
-
-        # wenn alles klappt, müsste es für jeden entry einen exit geben
-        if len(appearances) != len(disappearances):
-            print(f"\nEntry number ({len(appearances)}) and exit number dont match ({len(disappearances)})")
-        appearances.sort()
-        disappearances.sort()
-        # robustes Pairing: für jeden entry den nächsten exit danach
-        traj_slices = []
-        dis_ptr = 0
-        for a in appearances:
-            while dis_ptr < len(disappearances) and disappearances[dis_ptr] <= a:
-                dis_ptr += 1
-            if dis_ptr >= len(disappearances):
-                raise ValueError(f"Entry at {a} has no subsequent exit.")
-            d = disappearances[dis_ptr]-1
-            dis_ptr += 1
-            # trajectories unter 1s sind vermutlich fake
-            if (d-a + 1) < len_thr:
-                continue
-            traj_slices.append((a, d))
-
-
-        # slice indices speichern
-        all_traj = []
-        len_traj = []
-        start_traj = []
-        for a, d in traj_slices:
-            t = (x[a:d+1], y[a:d+1])
-            t_len = len(t[0])
-            all_traj.append(t)
-            len_traj.append(t_len)
-            start_traj.append(a)
-            #plot_trajectory_segment(x=x, y=y, e=a, ex=d)
-
-        return all_traj, traj_slices, len_traj, start_traj
 
 def posture_compactness(df, ind, bodyparts, center_x, center_y):
     """
@@ -388,55 +328,79 @@ def posture_compactness(df, ind, bodyparts, center_x, center_y):
     return mean_dists
 
 def calculate_bodylength(working_df, individual, bodyparts):
-
     """
-    Calculates bodylength over coordinates of the nose -> tailbase axis
+    Calculates body length along the nose-to-tail-base axis.
+
+    Missing intermediate keypoints are skipped.
+    Nose and tail_base must be valid.
+
+    Returns
+    -------
+    np.ndarray
+        Body length in pixels for each frame.
+        NaN where calculation is not possible.
     """
-    axis_bp = ["nose", "head_center", "dorsal1", "dorsal2", "dorsal3", "dorsal4", "tailbase"]
 
-    bl = np.zeros(len(working_df))
+    axis_bp = [
+        "nose",
+        "head_centre",
+        "dorsal_1",
+        "dorsal_2",
+        "dorsal_3",
+        "dorsal_4",
+        "tail_base"
+    ]
 
+    # Check whether all necessary columns exist
+    if not all(bp in bodyparts for bp in axis_bp):
+        print("Missing bodyparts in label scheme.")
+        return np.full(len(working_df), np.nan)
+
+    # Initialize results with NaN
+    bl = np.full(len(working_df), np.nan)
+
+    # Extract coordinates once
+    coords = {}
 
     for bp in axis_bp:
-        if bp not in bodyparts:
-            print("Bodylength could not be calculated due to keypoints missing in the label scheme. Check 'axis_bp' in the function.")
-            return bl
+        coords[bp] = working_df.loc[
+            :, (individual, bp, ["x", "y"])
+        ].to_numpy()
 
-        
+    # Calculate body length for each frame
+    for frame_idx in range(len(working_df)):
 
-    for i in range(bl):
+        valid_points = []
 
-        sum_lengths = 0
-        flag = False
+        for bp in axis_bp:
 
-        for i, bp in enumerate(axis_bp):
+            x, y = coords[bp][frame_idx]
 
-            if bp == axis_bp[-1]:
-                        continue
-            
-            x1 = working_df.loc[i, (individual, bp, "x")].ravel().to_numpy()
-            y1 = working_df.loc[i, (individual, bp, "y")].ravel().to_numpy()
+            if np.isfinite(x) and np.isfinite(y):
+                valid_points.append((bp, x, y))
 
-            x2 = working_df.loc[i, (individual, axis_bp[i+1], "x")].ravel().to_numpy()
-            y2 = working_df.loc[i, (individual, axis_bp[i+1], "y")].ravel().to_numpy()
+        # Both endpoints must be present
+        valid_names = [point[0] for point in valid_points]
 
-            # versuchen den nächsten bp zu nehmen, falls einer in der Reihe fehlt
-            if np.isnan(x2) and i+2 <= len(axis_bp):
-                x2 = working_df.loc[i, (individual, axis_bp[i+2], "x")].ravel().to_numpy()
-                y2 = working_df.loc[i, (individual, axis_bp[i+2], "y")].ravel().to_numpy()
-
-
-            dist = euklidean_distance(x1, y1, x2, y2)
-
-            if np.isnan(dist):
-                flag = True
-            else:
-                sum_lengths += dist
-
-        if flag:
+        if "nose" not in valid_names:
             continue
-        else:
-            bl[i] = sum_lengths
+
+        if "tail_base" not in valid_names:
+            continue
+
+        # Sum distances along the valid keypoint chain
+        sum_lengths = 0.0
+
+        for idx in range(len(valid_points) - 1):
+
+            _, x1, y1 = valid_points[idx]
+            _, x2, y2 = valid_points[idx + 1]
+
+            distance = np.hypot(x2 - x1, y2 - y1)
+
+            sum_lengths += distance
+
+        bl[frame_idx] = sum_lengths
 
     return bl
 
@@ -483,116 +447,23 @@ def get_orientation(front_x, front_y, rear_x, rear_y):
     return orientations
 
 def get_all_traj(x, y, len_thr=FPS):
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
 
-    def plot_trajectory_segment(x, y, e, ex, close_after=2.0):
-        """
-        Plots a trajectory segment x[e:ex+1], y[e:ex+1] and closes automatically.
+    if x.ndim != 1 or y.ndim != 1 or x.shape != y.shape:
+        raise ValueError("x and y must be equally sized 1D arrays.")
+    if not np.isfinite(len_thr) or len_thr < 1:
+        raise ValueError("len_thr must be finite and >= 1.")
 
-        Parameters
-        ----------
-        x, y : array-like
-            Coordinate arrays (same length).
-        e : int
-            Entry index (start).
-        ex : int
-            Exit index (end, inclusive).
-        close_after : float
-            Seconds after which the plot closes automatically.
-        """
-
-        x_seg = np.asarray(x[e:ex+1])
-        y_seg = np.asarray(y[e:ex+1])
-
-        if x_seg.size == 0:
-            print("[plot_trajectory_segment] Empty segment, nothing to plot.")
-            return
-
-        fig, ax = plt.subplots(figsize=(4, 4))
-
-        ax.plot(x_seg, y_seg, "-o", markersize=3)
-        ax.scatter(x_seg[0], y_seg[0], c="green", label="start", zorder=3)
-        ax.scatter(x_seg[-1], y_seg[-1], c="red", label="end", zorder=3)
-
-        ax.set_aspect("equal")
-        ax.set_xlim(0,2000)
-        ax.set_ylim(0,-1100)
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_title(f"Trajectory {e}:{ex}")
-        ax.legend()
-
-        plt.tight_layout()
-        plt.show(block=False)
-        plt.pause(close_after)
-        plt.close(fig)
-
-    all_traj = []
-    traj_slices = {}
-    start_len_traj = []
-
-
-
-    x = np.round(x, decimals=0)
-    y = np.round(y, decimals=0)
-
-    # x und y arrays müssen gleich lang sein
-    if len(x) != len(y):
-        raise ValueError("x and y arrays have different length.")
-        
-    # testen ob daten da sind 
     valid = np.isfinite(x) & np.isfinite(y)
-    # mind 1 sekunde insgesamt getrackt?
-    if valid.sum() < FPS:
-        return None
+    transitions = np.diff(
+        np.r_[False, valid, False].astype(np.int8)
+    )
+    starts = np.flatnonzero(transitions == 1)
+    stops = np.flatnonzero(transitions == -1)  # exklusiv
 
-    # um Randfälle (Maus wird schon im ersten Frame getrackt bzw noch im letzten) zu berechnen:
-    if valid[0]:
-        valid[0] = False
-    if valid[-1]:
-        valid[-1] = False
-
-    # finden wo coordinaten neu getrackt werden
-    diff = np.diff(valid.astype(int))
-    appearances = np.where(diff == 1)[0] + 1
-    disappearances = np.where(diff == -1)[0] + 1
-
-    # wenn alles klappt, müsste es für jeden entry einen exit geben
-    if len(appearances) != len(disappearances):
-        print(f"\nEntry number ({len(appearances)}) and exit number dont match ({len(disappearances)})")
-    appearances.sort()
-    disappearances.sort()
-
-    # robustes Pairing: für jeden entry den nächsten exit danach
-    paired = []
-    dis_ptr = 0
-    traj_start = []
-    traj_end = []
-    for a in appearances:
-        while dis_ptr < len(disappearances) and disappearances[dis_ptr] <= a:
-            dis_ptr += 1
-        if dis_ptr >= len(disappearances):
-            raise ValueError(f"Entry at {a} has no subsequent exit.")
-        d = disappearances[dis_ptr]-1
-        dis_ptr += 1
-        # trajectories unter 1s sind vermutlich fake
-        if (d-a + 1) < len_thr:
-            continue
-        paired.append((a, d))
-        traj_start.append(a)
-        traj_end.append(d)
-
-
-    # slice indices speichern
-    traj_slices = paired
-    for a, d in paired:
-        t = (x[a:d+1], y[a:d+1])
-        t_len = len(t[0])
-        all_traj.append(t)
-        start_len_traj.append((a, t_len))
-    #plot_trajectory_segment
-
-
-    return traj_start, traj_end
+    keep = (stops - starts) >= len_thr
+    return starts[keep].tolist(), (stops[keep] - 1).tolist()
 
 def get_theta(a, b1, b2, signed_angle=True):
     """
@@ -696,7 +567,7 @@ def get_theta(a, b1, b2, signed_angle=True):
     return np.round(np.degrees(radians), decimals=0)
 
 
-def theta_analysis(front_x, front_y, rear_x, rear_y, start_idxs, end_idxs, stepsize = 10):
+def theta_analysis(ind, front_x, front_y, rear_x, rear_y, start_idxs, end_idxs, stepsize = 10):
     """
     """
     thetas = []
@@ -748,17 +619,19 @@ def arc_chord_ratio(traj_start, traj_end, x_coords, y_coords, fragmentsize_divis
     if speed_thr < 0:
         raise ValueError("speed_thr must be non-negative.")
 
+    tortuosity = []
+
     for start, end in zip(traj_start, traj_end):
 
 
 
-        x = x_coords[start:end]
-        y = y_coords[start:end]
+        x = x_coords[start:end+1]
+        y = y_coords[start:end+1]
 
         x = np.asarray(x, dtype=float)
         y = np.asarray(y, dtype=float)
 
-        tortuosity = []
+        
     
         t_len = len(x)
 
@@ -823,36 +696,136 @@ def arc_chord_ratio(traj_start, traj_end, x_coords, y_coords, fragmentsize_divis
 
     return np.mean(tortuosity), tortuosity
 
-def social_inv(working_df, nose_x, nose_y, individual, individuals, bodyparts, face_bp, anogenital_bp, body_bp):
-
-    # mögliche individuals die investigated werden
-    individuals.pop(individual)
-
-    face_inv = np.full(shape=len(nose_x), fill_value=np.nan)
-    body_inv = face_inv.copy()
-    anogenital_inv = face_inv.copy()
-
-    for ind in individuals:
-        
-        for i in range(len(nose_x)):
-
-            for bp in face_bp:
-                
-                dist = euklidean_distance(
-                    x1 = nose_x[i],
-                    y1 = nose_y[i],
-                    x2 = working_df.loc[i, (ind, bp, "x")].to_numpy(),
-                    y2 = working_df.loc[i, (ind, bp, "y")].to_numpy()
-                    )
-                if dist >= 20:
-                    flag = True
-
-            
-
-
+def social_inv(
+    working_df,
+    individual,
+    individuals=None,
+    *,
+    pixel_per_cm,
+    max_dist_cm=2.0,
+    min_fragment_frames=10,
+    missing_policy="available",
+    face_bp=("nose", "eye_left", "eye_right"),
+    anogenital_bp=("tail_base", "dorsal_4"),
+    body_bp=("lateral_left", "lateral_right", "hip_left", "hip_right",
+             "dorsal_2", "dorsal_3"),
+):
+    """Achtung, ich wurde gevibecoded :>
     
+    Return one animal's framewise states and observed bout segments.
 
-    return face_inv, body_inv, anogenital_inv
+    Expects unique columns (individuals, bodyparts, coords), without scorer.
+    Coordinates must already be quality-filtered and use one coordinate system.
+    Distance <= max_dist_cm to ANY selected point of ANY other animal is a hit.
+    Priority across all partners: face > anogenital > body. At most one state
+    per frame is 1; reciprocal investigation is evaluated independently.
+
+    missing_policy='strict': a category is negative only when every requested
+    target point of every other animal is observed and outside the threshold.
+    A single observed hit proves that category positive even with missing points.
+    'available': at least one observed target point suffices for a negative
+    result; missing target points are ignored, approximating the original code.
+    Both modes: an unknown higher-priority category prevents a definite lower
+    positive. Missing investigator nose gives NaN for all three categories.
+    No other animals: all categories are zero where the nose is observed.
+
+    Short observed positive runs are set to zero AFTER priority assignment,
+    matching the original filter; no reassignment to lower categories occurs.
+    This also removes short runs touching NaNs/recording boundaries. Use
+    min_fragment_frames=1 to retain these possibly incomplete observations.
+
+    Return keys: face_inv, anogenital_inv, body_inv, each float array length N;
+    plus <category>_inv_starts, _stops_exclusive, _bout_lengths (frames), and
+    _bout_complete (bool). Bout arrays have one entry per observed segment.
+    NaNs split segments. Complete means bracketed by known zero states in the
+    FINAL filtered series. Starts/stops are row POSITIONS, not index labels.
+    Adjacent positives remain one bout even if the interaction partner changes.
+    """
+    if not np.isfinite(pixel_per_cm) or pixel_per_cm <= 0:
+        raise ValueError("pixel_per_cm must be finite and positive")
+    if not np.isfinite(max_dist_cm) or max_dist_cm < 0:
+        raise ValueError("max_dist_cm must be finite and nonnegative")
+    if (not isinstance(min_fragment_frames, (int, np.integer))
+            or min_fragment_frames < 1):
+        raise ValueError("min_fragment_frames must be a positive integer")
+    if missing_policy not in ("strict", "available"):
+        raise ValueError("missing_policy must be 'strict' or 'available'")
+    if working_df.columns.nlevels != 3 or not working_df.columns.is_unique:
+        raise ValueError("Expected unique (individual, bodypart, coord) columns")
+
+    available = working_df.columns.get_level_values(0).unique().tolist()
+    animals = available if individuals is None else list(dict.fromkeys(individuals))
+    if individual not in animals or any(a not in available for a in animals):
+        raise ValueError("individuals must include the investigator and exist in df")
+    partners = [a for a in animals if a != individual]
+    n = len(working_df)
+
+    def coordinates(animal, bp):
+        keys = [(animal, bp, axis) for axis in ("x", "y")]
+        if not all(key in working_df.columns for key in keys):
+            return np.full(n, np.nan), np.full(n, np.nan)
+        return tuple(working_df[key].to_numpy(dtype=float) for key in keys)
+
+    nx, ny = coordinates(individual, "nose")
+    nose_valid = np.isfinite(nx) & np.isfinite(ny)
+    threshold = pixel_per_cm * max_dist_cm
+
+    def runs(values):
+        edges = np.diff(np.r_[False, values == 1, False].astype(np.int8))
+        return np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)
+
+    result = {}
+    higher_hit = np.zeros(n, dtype=bool)
+    higher_clear = np.ones(n, dtype=bool)
+    categories = (("face", face_bp), ("anogenital", anogenital_bp),
+                  ("body", body_bp))
+
+    for category, points in categories:
+        points = tuple(dict.fromkeys(points))
+        if not points:
+            raise ValueError(f"{category} bodypart list must not be empty")
+        hit = np.zeros(n, dtype=bool)
+        any_valid = np.zeros(n, dtype=bool)
+        all_valid = np.ones(n, dtype=bool)
+        # Vectorized across frames; no frame loop or frame-by-point tensor.
+        for partner in partners:
+            for bp in points:
+                tx, ty = coordinates(partner, bp)
+                valid = nose_valid & np.isfinite(tx) & np.isfinite(ty)
+                any_valid |= valid
+                all_valid &= valid
+                hit |= valid & (np.hypot(tx - nx, ty - ny) <= threshold)
+
+        observed = all_valid if missing_policy == "strict" else any_valid
+        if not partners:
+            observed = nose_valid.copy()
+        negative = nose_valid & observed & ~hit
+        state = np.full(n, np.nan)
+        state[nose_valid & (higher_hit | negative)] = 0.0
+        state[nose_valid & higher_clear & hit] = 1.0
+
+        # Preserve raw priority decisions even if short runs are later removed.
+        higher_hit |= hit
+        higher_clear &= negative
+
+        starts, stops = runs(state)
+        for start, stop in zip(starts, stops):
+            if stop - start < min_fragment_frames:
+                state[start:stop] = 0.0
+
+        starts, stops = runs(state)
+        complete = np.zeros(len(starts), dtype=bool)
+        inside = (starts > 0) & (stops < n)
+        complete[inside] = ((state[starts[inside] - 1] == 0)
+                            & (state[stops[inside]] == 0))
+        prefix = category + "_inv"
+        result[prefix] = state
+        result[prefix + "_starts"] = starts
+        result[prefix + "_stops_exclusive"] = stops
+        result[prefix + "_bout_lengths"] = stops - starts
+        result[prefix + "_bout_complete"] = complete
+
+    return result
 
 
 
@@ -895,11 +868,11 @@ def save_metrics(metrics_df, folder_path):
 # # # # # # # _________________________________________________________________________________________________________________
 
 
-folder_path = r"C:\Users\Fabian\Desktop\Transfer\analysis_testing\metric_analysis"
+#folder_path = r"C:\Users\Fabian\Desktop\Transfer\analysis_testing\metric_analysis"
 
-def main_analysis(individuals_to_remove,
-                  bodyparts_to_remove,
-                  folder_path
+def main_analysis(folder_path,
+                  individuals_to_remove=None,
+                  bodyparts_to_remove=None
                 ):
 
     
@@ -913,11 +886,6 @@ def main_analysis(individuals_to_remove,
     individuals = working_df.columns.get_level_values("individuals").unique()
 
     bodyparts = working_df.columns.get_level_values("bodyparts").unique()
-
-
-
-
-
 
     # einzene Metrics werden pro Individual erstellt und ins metric dataframe eingefügt
     for individual in individuals:
@@ -977,13 +945,14 @@ def main_analysis(individuals_to_remove,
 
         # speed events
         count_speed_events, speed_event_frame_idx = acceleration_events(acc)
+        count_speed_events = np.array([count_speed_events])
         metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "speed_event_count", count_speed_events)
         metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "speed_event_index", speed_event_frame_idx)
 
         # all trajectories (not regarding if a trajectory starts in the "entry area" of a module)
-        all_traj, traj_slices, len_traj, start_traj = get_all_traj(center_x, center_y)
-        metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "trajectory_start", start_traj)
-        metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "trajectory_length", len_traj)
+        #all_traj, traj_slices, len_traj, start_traj = get_all_traj(center_x, center_y)
+        #metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "trajectory_start", start_traj)
+        #metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "trajectory_length", len_traj)
 
         # posture compactness
         pc = posture_compactness(working_df, individual, bodyparts, center_x, center_y)
@@ -991,7 +960,6 @@ def main_analysis(individuals_to_remove,
 
         # body length
         bl = calculate_bodylength(working_df, individual, bodyparts)
-        print("calculate_bodylength noch testen")
         metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "body_length", bl)
 
         # orientations
@@ -1005,18 +973,18 @@ def main_analysis(individuals_to_remove,
             rear_y=rear_y
         )
 
-        print("orientations noch testen")
+
         metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "orientations", orientations)
 
         # trajectories
         traj_start, traj_end = get_all_traj(x=center_x, y=center_y, len_thr=30)
-        print("traj noch testen")
         metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "center_traj_startidx", traj_start)
         metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "center_traj_endidx", traj_end)
 
         # thetas
         stepsize = 10
         thetas = theta_analysis(
+            ind = individual,
             front_x = front_x,
             front_y = front_y,
             rear_x = rear_x,
@@ -1026,7 +994,6 @@ def main_analysis(individuals_to_remove,
             stepsize = stepsize
         )
         metrics_df = add_metric_to_metric_df(metrics_df, name, individual, f"thetas [stepsize {stepsize} frames]", thetas)
-        print("thetas noch testen")
 
         # arc chord
         _, arc_chords = arc_chord_ratio(
@@ -1038,15 +1005,30 @@ def main_analysis(individuals_to_remove,
             speed_thr=3
         )
         metrics_df = add_metric_to_metric_df(metrics_df, name, individual, "arc_chord", arc_chords)
-        print("arc_chords testen")
 
         # social investigation
+        social_metrics = social_inv(
+            working_df,
+            individual,
+            individuals=individuals,
+            pixel_per_cm=PIXEL_PER_CM,
+            max_dist_cm=2.0,
+            min_fragment_frames=10,
+            missing_policy="available",
+        )
+
+        for metric_name, values in social_metrics.items():
+            metrics_df = add_metric_to_metric_df(
+                metrics_df,
+                name,
+                individual,
+                metric_name,
+                np.asarray(values, dtype=float),
+            )
 
 
     # speichern
-
     save_metrics(metrics_df, folder_path)
-
 
 
 
