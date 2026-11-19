@@ -97,8 +97,12 @@ def get_metadata_from_json(path, camera):
     cameras = (obj["cameras"])
 
     timestamp_csv_path = os.path.join(path, f"{camera}_frames.csv")
-    df_timestamps = pd.read_csv(timestamp_csv_path)
-    runtime = int(df_timestamps["capture_sequence"].max()) + 1
+    try:
+        df_timestamps = pd.read_csv(timestamp_csv_path)
+        runtime = int(df_timestamps["capture_sequence"].max()) + 1
+    except KeyError:
+        df_timestamps = pd.read_csv(timestamp_csv_path, delimiter=";")
+        runtime = int(df_timestamps["capture_sequence"].max()) + 1
 
     camera_serial = obj["configuration"]["top_serial"]
 
@@ -151,7 +155,6 @@ def get_metadata(file_list, filetype, fps, exp_len):
         "end": endzeit,
         "date": date,
         "recording_length_frames": exp_duration_frames,
-        "exp_len": exp_len*fps,
         "animal_info": animal_info,
         "experiment_info": experiment_info,
         "camera": camera
@@ -481,7 +484,7 @@ def main_preprocessing(path, FPS, exp_len_seconds, video_filetype, filter_value,
 
         dlc_df = insert_into_working_df(dlc_df, files, filetype, metadata, filter_value)
 
-        dlc_df = crop_working_df(metadata, dlc_df)
+        #dlc_df = crop_working_df(metadata, dlc_df)
 
     metric_df = create_metric_df(metadata,
                                  dlc_df,

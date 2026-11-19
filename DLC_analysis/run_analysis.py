@@ -52,7 +52,7 @@ for mouse in mice:
 
 FPS = 30
 
-path = r"Z:\n2023_odor_related_behavior\2026_sick_behavior\raw\c3\sick\20261022_101006_953318_mice_c3_sick_home"
+path = r"Z:\n2023_odor_related_behavior\2026_sick_behavior\raw\c1\habituation\top2"
 
 preprocessing.main_preprocessing(path, FPS, None, video_filetype=".avi", filter_value=0.6)
 
