@@ -137,8 +137,13 @@ def get_metadata_from_json(path, camera):
     json_path = os.path.join(path, "session.json")
     # try to find the JSON
     json_files = glob.glob(os.path.join(json_path, "*.json"))
-    with open(json_path, 'r') as f:
-        obj = json.load(f)
+
+    try:
+        with open(json_path, 'r') as f:
+            obj = json.load(f)
+    except FileNotFoundError:
+        print(f"Warning: JSON file not found in {json_path}. Metadata extraction from JSON will be skipped.")
+        return None
 
     # print all keys in the JSON
     print("Keys in the JSON file:")
@@ -546,5 +551,5 @@ def main_preprocessing(path, FPS, exp_len_seconds, video_filetype, filter_value)
     #metric_df.to_csv(os.path.join(path, "metric_df.csv"))
     save_files(metadata, dlc_df, metric_df, path)
 
-    #move_dlc_files(path)
+    move_dlc_files(path)
 
